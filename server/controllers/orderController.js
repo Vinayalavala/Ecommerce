@@ -69,27 +69,29 @@ export const stripeWebhook = async (req, res) => {
     }
 
     switch (event.type) {
-        case 'payment_intent.succeeded':{
+        case 'payment_intent.succeeded': {
             const paymentIntent = event.data.object;
             const paymentIntentId = paymentIntent.id;
-
+        
             const session = await stripeInstance.checkout.sessions.list({
                 payment_intent: paymentIntentId,
             });
-
-            const {orderId, userId} = session.data[0].metadata;
-
-
+        
+            const { orderId, userId } = session.data[0].metadata;
+        
             // Update order status in DB
             await Order.findByIdAndUpdate(orderId, {
                 isPaid: true,
+                paymentStatus: "Paid",  // Add this to mark the payment as completed
             });
-
+        
             await User.findByIdAndUpdate(userId, {
-                cartItems:{}
-            })
+                cartItems: [],
+            });
+        
             break;
         }
+        
 
         case 'payment_intent.payment_failed':{
             const paymentIntent = event.data.object;
