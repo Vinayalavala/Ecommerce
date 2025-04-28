@@ -14,29 +14,40 @@ import { stripeWebhook } from './controllers/orderController.js';
 
 const app = express();
 const PORT = process.env.PORT || 4001;
-const allowedOrigins = ['http://localhost:5173','https://padmavatimilkpoint.vercel.app']
+const allowedOrigins = ['http://localhost:5173', 'https://padmavatimilkpoint.vercel.app'];
 
-app.post('/api/webhook', express.raw({ type: 'application/json' }),stripeWebhook)
+app.post('/api/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
 
 app.use(express.json());
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-await connectDB();
-await connectCloudinary();
+// Async initialization function for DB and Cloudinary connection
+const startServer = async () => {
+  try {
+    await connectDB();
+    await connectCloudinary();
+
+    // Start the server only after successful connections
+    app.listen(PORT, () => {
+      console.log(`Server is running on http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("Error during server initialization:", error);
+    process.exit(1); 
+  }
+};
+
+startServer();
 
 app.get('/', (req, res) => {
-    res.send("API is Working Nice");
+  res.send("API is Working Nice");
 });
 
 app.use('/api/user', userRouter);
 app.use('/api/seller', sellerRouter);
 app.use('/api/product', productRouter);
 app.use('/api/cart', cartRouter);
-app.use('/api/address', addressRouter); 
+app.use('/api/address', addressRouter);
 app.use('/api/order', orderRouter);
-
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
