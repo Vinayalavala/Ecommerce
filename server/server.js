@@ -14,7 +14,7 @@ import { stripeWebhook } from './controllers/orderController.js';
 
 const app = express();
 const PORT = process.env.PORT || 4001;
-const allowedOrigins = ['http://localhost:5173','padmavatimilkpoint.vercel.app']
+const allowedOrigins = ['http://localhost:5173','https://padmavatimilkpoint.vercel.app']
 
 app.post('/api/webhook', express.raw({ type: 'application/json' }),stripeWebhook)
 
