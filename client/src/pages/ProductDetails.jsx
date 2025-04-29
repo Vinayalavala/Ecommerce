@@ -37,7 +37,7 @@ const ProductDetails = () => {
     }
 
     return (
-        <div className="mt-12">
+        <div className="mt-16">
             <p className="text-gray-500">
                 <Link to="/">Home</Link> / 
                 <Link to="/products"> Products</Link> / 
