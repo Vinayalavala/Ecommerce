@@ -19,7 +19,7 @@ const ProductCard = ({ product }) => {
         navigate(`/products/${product.category.toLowerCase()}/${product._id}`);
         scrollTo(0, 0);
       }}
-      className="border border-gray-300 rounded-md bg-white min-w-56 max-w-56 w-full flex flex-col transition duration-200 ease-in-out hover:shadow-lg hover:-translate-y-1 hover:border-gray-400 cursor-pointer"
+      className="border border-gray-300 rounded-md bg-white min-w-auto max-w-auto w-full flex flex-col transition hover:border-gray-400 cursor-pointer"
     >
       {/* Image Container */}
       <div className="h-36 flex items-center justify-center px-2 overflow-hidden">
