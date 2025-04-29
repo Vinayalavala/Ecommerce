@@ -85,9 +85,7 @@ const placeOrder = async () => {
       });
 
       if (data.success) {
-        window.location.href = data.url; // Redirect to Stripe
-        // ❗ Do not clear cart here. 
-        // ❗ Do not navigate manually.
+        window.location.href = data.url; 
       } else {
         toast.error(data.message);
       }
