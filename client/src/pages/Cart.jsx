@@ -85,7 +85,9 @@ const placeOrder = async () => {
       });
 
       if (data.success) {
-        window.location.href = data.url; 
+        window.location.href = data.url; // Redirect to Stripe
+        // ❗ Do not clear cart here. 
+        // ❗ Do not navigate manually.
       } else {
         toast.error(data.message);
       }
@@ -108,7 +110,7 @@ const placeOrder = async () => {
   }, [user]);
 
   return products.length > 0 && cartItems ? (
-    <div className="flex flex-col md:flex-row mt-20">
+    <div className="flex flex-col md:flex-row mt-16">
       <div className="flex-1 max-w-4xl">
         <h1 className="text-3xl font-medium mb-6">
           Shopping Cart{" "}
