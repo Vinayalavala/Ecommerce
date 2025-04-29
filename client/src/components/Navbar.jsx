@@ -177,7 +177,7 @@ const Navbar = () => {
                                 <div className="text-sm font-medium">Hello, {user.name}</div>
                                 <div className="text-xs text-gray-500">{user.email}</div>
                             </div>
-                            <NavLink to='/orders' onClick={() => setOpen(false)}>My Orders</NavLink>
+                            <NavLink to='/my-orders' onClick={() => setOpen(false)}>My Orders</NavLink>
                             <button
                                 onClick={() => {
                                     setOpen(false);
