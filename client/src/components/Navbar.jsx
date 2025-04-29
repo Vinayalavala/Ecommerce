@@ -99,7 +99,7 @@ const Navbar = () => {
                         <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2">
                             <img src={assets.profile_icon} alt="user" className="w-10" />
                             <div className="text-left text-sm">
-                                <div className="font-semibold">{user.name}</div>
+                                <div className="font-semibold">Hello, {user.name}</div>
                                 <div className="text-gray-500 text-xs">{user.email}</div>
                             </div>
                         </button>
@@ -155,7 +155,7 @@ const Navbar = () => {
                     {user && (
                         <>
                             <div className="w-full border-t border-gray-200 pt-3">
-                                <div className="text-sm font-medium">{user.name}</div>
+                                <div className="text-sm font-medium">Hello, {user.name}</div>
                                 <div className="text-xs text-gray-500">{user.email}</div>
                             </div>
                             <NavLink to='/orders' onClick={() => setOpen(false)}>My Orders</NavLink>
