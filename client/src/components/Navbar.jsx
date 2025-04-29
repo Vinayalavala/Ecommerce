@@ -86,14 +86,22 @@ const Navbar = () => {
                     </button>
                 </div>
 
-                {/* User Section */}
+                {/* Show seller dashboard and login when user not logged in */}
                 {!user ? (
-                    <button
-                        onClick={() => setShowUserLogin(true)}
-                        className="cursor-pointer px-8 py-2 bg-primary hover:bg-primary-dull transition text-white rounded-full"
-                    >
-                        Login
-                    </button>
+                    <>
+                        <button
+                            onClick={() => navigate('/seller')}
+                            className="w-40 py-2.5 text-sm text-gray-600 border border-gray-300 rounded-full bg-transparent hover:bg-gray-100 active:scale-95 transition"
+                        >
+                            Seller Dashboard
+                        </button>
+                        <button
+                            onClick={() => setShowUserLogin(true)}
+                            className="cursor-pointer px-8 py-2 bg-primary hover:bg-primary-dull transition text-white rounded-full"
+                        >
+                            Login
+                        </button>
+                    </>
                 ) : (
                     <div className="relative" ref={dropdownRef}>
                         <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2">
@@ -132,6 +140,17 @@ const Navbar = () => {
 
             {/* Mobile Controls */}
             <div className='flex items-center gap-6 sm:hidden'>
+                {/* Seller Dashboard Button */}
+                {!user && (
+                    <button
+                        onClick={() => navigate('/seller')}
+                        className="w-20  py-1 text-sm text-gray-600 border border-gray-300 rounded-full bg-transparent hover:bg-gray-100 active:scale-95 transition"
+                    >
+                        Seller
+                    </button>
+                )}
+
+                {/* Cart Icon */}
                 <div onClick={() => navigate("/cart")} className="relative cursor-pointer">
                     <img src={assets.nav_cart_icon} alt="cart" className='w-6 opacity-80' />
                     <button className="absolute -top-2 -right-3 text-xs text-white bg-primary w-[18px] h-[18px] rounded-full">
