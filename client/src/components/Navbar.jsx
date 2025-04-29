@@ -117,7 +117,7 @@ const Navbar = () => {
                                 <li
                                     onClick={() => {
                                         setDropdownOpen(false);
-                                        navigate("my-orders");
+                                        navigate("/my-orders");
                                     }}
                                     className="p-2 px-4 hover:bg-primary/10 cursor-pointer"
                                 >
