@@ -1,22 +1,33 @@
 import jwt from 'jsonwebtoken';
 
 const authSeller = async (req, res, next) => {
-    const {sellerToken} = req.cookies;
+    const { sellerToken } = req.cookies;
 
     if (!sellerToken) {
         return res.status(401).json({ success: false, message: "Unauthorized access" });
     }
+
     try {
         const decoded = jwt.verify(sellerToken, process.env.JWT_SECRET);
-    
-        if (decoded.email === process.env.SELLER_EMAIL) {
-          next();
-        } else {
-          return res.status(401).json({ success: false, message: "Invalid token" });
+
+        if (!process.env.SELLER_EMAIL) {
+            console.error("SELLER_EMAIL not configured in environment variables.");
+            return res.status(500).json({ success: false, message: "Server configuration error" });
         }
-      } catch (error) {
-        res.status(401).json({ success: false, message: "Invalid or expired token" });
+
+        if (decoded.email === process.env.SELLER_EMAIL) {
+            req.seller = { email: decoded.email };  // Attach seller info if needed later
+            next();
+        } else {
+            return res.status(401).json({ success: false, message: "Invalid seller credentials" });
+        }
+        
+    } catch (error) {
+        if (process.env.NODE_ENV !== 'production') {
+            console.error("Auth Seller Error:", error.message);
+        }
+        return res.status(401).json({ success: false, message: "Invalid or expired token" });
     }
-}
+};
 
 export default authSeller;
