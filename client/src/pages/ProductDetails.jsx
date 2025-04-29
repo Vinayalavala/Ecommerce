@@ -37,38 +37,27 @@ const ProductDetails = () => {
     }
 
     return (
-        <div className="mt-20">
+        <div className="mt-12">
             <p className="text-gray-500">
                 <Link to="/">Home</Link> / 
                 <Link to="/products"> Products</Link> / 
-                <Link to={`/products/${product.category?.toLowerCase()}`}> {product.category}</Link> / 
+                <Link to={`/products/${product.category?.[0]?.toLowerCase()}`}> {product.category?.[0]}</Link> / 
                 <span className="text-primary"> {product.name}</span>
             </p>
 
             <div className="flex flex-col md:flex-row gap-16 mt-4">
-                {/* Images - Hide on mobile */}
-                <div className="flex gap-3 flex-row sm:flex-row items-start">
-                    {/* Thumbnails */}
-                    <div className="sm:flex sm:flex-col gap-3 overflow-visible sm:overflow-visible md:block ">
+                {/* Images */}
+                <div className="flex gap-3">
+                    <div className="flex flex-col gap-3">
                         {product.image.map((image, index) => (
-                            <img
-                                key={index}
-                                onClick={() => setThumbnail(image)}
-                                src={image}
-                                alt={`Thumbnail ${index + 1}`}
-                                className={`w-10 h-10 sm:w-24 sm:h-24 object-cover border rounded p-1 cursor-pointer transition hover:scale-105 ${
-                                    thumbnail === image ? 'border-primary shadow-md' : 'border-gray-400/40'
-                                }`}
-                            />
+                            <div key={index} onClick={() => setThumbnail(image)} className="border max-w-24 border-gray-500/30 rounded overflow-hidden cursor-pointer">
+                                <img src={image} alt={`Thumbnail ${index + 1}`} className="object-cover" />
+                            </div>
                         ))}
                     </div>
-
-                    {/* Main Image */}
-                    <img
-                        src={thumbnail}
-                        alt="Selected product"
-                        className="w-48 h-48 sm:w-72 sm:h-auto object-cover border border-gray-400/40 rounded p-1 transition hover:scale-105"
-                    />
+                    <div className="border border-gray-500/30 max-w-100 rounded overflow-hidden">
+                        <img src={thumbnail} alt="Selected product" className="object-cover" />
+                    </div>
                 </div>
 
                 {/* Details */}
