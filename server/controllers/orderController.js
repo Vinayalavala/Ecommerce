@@ -57,6 +57,7 @@ export const stripeWebhook = async (req, res) => {
     const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY); 
     const sig = req.headers['stripe-signature'];
     let event;
+
     try {
         event = stripeInstance.webhooks.constructEvent(
             req.body, 
@@ -65,56 +66,43 @@ export const stripeWebhook = async (req, res) => {
         );
     } catch (err) {
         console.log(`Webhook Error: ${err.message}`);
-        return res.send(`Webhook Error: ${err.message}`);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
     switch (event.type) {
         case 'payment_intent.succeeded': {
             const paymentIntent = event.data.object;
-            const paymentIntentId = paymentIntent.id;
-        
-            const session = await stripeInstance.checkout.sessions.list({
-                payment_intent: paymentIntentId,
-            });
-        
-            const { orderId, userId } = session.data[0].metadata;
-        
+            const { orderId, userId } = paymentIntent.metadata; // ✅ Directly get metadata here
+
             // Update order status in DB
             await Order.findByIdAndUpdate(orderId, {
                 isPaid: true,
-                paymentStatus: "Paid",  // Add this to mark the payment as completed
             });
-        
+
             await User.findByIdAndUpdate(userId, {
-                cartItems: [],
+                cartItems: {}
             });
-        
+
             break;
         }
-        
 
-        case 'payment_intent.payment_failed':{
+        case 'payment_intent.payment_failed': {
             const paymentIntent = event.data.object;
-            const paymentIntentId = paymentIntent.id;
+            const { orderId } = paymentIntent.metadata; // ✅ Again directly from metadata
 
-            const session = await stripeInstance.checkout.sessions.list({
-                payment_intent: paymentIntentId,
-            });
-
-            const {orderId} = session.data[0].metadata;
-
-            // Update order status in DB
+            // Delete unpaid order
             await Order.findByIdAndDelete(orderId);
             break;
         }
 
         default:
             console.error(`Unhandled event type ${event.type}`);
-            return res.send(`Unhandled event type ${event.type}`);
-            break;
+            return res.status(400).send(`Unhandled event type ${event.type}`);
     }
-    res.json({ received: true });
+
+    res.status(200).json({ received: true });
 }
+
 
 
 export const getUserOrders = async (req, res) => {
