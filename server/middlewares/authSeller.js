@@ -3,9 +3,6 @@ import jwt from 'jsonwebtoken';
 const authSeller = async (req, res, next) => {
     const { sellerToken } = req.cookies;
 
-    if (!sellerToken) {
-        return res.json({ success: false, message: "seller Token not found" });
-    }
 
     try {
         const decoded = jwt.verify(sellerToken, process.env.JWT_SECRET);
