@@ -4,13 +4,14 @@ const ContactPage = () => {
   return (
     <div className='flex flex-col mt-20 items-center justify-center h-screen '>
       <form className="flex flex-col items-center text-sm">
-        <p className="text-lg text-primary-dull font-medium pb-2">Contact Us</p>
-        <h1 className="text-4xl font-semibold text-slate-700 pb-4">Get in touch with us</h1>
-        <p className="text-sm text-gray-500 text-center pb-10">
-          Lorem Ipsum is simply dummy text of the printing and typesetting industry.
-          <br />
-          Lorem Ipsum has been the industry's standard dummy text.
-        </p>
+      <p className="text-lg text-primary-dull font-medium pb-2">Contact Us</p>
+      <h1 className="text-4xl font-semibold text-slate-700 pb-4">We'd love to hear from you</h1>
+      <p className="text-sm text-gray-500 text-center pb-10">
+        Have questions, feedback, or need support? Fill out the form below and our Developer will get back to you as soon as possible.
+        <br />
+        We're here to help and answer any questions you may have.
+      </p>
+
 
         <div className="flex flex-col md:flex-row items-center gap-8 w-[350px] md:w-[700px]">
           <div className="w-full">
