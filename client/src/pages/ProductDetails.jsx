@@ -46,18 +46,29 @@ const ProductDetails = () => {
             </p>
 
             <div className="flex flex-col md:flex-row gap-16 mt-4">
-                {/* Images */}
-                <div className="flex gap-3">
-                    <div className="flex flex-col gap-3">
+                {/* Images - Hide on mobile */}
+                <div className="flex gap-3 flex-row sm:flex-row items-start">
+                    {/* Thumbnails */}
+                    <div className="sm:flex sm:flex-col gap-3 overflow-visible sm:overflow-visible md:block ">
                         {product.image.map((image, index) => (
-                            <div key={index} onClick={() => setThumbnail(image)} className="border max-w-24 border-gray-500/30 rounded overflow-hidden cursor-pointer">
-                                <img src={image} alt={`Thumbnail ${index + 1}`} className="object-cover" />
-                            </div>
+                            <img
+                                key={index}
+                                onClick={() => setThumbnail(image)}
+                                src={image}
+                                alt={`Thumbnail ${index + 1}`}
+                                className={`w-10 h-10 sm:w-24 sm:h-24 object-cover border rounded p-1 cursor-pointer transition hover:scale-105 ${
+                                    thumbnail === image ? 'border-primary shadow-md' : 'border-gray-400/40'
+                                }`}
+                            />
                         ))}
                     </div>
-                    <div className="border border-gray-500/30 max-w-60 rounded overflow-hidden">
-                        <img src={thumbnail} alt="Selected product" className="object-cover" />
-                    </div>
+
+                    {/* Main Image */}
+                    <img
+                        src={thumbnail}
+                        alt="Selected product"
+                        className="w-48 h-48 sm:w-72 sm:h-auto object-cover border border-gray-400/40 rounded p-1 transition hover:scale-105"
+                    />
                 </div>
 
                 {/* Details */}
