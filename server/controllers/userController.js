@@ -25,14 +25,12 @@ export const register = async (req, res) => {
 
     if (!name || !email || !password) {
       return res
-        .status(400)
         .json({ success: false, message: "Please enter all the credentials" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res
-        .status(400)
         .json({ success: false, message: "User already exists" });
     }
 
@@ -51,7 +49,7 @@ export const register = async (req, res) => {
     });
   } catch (error) {
     console.log(error.message);
-    res.status(500).json({ success: false, message: error.message });
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -60,7 +58,7 @@ export const login = async (req, res) => {
   try {
     const {email, password}= req.body;
     if(!email||!password){
-      return res.status(400).json({success:false,message:"Please enter all the credentials"})
+      return res.json({success:false,message:"Please enter all the credentials"})
     }
     const user = await User.findOne({email});
 
@@ -70,14 +68,14 @@ export const login = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password,user.password);
     if(!isMatch){
-      return res.status(400).json({success:false,message:"Invalid credentials"})
+      return res.json({success:false,message:"Invalid credentials"})
     }
 
     const token = generateTokenAndSetCookie(user._id, res);
 
     const { password: _, ...userData } = user._doc;
 
-    return res.status(200).json({
+    return res.json({
       success: true,
       message: "User logged in successfully",
       user: {
@@ -88,7 +86,7 @@ export const login = async (req, res) => {
 
   } catch (error) {
     console.log(error.message);
-    res.status(500).json({ success: false, message: error.message });
+    res.json({ success: false, message: error.message });
   }
 }
 
@@ -97,14 +95,14 @@ export const isAuth = async (req, res) => {
     const user = await User.findById(req.userId).select("-password");
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.json({ success: false, message: "User not found" });
     }
 
-    res.status(200).json({ success: true, message: "User is authenticated",user });
+    res.json({ success: true, message: "User is authenticated",user });
 
   } catch (error) {
     console.log(error.message);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.json({ success: false, message: "Server error" });
   }
 };
 
@@ -116,12 +114,12 @@ export const logout = async(req,res)=>{
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     });
-    return res.status(200).json({
+    return res.json({
       success:true,
       message:"User logged out successfully"
     })
   }catch(error){
     console.log(error.message);
-    res.status(500).json({ success: false, message: error.message });
+    res.json({ success: false, message: error.message });
   }
 }

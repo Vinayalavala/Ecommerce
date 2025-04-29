@@ -5,7 +5,7 @@ export const sellerLogin = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         message: "Please enter all the credentials"
       });
@@ -50,17 +50,21 @@ export const isSellerAuth = async (req, res) => {
     const { sellerToken } = req.cookies;
 
     if (!sellerToken) {
-      return res.status(401).json({ success: false, message: "Unauthorized access" });
+      return res.json({ success: false, message: "Unauthorized access by is Seller auth" });
     }
 
+
     const decoded = jwt.verify(sellerToken, process.env.JWT_SECRET);
+    if (!decoded) {
+      return res.json({ success: false, message: "Unauthorized access by is Seller auth" });
+    }
 
     // You can verify if decoded.email === process.env.SELLER_EMAIL (optional)
     if (decoded.email !== process.env.SELLER_EMAIL) {
-      return res.status(403).json({ success: false, message: "Forbidden" });
+      return res.json({ success: false, message: "Forbidden" });
     }
 
-    res.status(200).json({
+    res.json({
       success: true,
       message: "Seller is authenticated",
       email: decoded.email,
@@ -68,7 +72,7 @@ export const isSellerAuth = async (req, res) => {
 
   } catch (error) {
     console.log(error.message);
-    res.status(401).json({ success: false, message: "Invalid or expired token" });
+    res.json({ success: false, message: "Invalid or expired token" });
   }
 };
 
@@ -80,12 +84,12 @@ export const sellerLogout = async(req,res)=>{
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
       });
-      return res.status(200).json({
+      return res.json({
         success:true,
         message:"Seller logged out successfully"
       })
     }catch(error){
       console.log(error.message);
-      res.status(500).json({ success: false, message: error.message });
+      res.json({ success: false, message: error.message });
     }
   }

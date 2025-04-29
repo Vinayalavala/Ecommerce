@@ -4,7 +4,7 @@ const authUser = async (req, res, next) => {
   const { token } = req.cookies;
 
   if (!token) {
-    return res.status(401).json({ success: false, message: "Unauthorized access" });
+    return res.json({ success: false, message: "Unauthorized access" });
   }
 
   try {
@@ -14,7 +14,7 @@ const authUser = async (req, res, next) => {
       req.user = { id: decoded.id }; // changed from req.userId
       next();
     } else {
-      return res.status(401).json({ success: false, message: "Invalid token" });
+      return res.json({ success: false, message: "Invalid token" });
     }
 
   } catch (error) {

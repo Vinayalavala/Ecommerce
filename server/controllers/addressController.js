@@ -7,7 +7,7 @@ export const addAddress = async (req, res) => {
         const { address,userId } = req.body;
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).json({
+            return res.json({
                 success: false,
                 message: "User not found"
             });
@@ -16,13 +16,13 @@ export const addAddress = async (req, res) => {
             ...address,
             userId,
         });
-        res.status(200).json({
+        res.json({
             success: true,
             message: "Address added successfully"
         });
     } catch (error) {
         console.log(error.message);
-        res.status(500).json({
+        res.json({
             success: false,
             message: error.message
         });
@@ -35,7 +35,7 @@ export const getAddress = async (req, res) => {
         const { userId } = req.query;
 
         if (!userId) {
-            return res.status(400).json({
+            return res.json({
                 success: false,
                 message: "User ID is required"
             });
@@ -50,13 +50,13 @@ export const getAddress = async (req, res) => {
             });
         }
 
-        res.status(200).json({
+        res.json({
             success: true,
             addresses
         });
     } catch (error) {
         console.error("Error fetching addresses:", error);
-        res.status(500).json({
+        res.json({
             success: false,
             message: error.message,
             stack: error.stack

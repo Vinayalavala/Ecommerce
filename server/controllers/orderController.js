@@ -8,7 +8,7 @@ export const placeOrderCOD = async (req, res) => {
         const { userId, items, address } = req.body;
 
         if (!address || items.length === 0) {
-            return res.status(400).json({
+            return res.json({
                 success: false,
                 message: "Invalid data"
             });
@@ -19,7 +19,7 @@ export const placeOrderCOD = async (req, res) => {
         for (const item of items) {
             const product = await Product.findById(item.product);
             if (!product) {
-                return res.status(404).json({
+                return res.json({
                     success: false,
                     message: `Product not found: ${item.product}`
                 });
@@ -39,14 +39,14 @@ export const placeOrderCOD = async (req, res) => {
             isPaid: true
         });
 
-        res.status(200).json({
+        res.json({
             success: true,
             message: "Order placed successfully"
         });
 
     } catch (error) {
         console.log(error.message);
-        res.status(500).json({
+        res.json({
             success: false,
             message: error.message
         });
@@ -65,7 +65,7 @@ export const stripeWebhook = async (req, res) => {
         );
     } catch (err) {
         console.log(`Webhook Error: ${err.message}`);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
+        return res.send(`Webhook Error: ${err.message}`);
     }
 
     switch (event.type) {
@@ -110,10 +110,10 @@ export const stripeWebhook = async (req, res) => {
 
         default:
             console.error(`Unhandled event type ${event.type}`);
-            return res.status(400).send(`Unhandled event type ${event.type}`);
+            return res.send(`Unhandled event type ${event.type}`);
             break;
     }
-    res.status(200).json({ received: true });
+    res.json({ received: true });
 }
 
 
@@ -122,7 +122,7 @@ export const getUserOrders = async (req, res) => {
         const { userId } = req.query; // Extract userId from query params
 
         if (!userId) {
-            return res.status(400).json({
+            return res.json({
                 success: false,
                 message: "User ID is required"
             });
@@ -137,20 +137,20 @@ export const getUserOrders = async (req, res) => {
         .sort({ createdAt: -1 });
 
         if (orders.length === 0) {
-            return res.status(404).json({
+            return res.json({
                 success: false,
                 message: "No orders found"
             });
         }
 
-        res.status(200).json({
+        res.json({
             success: true,
             orders
         });
 
     } catch (error) {
         console.log("Error fetching user orders:", error.message);
-        res.status(500).json({
+        res.json({
             success: false,
             message: "An error occurred while fetching orders"
         });
@@ -162,18 +162,18 @@ export const getAllOrders = async (req, res) => {
         const orders = await Order.find().populate("items.product address").populate("address").sort({createdAt: -1});
         
         if(!orders){
-            return res.status(404).json({
+            return res.json({
                 success: false,
                 message: "No orders found"
             })
         }
-        res.status(200).json({
+        res.json({
             success: true,
             orders
         })
     } catch (error) {
         console.log(error.message);
-        res.status(500).json({
+        res.json({
             success: false,
             message: error.message
         })
@@ -189,14 +189,14 @@ export const placeOrderStripe = async (req, res) => {
         const origin = req.headers.origin;
 
         if (!origin) {
-            return res.status(400).json({
+            return res.json({
                 success: false,
                 message: "Origin header missing",
             });
         }
 
         if (!address || !items || items.length === 0) {
-            return res.status(400).json({
+            return res.json({
                 success: false,
                 message: "Invalid order data",
             });
@@ -210,7 +210,7 @@ export const placeOrderStripe = async (req, res) => {
             const product = await Product.findById(item.product);
 
             if (!product) {
-                return res.status(404).json({
+                return res.json({
                     success: false,
                     message: `Product not found: ${item.product}`,
                 });
@@ -264,7 +264,7 @@ export const placeOrderStripe = async (req, res) => {
         });
 
         // 4. Send Stripe session URL to frontend
-        res.status(200).json({
+        res.json({
             success: true,
             url: session.url,
             message: "Stripe session created successfully",
@@ -273,7 +273,7 @@ export const placeOrderStripe = async (req, res) => {
     } catch (error) {
         console.error("Stripe Order Error:", error);
 
-        res.status(500).json({
+        res.json({
             success: false,
             message: "Server error: " + error.message,
         });
