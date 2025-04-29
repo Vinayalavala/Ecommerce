@@ -4,7 +4,7 @@ const authSeller = async (req, res, next) => {
     const { sellerToken } = req.cookies;
 
     if (!sellerToken) {
-        return res.status(401).json({ success: false, message: "Unauthorized access" });
+        return res.json({ success: false, message: "Unauthorized access" });
     }
 
     try {
