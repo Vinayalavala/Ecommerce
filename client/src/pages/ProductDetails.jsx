@@ -37,7 +37,7 @@ const ProductDetails = () => {
     }
 
     return (
-        <div className="mt-12">
+        <div className="mt-20">
             <p className="text-gray-500">
                 <Link to="/">Home</Link> / 
                 <Link to="/products"> Products</Link> / 
@@ -63,7 +63,7 @@ const ProductDetails = () => {
                             </div>
                         ))}
                     </div>
-                    <div className="border border-gray-500/30 w-[400px] h-[350px] sm:w-[450px] sm:h-[400px] md:w-[400px] md:h-[400px] lg:w-[600px] rounded overflow-hidden">
+                    <div className="border border-gray-500/30 w-[250px] h-[250px] sm:w-[450px] sm:h-[400px] md:w-[400px] md:h-[400px] lg:w-[600px] rounded overflow-hidden">
                         <img
                             src={thumbnail}
                             alt="Selected product"
