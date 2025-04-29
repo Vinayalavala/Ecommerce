@@ -71,7 +71,6 @@ const ProductDetails = () => {
                         />
                     </div>
 
-
                 </div>
 
                 {/* Details */}
