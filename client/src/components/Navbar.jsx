@@ -1,12 +1,24 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import assets from '../assets/assets';
 import { useAppContext } from '../context/appContext.jsx';
 import { toast } from 'react-hot-toast';
 
 const Navbar = () => {
-    const [open, setOpen] = React.useState(false);
-    const { axios, user, setUser, setShowUserLogin, navigate, setSearchQuery, searchQuery, getCartCount } = useAppContext();
+    const [open, setOpen] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    const {
+        axios,
+        user,
+        setUser,
+        setShowUserLogin,
+        navigate,
+        setSearchQuery,
+        searchQuery,
+        getCartCount
+    } = useAppContext();
 
     const logout = async () => {
         try {
@@ -28,6 +40,18 @@ const Navbar = () => {
             navigate('/products');
         }
     }, [searchQuery, navigate]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     return (
         <nav className="z-50 fixed top-0 left-0 w-full flex items-center justify-between px-6 md:px-16 lg:px-24 xl:px-32 py-4 border-b border-gray-300 bg-white transition-all">
@@ -57,10 +81,12 @@ const Navbar = () => {
                 {/* Cart */}
                 <div onClick={() => navigate("/cart")} className="relative cursor-pointer">
                     <img src={assets.nav_cart_icon} alt="cart" className='w-6 opacity-80' />
-                    <button className="absolute -top-2 -right-3 text-xs text-white bg-primary w-[18px] h-[18px] rounded-full">{getCartCount()}</button>
+                    <button className="absolute -top-2 -right-3 text-xs text-white bg-primary w-[18px] h-[18px] rounded-full">
+                        {getCartCount()}
+                    </button>
                 </div>
 
-                {/* User */}
+                {/* User Section */}
                 {!user ? (
                     <button
                         onClick={() => setShowUserLogin(true)}
@@ -69,22 +95,48 @@ const Navbar = () => {
                         Login
                     </button>
                 ) : (
-                    <div className='relative group flex items-center gap-2'>
-                        <img src={assets.profile_icon} alt="user" className='w-10' />
-                        <span className="text-sm font-medium">{user.name}</span>
-                        <ul className='hidden group-hover:block absolute top-12 right-0 bg-white shadow-md border border-gray-200 py-2.5 z-50 rounded-md w-[150px] text-sm'>
-                            <li onClick={() => navigate("my-orders")} className='p-1.5 pl-3 hover:bg-primary/10 cursor-pointer'>My Orders</li>
-                            <li onClick={logout} className='p-1.5 pl-3 hover:bg-primary/10 cursor-pointer'>Logout</li>
-                        </ul>
+                    <div className="relative" ref={dropdownRef}>
+                        <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2">
+                            <img src={assets.profile_icon} alt="user" className="w-10" />
+                            <div className="text-left text-sm">
+                                <div className="font-semibold">{user.name}</div>
+                                <div className="text-gray-500 text-xs">{user.email}</div>
+                            </div>
+                        </button>
+
+                        {dropdownOpen && (
+                            <ul className="absolute top-14 right-0 bg-white shadow-md border border-gray-200 py-2.5 z-50 rounded-md w-[180px] text-sm">
+                                <li
+                                    onClick={() => {
+                                        setDropdownOpen(false);
+                                        navigate("my-orders");
+                                    }}
+                                    className="p-2 px-4 hover:bg-primary/10 cursor-pointer"
+                                >
+                                    My Orders
+                                </li>
+                                <li
+                                    onClick={() => {
+                                        setDropdownOpen(false);
+                                        logout();
+                                    }}
+                                    className="p-2 px-4 hover:bg-primary/10 cursor-pointer"
+                                >
+                                    Logout
+                                </li>
+                            </ul>
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Controls */}
             <div className='flex items-center gap-6 sm:hidden'>
                 <div onClick={() => navigate("/cart")} className="relative cursor-pointer">
                     <img src={assets.nav_cart_icon} alt="cart" className='w-6 opacity-80' />
-                    <button className="absolute -top-2 -right-3 text-xs text-white bg-primary w-[18px] h-[18px] rounded-full">{getCartCount()}</button>
+                    <button className="absolute -top-2 -right-3 text-xs text-white bg-primary w-[18px] h-[18px] rounded-full">
+                        {getCartCount()}
+                    </button>
                 </div>
 
                 <button onClick={() => setOpen(!open)} aria-label="Menu">
@@ -92,21 +144,34 @@ const Navbar = () => {
                 </button>
             </div>
 
-            {/* Mobile Dropdown Menu */}
+            {/* Mobile Menu Dropdown */}
             {open && (
-                <div className="z-40 absolute top-[70px] left-0 w-full bg-white shadow-md py-4 flex flex-col items-start gap-3 px-5 text-sm md:hidden">
-                    {user && (
-                        <div className="flex items-center gap-2 mb-2">
-                            <img src={assets.profile_icon} alt="user" className='w-8' />
-                            <span className="font-medium">Hello, {user.name}</span>
-                        </div>
-                    )}
+                <div className="z-40 absolute top-[70px] left-0 w-full bg-white shadow-md py-4 flex flex-col items-start gap-2 px-5 text-sm md:hidden">
                     <NavLink to='/' onClick={() => setOpen(false)}>Home</NavLink>
                     <NavLink to='/products' onClick={() => setOpen(false)}>All Products</NavLink>
-                    {user && <NavLink to='/orders' onClick={() => setOpen(false)}>My Orders</NavLink>}
                     <NavLink to='/contact' onClick={() => setOpen(false)}>Contact</NavLink>
 
-                    {!user ? (
+                    {/* If user is logged in, show their info */}
+                    {user && (
+                        <>
+                            <div className="w-full border-t border-gray-200 pt-3">
+                                <div className="text-sm font-medium">{user.name}</div>
+                                <div className="text-xs text-gray-500">{user.email}</div>
+                            </div>
+                            <NavLink to='/orders' onClick={() => setOpen(false)}>My Orders</NavLink>
+                            <button
+                                onClick={() => {
+                                    setOpen(false);
+                                    logout();
+                                }}
+                                className="cursor-pointer px-6 py-2 mt-2 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm"
+                            >
+                                Logout
+                            </button>
+                        </>
+                    )}
+
+                    {!user && (
                         <button
                             onClick={() => {
                                 setOpen(false);
@@ -115,16 +180,6 @@ const Navbar = () => {
                             className="cursor-pointer px-6 py-2 mt-2 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm"
                         >
                             Login
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => {
-                                setOpen(false);
-                                logout();
-                            }}
-                            className="cursor-pointer px-6 py-2 mt-2 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm"
-                        >
-                            Logout
                         </button>
                     )}
                 </div>
