@@ -102,17 +102,27 @@ export const isAuth = async (req, res) => {
 };
 
 // User logout
+// logoutController.js
 export const logout = async (req, res) => {
   try {
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    });
+    // Check if token cookie exists before trying to clear
+    const tokenExists = req.cookies && req.cookies.token;
 
-    res.status(200).json({ success: true, message: "User logged out successfully" });
+    if (tokenExists) {
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",  // ensures only HTTPS in production
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // needed for cross-site cookies
+        path: "/",  // ensure it matches the path used when setting the cookie
+      });
+
+      res.status(200).json({ success: true, message: "User logged out successfully" });
+    } else {
+      res.status(400).json({ success: false, message: "No token found in cookies" });
+    }
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Logout Error:", error.message);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
