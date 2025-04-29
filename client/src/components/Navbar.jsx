@@ -69,9 +69,10 @@ const Navbar = () => {
                         Login
                     </button>
                 ) : (
-                    <div className='relative group'>
+                    <div className='relative group flex items-center gap-2'>
                         <img src={assets.profile_icon} alt="user" className='w-10' />
-                        <ul className='hidden group-hover:block absolute top-10 right-0 bg-white shadow-md border border-gray-200 py-2.5 z-50 rounded-md w-[150px] text-sm'>
+                        <span className="text-sm font-medium">{user.name}</span>
+                        <ul className='hidden group-hover:block absolute top-12 right-0 bg-white shadow-md border border-gray-200 py-2.5 z-50 rounded-md w-[150px] text-sm'>
                             <li onClick={() => navigate("my-orders")} className='p-1.5 pl-3 hover:bg-primary/10 cursor-pointer'>My Orders</li>
                             <li onClick={logout} className='p-1.5 pl-3 hover:bg-primary/10 cursor-pointer'>Logout</li>
                         </ul>
@@ -93,7 +94,13 @@ const Navbar = () => {
 
             {/* Mobile Dropdown Menu */}
             {open && (
-                <div className="z-40 absolute top-[70px] left-0 w-full bg-white shadow-md py-4 flex flex-col items-start gap-2 px-5 text-sm md:hidden">
+                <div className="z-40 absolute top-[70px] left-0 w-full bg-white shadow-md py-4 flex flex-col items-start gap-3 px-5 text-sm md:hidden">
+                    {user && (
+                        <div className="flex items-center gap-2 mb-2">
+                            <img src={assets.profile_icon} alt="user" className='w-8' />
+                            <span className="font-medium">Hello, {user.name}</span>
+                        </div>
+                    )}
                     <NavLink to='/' onClick={() => setOpen(false)}>Home</NavLink>
                     <NavLink to='/products' onClick={() => setOpen(false)}>All Products</NavLink>
                     {user && <NavLink to='/orders' onClick={() => setOpen(false)}>My Orders</NavLink>}
