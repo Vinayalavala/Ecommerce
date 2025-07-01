@@ -3,8 +3,7 @@ import jwt from 'jsonwebtoken';
 const authSeller = async (req, res, next) => {
   const { sellerToken } = req.cookies;
 
-  // Debug: Log incoming cookies
-  console.log("Incoming cookies:", req.cookies);
+  console.log("Incoming cookies:", req.cookies); // Debugging cookies
 
   if (!sellerToken) {
     return res.status(401).json({ success: false, message: "No token provided" });
@@ -24,7 +23,6 @@ const authSeller = async (req, res, next) => {
     } else {
       return res.status(403).json({ success: false, message: "Invalid seller credentials" });
     }
-
   } catch (error) {
     console.error("Auth Seller Error:", error.message);
     return res.status(401).json({ success: false, message: "Invalid or expired token" });
