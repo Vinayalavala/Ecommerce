@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 4001;
 const allowedOrigins = [
   'http://localhost:5173',
   'https://padmavatimilkpoint.vercel.app',
+  'https://vishwaadhika.vercel.app'
 ];
 
 // Stripe Webhook route: must be before express.json()
