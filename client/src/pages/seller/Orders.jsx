@@ -2,27 +2,48 @@ import { useAppContext } from '../../context/appContext';
 import { useState, useEffect } from 'react';
 import assets from '../../assets/assets';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Orders = () => {
-    const { currency, axios } = useAppContext(); // Corrected here: add the parentheses for calling the hook.
+    const { currency, axios } = useAppContext();
     const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     const fetchOrders = async () => {
         try {
-            const { data } = await axios.get('/api/order/seller');
+            const { data } = await axios.get('/api/order/seller', {
+                withCredentials: true,
+            });
+
             if (data.success) {
                 setOrders(data.orders);
             } else {
-                toast.error(data.message);
+                toast.error(data.message || "Failed to fetch orders.");
             }
         } catch (error) {
-            toast.error(error.message);
+            if (error.response && error.response.status === 401) {
+                toast.error("Unauthorized. Please log in.");
+                navigate("/seller-login");
+            } else {
+                toast.error(error.message || "Something went wrong.");
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
     useEffect(() => {
         fetchOrders();
     }, []);
+
+    if (loading) {
+        return <div className="p-10 text-center">Loading Orders...</div>;
+    }
+
+    if (orders.length === 0) {
+        return <div className="p-10 text-center">No orders found.</div>;
+    }
 
     return (
         <div className='no-scrollbar flex-1 h-[95vh] overflow-y-scroll'>
@@ -31,12 +52,19 @@ const Orders = () => {
                 {orders.map((order, index) => (
                     <div key={index} className="flex flex-col md:flex-row justify-between md:items-center gap-5 p-5 max-w-4xl rounded-md border border-gray-300">
                         <div className="flex gap-5 max-w-80">
-                            <img className="w-12 h-12 object-cover" src={assets.box_icon} alt="boxIcon" />
+                            <img
+                                className="w-12 h-12 object-cover"
+                                src={assets.box_icon}
+                                alt="boxIcon"
+                            />
                             <div>
-                                {order.items.map((item, index) => (
-                                    <div key={index} className="flex flex-col">
+                                {order.items?.map((item, itemIndex) => (
+                                    <div key={itemIndex} className="flex flex-col">
                                         <p className="font-medium">
-                                            {item.product.name}{" "} <span className={"text-primary"}>x {item.quantity}</span>
+                                            {item.product?.name || "Unnamed Product"}{" "}
+                                            <span className={"text-primary"}>
+                                                x {item.quantity}
+                                            </span>
                                         </p>
                                     </div>
                                 ))}
@@ -45,22 +73,28 @@ const Orders = () => {
 
                         <div className="text-sm md:text-base text-black/60">
                             <p className='text-black/80'>
-                                {order.address.firstName} {order.address.lastName}
+                                {order.address?.firstName || ""}{" "}
+                                {order.address?.lastName || ""}
                             </p>
                             <p>
-                                {order.address.street}, {order.address.city}
+                                {order.address?.street || ""},{" "}
+                                {order.address?.city || ""}
                             </p>
                             <p>
-                                {order.address.state}, {order.address.zipcode}, {order.address.country}
+                                {order.address?.state || ""},{" "}
+                                {order.address?.zipcode || ""},{" "}
+                                {order.address?.country || ""}
                             </p>
-                            <p>{order.address.phone}</p>
+                            <p>{order.address?.phone || ""}</p>
                         </div>
 
-                        <p className="font-medium text-lg my-auto text-black/70">{currency}{order.amount}</p>
+                        <p className="font-medium text-lg my-auto text-black/70">
+                            {currency}{order.amount?.toFixed(2) || "0.00"}
+                        </p>
 
                         <div className="flex flex-col text-sm md:text-base text-black/60">
-                            <p>Method: {order.paymentType}</p>
-                            <p>Date: {new Date(order.createdAt).toLocaleDateString()}</p>
+                            <p>Method: {order.paymentType || "N/A"}</p>
+                            <p>Date: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "N/A"}</p>
                             <p>Payment: {order.isPaid ? "Paid" : "Pending"}</p>
                         </div>
                     </div>

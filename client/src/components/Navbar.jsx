@@ -61,7 +61,7 @@ const Navbar = () => {
             </NavLink>
 
             {/* Desktop Menu */}
-            <div className="hidden sm:flex items-center gap-8">
+            <div className="hidden sm:flex whitespace-nowrap items-center gap-8">
                 <NavLink to='/'>Home</NavLink>
                 <NavLink to='/products'>All Products</NavLink>
                 <NavLink to='/contact'>Contact</NavLink>
@@ -91,9 +91,9 @@ const Navbar = () => {
                     <>
                         <button
                             onClick={() => navigate('/seller')}
-                            className="w-40 py-2.5 text-sm text-gray-600 border border-gray-300 rounded-full bg-transparent hover:bg-gray-100 active:scale-95 transition"
+                            className="w-20 py-2.5 text-sm text-gray-600 border border-gray-300 rounded-full bg-transparent hover:bg-gray-100 active:scale-95 transition"
                         >
-                            Seller Dashboard
+                            Seller
                         </button>
                         <button
                             onClick={() => setShowUserLogin(true)}
@@ -144,7 +144,7 @@ const Navbar = () => {
                 {!user && (
                     <button
                         onClick={() => navigate('/seller')}
-                        className="w-20  py-1 text-sm text-gray-600 border border-gray-300 rounded-full bg-transparent hover:bg-gray-100 active:scale-95 transition"
+                        className="w-40  py-1 text-sm text-gray-600 border border-gray-300 rounded-full bg-transparent hover:bg-gray-100 active:scale-95 transition"
                     >
                         Seller
                     </button>

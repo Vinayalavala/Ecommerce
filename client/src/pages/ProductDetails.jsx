@@ -39,11 +39,12 @@ const ProductDetails = () => {
     return (
         <div className="mt-20">
             <p className="text-gray-500">
-                <Link to="/">Home</Link> / 
-                <Link to="/products"> Products</Link> / 
-                <Link to={`/products/${product.category?.[0]?.toLowerCase()}`}> {product.category?.[0]}</Link> / 
-                <span className="text-primary"> {product.name}</span>
+            <Link to="/">Home</Link> / 
+            <Link to="/products"> Products</Link> / 
+            <Link to={`/products/${product.category?.toLowerCase()}`}> {product.category}</Link> / 
+            <span className="text-primary"> {product.name}</span>
             </p>
+
 
             <div className="flex flex-col md:flex-row gap-16 mt-4">
                 {/* Images */}
