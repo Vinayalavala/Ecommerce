@@ -9,7 +9,8 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState("all"); // NEW
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const navigate = useNavigate();
 
   const fetchOrders = async () => {
@@ -17,7 +18,6 @@ const Orders = () => {
       const { data } = await axios.get('/api/order/seller', {
         withCredentials: true,
       });
-
       if (data.success) {
         setOrders(data.orders);
       } else {
@@ -37,22 +37,15 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const markOrderAsPaid = async (orderId) => {
     try {
       const { data } = await axios.patch(`/api/order/${orderId}/mark-paid`);
-
       if (data.success) {
         toast.success("Order marked as paid.");
-
-        setOrders((prevOrders) =>
-          prevOrders.map((order) =>
-            order._id === orderId
-              ? { ...order, isPaid: true }
-              : order
-          )
+        setOrders((prev) =>
+          prev.map((o) => (o._id === orderId ? { ...o, isPaid: true } : o))
         );
       } else {
         toast.error(data.message || "Failed to mark order as paid.");
@@ -63,8 +56,7 @@ const Orders = () => {
   };
 
   const groupedOrders = orders.reduce((acc, order) => {
-    const date = new Date(order.createdAt);
-    const dateStr = date.toDateString();
+    const dateStr = new Date(order.createdAt).toDateString();
     if (!acc[dateStr]) acc[dateStr] = [];
     acc[dateStr].push(order);
     return acc;
@@ -73,16 +65,12 @@ const Orders = () => {
   const formatHeading = (dateStr) => {
     const now = new Date();
     const inputDate = new Date(dateStr);
-
     const isToday = now.toDateString() === inputDate.toDateString();
-
     const yesterday = new Date();
     yesterday.setDate(now.getDate() - 1);
     const isYesterday = yesterday.toDateString() === inputDate.toDateString();
-
     if (isToday) return 'Today';
     if (isYesterday) return 'Yesterday';
-
     return inputDate.toLocaleDateString(undefined, {
       weekday: 'long',
       year: 'numeric',
@@ -91,44 +79,50 @@ const Orders = () => {
     });
   };
 
+  const allCategories = Array.from(
+    new Set(
+      orders
+        .flatMap((order) =>
+          order.items.map((item) => item.product?.category || item.category || "Unknown")
+        )
+        .filter(Boolean)
+    )
+  );
+
   const filterOrder = (order) => {
     const search = searchTerm.toLowerCase();
-
-    // Check textual search
     const matchesText =
       order._id.toLowerCase().includes(search) ||
       `${order.address?.firstName || ""} ${order.address?.lastName || ""}`
         .toLowerCase()
         .includes(search) ||
-      new Date(order.createdAt)
-        .toISOString()
-        .split("T")[0]
-        .includes(search);
+      new Date(order.createdAt).toISOString().split("T")[0].includes(search);
 
-    // Check payment filter
     const matchesPayment =
       paymentFilter === "all" ||
       (paymentFilter === "paid" && order.isPaid) ||
       (paymentFilter === "pending" && !order.isPaid);
 
-    return matchesText && matchesPayment;
+    const categoriesInOrder = order.items.map(
+      (item) => item.product?.category || item.category || "Unknown"
+    );
+    const matchesCategory =
+      categoryFilter === "all" ||
+      categoriesInOrder.includes(categoryFilter);
+
+    return matchesText && matchesPayment && matchesCategory;
   };
 
-  if (loading) {
-    return <div className="p-10 text-center">Loading Orders...</div>;
-  }
-
-  if (orders.length === 0) {
-    return <div className="p-10 text-center">No orders found.</div>;
-  }
+  if (loading) return <div className="p-10 text-center">Loading Orders...</div>;
+  if (orders.length === 0) return <div className="p-10 text-center">No orders found.</div>;
 
   return (
     <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll">
       <div className="md:p-10 p-4 space-y-8">
         <h2 className="text-lg font-medium">Orders List</h2>
 
-        {/* Search + Filter UI */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-wrap">
           <input
             type="text"
             value={searchTerm}
@@ -147,48 +141,59 @@ const Orders = () => {
             <option value="pending">Pending</option>
           </select>
 
-          {searchTerm || paymentFilter !== "all" ? (
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="border border-gray-300 rounded px-4 py-2 text-gray-700 focus:outline-none focus:ring focus:border-primary"
+          >
+            <option value="all">All Categories</option>
+            {allCategories.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+
+          {(searchTerm || paymentFilter !== "all" || categoryFilter !== "all") && (
             <button
               onClick={() => {
                 setSearchTerm("");
                 setPaymentFilter("all");
+                setCategoryFilter("all");
               }}
               className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-gray-700"
             >
               Clear
             </button>
-          ) : null}
+          )}
         </div>
 
         {/* Orders grouped by date */}
         {Object.keys(groupedOrders)
-  .sort((a, b) => new Date(b) - new Date(a))
-  .map((dateKey) => {
-    const filtered = groupedOrders[dateKey].filter(filterOrder);
-    if (filtered.length === 0) return null;
+          .sort((a, b) => new Date(b) - new Date(a))
+          .map((dateKey) => {
+            const filtered = groupedOrders[dateKey].filter(filterOrder);
+            if (filtered.length === 0) return null;
 
-    return (
-      <div key={dateKey}>
-        <h3 className="text-xl font-semibold text-primary mt-8 mb-2">
-          {formatHeading(dateKey)}{" "}
-          <span className="text-gray-500 text-base font-normal">
-            ({filtered.length} order{filtered.length > 1 ? "s" : ""})
-          </span>
-        </h3>
-        <div className="space-y-4">
-          {filtered.map((order) => (
-            <OrderCard
-              key={order._id}
-              order={order}
-              currency={currency}
-              onMarkAsPaid={markOrderAsPaid}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  })}
-
+            return (
+              <div key={dateKey}>
+                <h3 className="text-xl font-semibold text-primary mt-8 mb-2">
+                  {formatHeading(dateKey)}{" "}
+                  <span className="text-gray-500 text-base font-normal">
+                    ({filtered.length} order{filtered.length > 1 ? "s" : ""})
+                  </span>
+                </h3>
+                <div className="space-y-4">
+                  {filtered.map((order) => (
+                    <OrderCard
+                      key={order._id}
+                      order={order}
+                      currency={currency}
+                      onMarkAsPaid={markOrderAsPaid}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );
@@ -255,9 +260,7 @@ const OrderCard = ({ order, currency, onMarkAsPaid }) => {
               className="font-medium text-gray-800"
             >
               {item.product?.name || item.name || 'Unnamed Product'}{" "}
-              <span className="text-primary">
-                x {item.quantity}
-              </span>
+              <span className="text-primary">x {item.quantity}</span>
             </p>
           ))}
         </div>
