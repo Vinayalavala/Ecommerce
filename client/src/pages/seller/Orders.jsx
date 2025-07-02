@@ -162,29 +162,33 @@ const Orders = () => {
 
         {/* Orders grouped by date */}
         {Object.keys(groupedOrders)
-          .sort((a, b) => new Date(b) - new Date(a))
-          .map((dateKey) => {
-            const filtered = groupedOrders[dateKey].filter(filterOrder);
-            if (filtered.length === 0) return null;
+  .sort((a, b) => new Date(b) - new Date(a))
+  .map((dateKey) => {
+    const filtered = groupedOrders[dateKey].filter(filterOrder);
+    if (filtered.length === 0) return null;
 
-            return (
-              <div key={dateKey}>
-                <h3 className="text-xl font-semibold text-primary mt-8 mb-4">
-                  {formatHeading(dateKey)}
-                </h3>
-                <div className="space-y-4">
-                  {filtered.map((order) => (
-                    <OrderCard
-                      key={order._id}
-                      order={order}
-                      currency={currency}
-                      onMarkAsPaid={markOrderAsPaid}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+    return (
+      <div key={dateKey}>
+        <h3 className="text-xl font-semibold text-primary mt-8 mb-2">
+          {formatHeading(dateKey)}{" "}
+          <span className="text-gray-500 text-base font-normal">
+            ({filtered.length} order{filtered.length > 1 ? "s" : ""})
+          </span>
+        </h3>
+        <div className="space-y-4">
+          {filtered.map((order) => (
+            <OrderCard
+              key={order._id}
+              order={order}
+              currency={currency}
+              onMarkAsPaid={markOrderAsPaid}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  })}
+
       </div>
     </div>
   );
@@ -326,4 +330,3 @@ const OrderAddress = ({ address }) => {
 };
 
 export default Orders;
-
