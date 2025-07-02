@@ -91,6 +91,7 @@ const MyOrders = () => {
     latestDate: orders
       .map((o) => new Date(o.createdAt))
       .sort((a, b) => b - a)[0],
+    totalAmount: orders.reduce((sum, o) => sum + o.amount, 0), // ✅ compute daily total
   }));
 
   if (sortOption === 'date_desc') {
@@ -155,8 +156,12 @@ const MyOrders = () => {
       {groupedArray.map((group) => (
         <div key={group.label}>
           <h3 className='text-lg font-semibold text-gray-700 mb-4'>
-            {group.label} ({group.count} order{group.count > 1 ? 's' : ''})
+            {group.label} ({group.count} order{group.count > 1 ? 's' : ''}) - 
+            <span className='text-primary ml-2'>
+              Total: {currency} {group.totalAmount.toFixed(2)}
+            </span>
           </h3>
+
           {group.orders.map((order, index) => (
             <div
               key={index}
