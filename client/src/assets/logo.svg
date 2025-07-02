@@ -1,8 +1,8 @@
-<svg width="200" height="100" viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+<svg width="300" height="120" viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg">
   <style>
     .text {
       font-family: 'Georgia', serif;
-      font-size: 28px;
+      font-size: 25px;
       font-weight: bold;
       fill: #4FBF8B;
     }
@@ -14,6 +14,7 @@
     text-anchor="middle"
     dominant-baseline="middle"
   >
-    Vishwaadhika
+    <tspan x="50%" dy="-15">Padmavati</tspan>
+    <tspan x="50%" dy="30">milk point</tspan>
   </text>
 </svg>
