@@ -55,6 +55,27 @@ const Orders = () => {
     }
   };
 
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const { data } = await axios.put(
+        `/api/order/${orderId}/status`,
+        { status: newStatus }
+      );
+      if (data.success) {
+        toast.success("Order status updated.");
+        setOrders((prev) =>
+          prev.map((o) =>
+            o._id === orderId ? { ...o, status: newStatus } : o
+          )
+        );
+      } else {
+        toast.error(data.message || "Failed to update order status.");
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message || "Failed to update order status.");
+    }
+  };
+
   const groupedOrders = orders.reduce((acc, order) => {
     const dateStr = new Date(order.createdAt).toDateString();
     if (!acc[dateStr]) acc[dateStr] = [];
@@ -188,6 +209,7 @@ const Orders = () => {
                       order={order}
                       currency={currency}
                       onMarkAsPaid={markOrderAsPaid}
+                      onUpdateStatus={updateOrderStatus}
                     />
                   ))}
                 </div>
@@ -199,16 +221,25 @@ const Orders = () => {
   );
 };
 
-const OrderCard = ({ order, currency, onMarkAsPaid }) => {
+const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
   const navigate = useNavigate();
   const [isUpdating, setIsUpdating] = useState(false);
   const [localIsPaid, setLocalIsPaid] = useState(order.isPaid);
+  const [localStatus, setLocalStatus] = useState(order.status || "Order Placed");
 
   const handleTogglePaid = async () => {
     if (localIsPaid || isUpdating) return;
     setIsUpdating(true);
     await onMarkAsPaid(order._id);
     setLocalIsPaid(true);
+    setIsUpdating(false);
+  };
+
+  const handleStatusChange = async (e) => {
+    const newStatus = e.target.value;
+    setLocalStatus(newStatus);
+    setIsUpdating(true);
+    await onUpdateStatus(order._id, newStatus);
     setIsUpdating(false);
   };
 
@@ -282,7 +313,7 @@ const OrderCard = ({ order, currency, onMarkAsPaid }) => {
         {typeof order.amount === "number" ? order.amount.toFixed(2) : "0.00"}
       </p>
 
-      {/* Payment Info */}
+      {/* Payment + Status */}
       <div className="flex flex-col text-sm md:text-base text-black/60 space-y-1">
         <p>Method: {order.paymentType || "N/A"}</p>
         <p>Time: {timeStr}</p>
@@ -307,6 +338,22 @@ const OrderCard = ({ order, currency, onMarkAsPaid }) => {
             `}></div>
           </div>
         </label>
+
+        <div className="mt-2">
+          <span className="text-sm text-gray-600 mr-2">Status:</span>
+          <select
+            value={localStatus}
+            onChange={handleStatusChange}
+            disabled={isUpdating}
+            className="border border-gray-300 rounded px-2 py-1 text-sm"
+          >
+            <option value="Order Placed">Order Placed</option>
+            <option value="Processing">Processing</option>
+            <option value="Shipped">Shipped</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
 
         {isUpdating && <p className="text-xs text-blue-500">Updating...</p>}
       </div>
