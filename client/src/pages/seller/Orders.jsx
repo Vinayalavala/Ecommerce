@@ -250,19 +250,20 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
 
   return (
     <div className="flex flex-col md:flex-row justify-between md:items-center gap-5 p-5 max-w-5xl rounded-md border border-gray-300 shadow-sm hover:shadow-md transition">
-      {/* Left: Product images and names */}
-      <div className="flex gap-5 max-w-96">
-        <div className="flex flex-col gap-3">
-          {order.items?.map((item) => {
-            const productId = item.product?._id;
-            const imageSrc = item.product?.image?.[0] || assets.box_icon;
-            const productName = item.product?.name || item.name || 'Unnamed Product';
+      
+      {/* Left: Product images and names aligned horizontally */}
+      <div className="flex flex-col gap-3 max-w-96">
+        {order.items?.map((item) => {
+          const productId = item.product?._id;
+          const imageSrc = item.product?.image?.[0] || assets.box_icon;
+          const productName = item.product?.name || item.name || 'Unnamed Product';
 
-            return (
-              <div
-                key={item._id || productId || Math.random()}
-                className="group relative"
-              >
+          return (
+            <div
+              key={item._id || productId || Math.random()}
+              className="flex items-center gap-3"
+            >
+              <div className="group relative flex-shrink-0">
                 <img
                   src={imageSrc}
                   alt={productName}
@@ -280,21 +281,14 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
                   View Details
                 </div>
               </div>
-            );
-          })}
-        </div>
 
-        <div className="flex flex-col justify-center">
-          {order.items?.map((item) => (
-            <p
-              key={item._id || item.product?._id || Math.random()}
-              className="font-medium text-gray-800"
-            >
-              {item.product?.name || item.name || 'Unnamed Product'}{" "}
-              <span className="text-primary">x {item.quantity}</span>
-            </p>
-          ))}
-        </div>
+              <p className="font-medium text-gray-800 truncate">
+                {productName}{" "}
+                <span className="text-primary">x {item.quantity}</span>
+              </p>
+            </div>
+          );
+        })}
       </div>
 
       {/* Address */}
