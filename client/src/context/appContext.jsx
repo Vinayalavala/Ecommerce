@@ -24,16 +24,14 @@ export const AppContextProvider = ({ children }) => {
   const fetchSeller = async () => {
     try {
       const { data } = await axios.get('/api/seller/is-auth');
-      if (data.success) {
-        setIsSeller(true);
-      } else {
-        setIsSeller(false);
-      }
+      setIsSeller(data.success);
     } catch (error) {
       setIsSeller(false);
       console.error("Seller auth error:", error?.message || error);
     }
   };
+
+
 
   const fetchUser = async () => {
     try {
@@ -169,6 +167,8 @@ export const AppContextProvider = ({ children }) => {
     getCartAmount,
     axios,
     loading,
+    fetchUser,       // ✅ Optional if you want to refresh from other components
+    fetchSeller,     // ✅ Optional for seller dashboards
   };
 
   return (
