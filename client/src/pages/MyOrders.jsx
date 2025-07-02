@@ -129,6 +129,8 @@ const MyOrders = () => {
           >
             <option value='All'>All Statuses</option>
             <option value='Pending'>Pending</option>
+            <option value='Processing'>Processing</option>
+            <option value='Shipped'>Shipped</option>
             <option value='Delivered'>Delivered</option>
             <option value='Cancelled'>Cancelled</option>
           </select>
@@ -160,10 +162,12 @@ const MyOrders = () => {
               key={index}
               className='border border-gray-300 rounded-lg mb-6 p-4 py-5'
             >
-              <div className='flex justify-between text-gray-600 text-sm font-medium mb-4 flex-wrap gap-2'>
-                <span>OrderId: {order._id}</span>
-                <span>Payment: {order.paymentType}</span>
-                <span>Total: {currency} {order.amount.toFixed(2)}</span>
+              {/* Order summary */}
+              <div className='flex flex-wrap justify-between text-gray-600 text-sm font-medium mb-4 gap-2'>
+                <span><span className='text-gray-500'>Order ID:</span> {order._id}</span>
+                <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
+                <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
+                <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
               </div>
 
               {(order.items || []).map((item, idx) => (
@@ -209,7 +213,6 @@ const MyOrders = () => {
                         Category: {item.product?.category || 'N/A'}
                       </p>
                       <p className="text-sm">Qty: {item.quantity}</p>
-                      <p className="text-sm">Status: {order.status}</p>
                       <p className="text-sm">
                         Ordered On: {new Date(order.createdAt).toLocaleString()}
                       </p>
