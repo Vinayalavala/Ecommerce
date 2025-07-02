@@ -23,6 +23,7 @@ const Cart = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentOption, setPaymentOption] = useState("COD");
   const [cartTotal, setCartTotal] = useState(0);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0); // ✅ Added cooldown
 
   const getCart = () => {
     let tempArray = [];
@@ -41,61 +42,68 @@ const Cart = () => {
 
   const getUserAddress = async () => {
     try {
-        const { data } = await axios.get(`/api/address/get?userId=${user._id}`);
-        if (data.success) {
-            setAddresses(data.addresses);
-            if (data.addresses.length > 0) {
-                setSelectedAddress(data.addresses[0]);
-            } 
-        } else {
-            toast.error(data.message);
+      const { data } = await axios.get(`/api/address/get?userId=${user._id}`);
+      if (data.success) {
+        setAddresses(data.addresses);
+        if (data.addresses.length > 0) {
+          setSelectedAddress(data.addresses[0]);
         }
+      } else {
+        toast.error(data.message);
+      }
     } catch (error) {
-        toast.error(error.message);
+      toast.error(error.message);
     }
-};
+  };
 
-
-const placeOrder = async () => {
-  try {
-    if (!selectedAddress) {
-      toast.error("Please select a delivery address.");
-      return;
-    }
-
-    if (paymentOption === "COD") {
-      const { data } = await axios.post("/api/order/cod", {
-        userId: user._id,
-        items: cartArray.map(item => ({ product: item._id, quantity: item.quantity })),
-        address: selectedAddress._id,
-      });
-
-      if (data.success) {
-        toast.success(data.message);
-        setCartItems({});
-        navigate("/my-orders");
-      } else {
-        toast.error(data.message);
+  const placeOrder = async () => {
+    try {
+      if (!selectedAddress) {
+        toast.error("Please select a delivery address.");
+        return;
       }
-    } else {
-      const { data } = await axios.post("/api/order/stripe", {
-        userId: user._id,
-        items: cartArray.map(item => ({ product: item._id, quantity: item.quantity })),
-        address: selectedAddress._id,
-      });
 
-      if (data.success) {
-        window.location.href = data.url; // Redirect to Stripe
-        // ❗ Do not clear cart here. 
-        // ❗ Do not navigate manually.
+      if (paymentOption === "COD") {
+        const { data } = await axios.post("/api/order/cod", {
+          userId: user._id,
+          items: cartArray.map(item => ({
+            product: item._id,
+            quantity: item.quantity
+          })),
+          address: selectedAddress._id,
+          isPaid: false,
+        });
+
+        if (data.success) {
+          toast.success(data.message);
+          setCartItems({});
+          navigate("/my-orders");
+
+          // ✅ Start cooldown after successful order
+          setCooldownSeconds(10);
+        } else {
+          toast.error(data.message);
+        }
       } else {
-        toast.error(data.message);
+        const { data } = await axios.post("/api/order/stripe", {
+          userId: user._id,
+          items: cartArray.map(item => ({
+            product: item._id,
+            quantity: item.quantity
+          })),
+          address: selectedAddress._id,
+        });
+
+        if (data.success) {
+          window.location.href = data.url;
+        } else {
+          toast.error(data.message);
+        }
       }
+    } catch (error) {
+      toast.error(error.message);
     }
-  } catch (error) {
-    toast.error(error.message);
-  }
-};
+  };
 
   useEffect(() => {
     if (products.length > 0 && cartItems) {
@@ -108,6 +116,22 @@ const placeOrder = async () => {
       getUserAddress();
     }
   }, [user]);
+
+  // ✅ Cooldown timer logic
+  useEffect(() => {
+    if (cooldownSeconds > 0) {
+      const timer = setInterval(() => {
+        setCooldownSeconds(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [cooldownSeconds]);
 
   return products.length > 0 && cartItems ? (
     <div className="flex flex-col md:flex-row mt-20">
@@ -248,14 +272,28 @@ const placeOrder = async () => {
           </div>
 
           <p className="text-sm font-medium uppercase mt-6">Payment Method</p>
-          <select
-            onChange={(e) => setPaymentOption(e.target.value)}
-            value={paymentOption}
-            className="w-full border border-gray-300 bg-white px-3 py-2 mt-2 outline-none"
-          >
-            <option value="COD">Cash On Delivery</option>
-            <option value="Online">Online Payment</option>
-          </select>
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-sm text-gray-600">Cash On Delivery</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={paymentOption === "Online"}
+                onChange={() =>
+                  setPaymentOption((prev) =>
+                    prev === "COD" ? "Online" : "COD"
+                  )
+                }
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary 
+                rounded-full peer dark:bg-gray-300 peer-checked:bg-green-600
+                peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] 
+                after:left-[2px] after:bg-white after:border-gray-300 after:border 
+                after:rounded-full after:h-5 after:w-5 after:transition-all"
+              ></div>
+            </label>
+            <span className="text-sm text-gray-600">Online Payment</span>
+          </div>
         </div>
 
         <hr className="border-gray-300" />
@@ -289,11 +327,18 @@ const placeOrder = async () => {
         </div>
         <button
           onClick={placeOrder}
-          className={"w-full bg-primary text-white py-2 mt-6 rounded-md hover:bg-primary-dull transition "}
+          disabled={cooldownSeconds > 0}
+          className={`w-full py-2 mt-6 rounded-md transition ${
+            cooldownSeconds > 0
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-primary text-white hover:bg-primary-dull"
+          }`}
         >
-          {paymentOption === "COD"
-            ? "Place Order"
-            : "Proceed to Payment"}
+          {cooldownSeconds > 0
+            ? `Please wait ${cooldownSeconds}s`
+            : paymentOption === "COD"
+              ? "Place Order"
+              : "Proceed to Payment"}
         </button>
       </div>
     </div>
