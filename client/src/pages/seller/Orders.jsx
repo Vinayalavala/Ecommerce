@@ -8,6 +8,8 @@ const Orders = () => {
   const { currency, axios } = useAppContext();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("all"); // NEW
   const navigate = useNavigate();
 
   const fetchOrders = async () => {
@@ -35,6 +37,7 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const markOrderAsPaid = async (orderId) => {
@@ -44,7 +47,6 @@ const Orders = () => {
       if (data.success) {
         toast.success("Order marked as paid.");
 
-        // Update state locally
         setOrders((prevOrders) =>
           prevOrders.map((order) =>
             order._id === orderId
@@ -60,6 +62,58 @@ const Orders = () => {
     }
   };
 
+  const groupedOrders = orders.reduce((acc, order) => {
+    const date = new Date(order.createdAt);
+    const dateStr = date.toDateString();
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(order);
+    return acc;
+  }, {});
+
+  const formatHeading = (dateStr) => {
+    const now = new Date();
+    const inputDate = new Date(dateStr);
+
+    const isToday = now.toDateString() === inputDate.toDateString();
+
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = yesterday.toDateString() === inputDate.toDateString();
+
+    if (isToday) return 'Today';
+    if (isYesterday) return 'Yesterday';
+
+    return inputDate.toLocaleDateString(undefined, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const filterOrder = (order) => {
+    const search = searchTerm.toLowerCase();
+
+    // Check textual search
+    const matchesText =
+      order._id.toLowerCase().includes(search) ||
+      `${order.address?.firstName || ""} ${order.address?.lastName || ""}`
+        .toLowerCase()
+        .includes(search) ||
+      new Date(order.createdAt)
+        .toISOString()
+        .split("T")[0]
+        .includes(search);
+
+    // Check payment filter
+    const matchesPayment =
+      paymentFilter === "all" ||
+      (paymentFilter === "paid" && order.isPaid) ||
+      (paymentFilter === "pending" && !order.isPaid);
+
+    return matchesText && matchesPayment;
+  };
+
   if (loading) {
     return <div className="p-10 text-center">Loading Orders...</div>;
   }
@@ -70,22 +124,74 @@ const Orders = () => {
 
   return (
     <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll">
-      <div className="md:p-10 p-4 space-y-4">
+      <div className="md:p-10 p-4 space-y-8">
         <h2 className="text-lg font-medium">Orders List</h2>
-        {orders.map((order) => (
-          <OrderCard
-            key={order._id}
-            order={order}
-            currency={currency}
-            onMarkAsPaid={markOrderAsPaid}
+
+        {/* Search + Filter UI */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search by customer, order ID, date..."
+            className="border border-gray-300 rounded px-4 py-2 w-full sm:w-80 focus:outline-none focus:ring focus:border-primary"
           />
-        ))}
+
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+            className="border border-gray-300 rounded px-4 py-2 text-gray-700 focus:outline-none focus:ring focus:border-primary"
+          >
+            <option value="all">All Payments</option>
+            <option value="paid">Paid</option>
+            <option value="pending">Pending</option>
+          </select>
+
+          {searchTerm || paymentFilter !== "all" ? (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setPaymentFilter("all");
+              }}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-gray-700"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+
+        {/* Orders grouped by date */}
+        {Object.keys(groupedOrders)
+          .sort((a, b) => new Date(b) - new Date(a))
+          .map((dateKey) => {
+            const filtered = groupedOrders[dateKey].filter(filterOrder);
+            if (filtered.length === 0) return null;
+
+            return (
+              <div key={dateKey}>
+                <h3 className="text-xl font-semibold text-primary mt-8 mb-4">
+                  {formatHeading(dateKey)}
+                </h3>
+                <div className="space-y-4">
+                  {filtered.map((order) => (
+                    <OrderCard
+                      key={order._id}
+                      order={order}
+                      currency={currency}
+                      onMarkAsPaid={markOrderAsPaid}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );
 };
 
 const OrderCard = ({ order, currency, onMarkAsPaid }) => {
+  const navigate = useNavigate();
   const [isUpdating, setIsUpdating] = useState(false);
   const [localIsPaid, setLocalIsPaid] = useState(order.isPaid);
 
@@ -97,40 +203,82 @@ const OrderCard = ({ order, currency, onMarkAsPaid }) => {
     setIsUpdating(false);
   };
 
+  const timeStr = new Date(order.createdAt).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
   return (
-    <div className="flex flex-col md:flex-row justify-between md:items-center gap-5 p-5 max-w-4xl rounded-md border border-gray-300">
-      <div className="flex gap-5 max-w-80">
-        <img
-          className="w-12 h-12 object-cover"
-          src={assets.box_icon}
-          alt="boxIcon"
-        />
-        <div>
+    <div className="flex flex-col md:flex-row justify-between md:items-center gap-5 p-5 max-w-5xl rounded-md border border-gray-300 shadow-sm hover:shadow-md transition">
+      {/* Left: Product images and names */}
+      <div className="flex gap-5 max-w-96">
+        <div className="flex flex-col gap-3">
+          {order.items?.map((item) => {
+            const productId = item.product?._id;
+            const imageSrc = item.product?.image?.[0] || assets.box_icon;
+            const productName = item.product?.name || item.name || 'Unnamed Product';
+
+            return (
+              <div
+                key={item._id || productId || Math.random()}
+                className="group relative"
+              >
+                <img
+                  src={imageSrc}
+                  alt={productName}
+                  title={productName}
+                  className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition duration-300 ease-in-out"
+                  onClick={() => {
+                    if (productId) {
+                      navigate(`/product/${productId}`);
+                    } else {
+                      toast.error("No product ID found.");
+                    }
+                  }}
+                />
+                <div className="absolute left-0 right-0 bottom-[-1.5rem] text-xs text-center text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  View Details
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-col justify-center">
           {order.items?.map((item) => (
-            <div
+            <p
               key={item._id || item.product?._id || Math.random()}
-              className="flex flex-col"
+              className="font-medium text-gray-800"
             >
-              <p className="font-medium">
-                {item.product?.name || 'Unnamed Product'}{" "}
-                <span className="text-primary">
-                  x {item.quantity}
-                </span>
-              </p>
-            </div>
+              {item.product?.name || item.name || 'Unnamed Product'}{" "}
+              <span className="text-primary">
+                x {item.quantity}
+              </span>
+            </p>
           ))}
         </div>
       </div>
 
+      {/* Address */}
       <OrderAddress address={order.address} />
 
+      {/* Order ID */}
+      <div className="text-xs md:text-sm text-gray-500 break-all max-w-[160px]">
+        <span className="text-black/70 font-semibold">Order ID:</span>
+        <br />
+        {order._id}
+      </div>
+
+      {/* Amount */}
       <p className="font-medium text-lg my-auto text-black/70">
-        {currency}{order.amount?.toFixed(2) || "0.00"}
+        {currency}
+        {typeof order.amount === "number" ? order.amount.toFixed(2) : "0.00"}
       </p>
 
+      {/* Payment Info */}
       <div className="flex flex-col text-sm md:text-base text-black/60 space-y-1">
         <p>Method: {order.paymentType || "N/A"}</p>
-        <p>Date: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "N/A"}</p>
+        <p>Time: {timeStr}</p>
         <p>Payment: {localIsPaid ? "Paid" : "Pending"}</p>
 
         <label className="mt-2 inline-flex items-center cursor-pointer">
