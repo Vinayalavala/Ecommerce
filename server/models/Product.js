@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-// Review sub-schema
+// Sub-schema for individual reviews
 const reviewSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -16,28 +16,29 @@ const reviewSchema = new mongoose.Schema({
   },
 });
 
-// Main Product schema
-const productSchema = new mongoose.Schema(
-  {
+// Main product schema
+const productSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    description: {
-      type: [String],
-      required: true,
-    },
+    description: { type: Array, required: true },
     price: { type: Number, required: true },
     offerPrice: { type: Number, required: true },
-    image: {
-      type: [String],
-      required: true,
-    },
+    image: { type: Array, required: true },
     category: { type: String, required: true },
     inStock: { type: Boolean, default: true },
-    reviews: [reviewSchema],
-  },
-  { timestamps: true }
-);
+    reviews: [
+      {
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
+        name: { type: String, required: true },
+        rating: { type: Number, required: true },
+        comment: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ]
+  }, { timestamps: true });
+  
 
+// Export product model
 const Product =
-  mongoose.models.Product || mongoose.model("Product", productSchema);
+  mongoose.models.product || mongoose.model("product", productSchema);
 
 export default Product;
