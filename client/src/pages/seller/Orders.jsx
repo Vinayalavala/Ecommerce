@@ -90,28 +90,31 @@ const Orders = () => {
   );
 
   const filterOrder = (order) => {
-    const search = searchTerm.toLowerCase();
-    const matchesText =
-      order._id.toLowerCase().includes(search) ||
-      `${order.address?.firstName || ""} ${order.address?.lastName || ""}`
-        .toLowerCase()
-        .includes(search) ||
-      new Date(order.createdAt).toISOString().split("T")[0].includes(search);
+  const search = searchTerm.toLowerCase();
 
-    const matchesPayment =
-      paymentFilter === "all" ||
-      (paymentFilter === "paid" && order.isPaid) ||
-      (paymentFilter === "pending" && !order.isPaid);
+  const matchesText =
+    order._id.toLowerCase().includes(search) ||
+    `${order.address?.firstName || ""} ${order.address?.lastName || ""}`
+      .toLowerCase()
+      .includes(search) ||
+    new Date(order.createdAt)
+      .toISOString()
+      .split("T")[0]
+      .includes(search);
 
-    const categoriesInOrder = order.items.map(
-      (item) => item.product?.category || item.category || "Unknown"
+  const matchesPayment =
+    paymentFilter === "all" ||
+    (paymentFilter === "paid" && order.isPaid) ||
+    (paymentFilter === "pending" && !order.isPaid);
+
+  const matchesCategory =
+    categoryFilter === "all" ||
+    order.items.some(
+      (item) => item.product?.category === categoryFilter
     );
-    const matchesCategory =
-      categoryFilter === "all" ||
-      categoriesInOrder.includes(categoryFilter);
 
-    return matchesText && matchesPayment && matchesCategory;
-  };
+  return matchesText && matchesPayment && matchesCategory;
+};
 
   if (loading) return <div className="p-10 text-center">Loading Orders...</div>;
   if (orders.length === 0) return <div className="p-10 text-center">No orders found.</div>;
