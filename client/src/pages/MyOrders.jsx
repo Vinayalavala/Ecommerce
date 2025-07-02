@@ -91,7 +91,9 @@ const MyOrders = () => {
     latestDate: orders
       .map((o) => new Date(o.createdAt))
       .sort((a, b) => b - a)[0],
-    totalAmount: orders.reduce((sum, o) => sum + o.amount, 0), // ✅ compute daily total
+    totalAmount: orders
+      .filter((o) => o.status !== 'Cancelled')
+      .reduce((sum, o) => sum + o.amount, 0), // ✅ updated logic
   }));
 
   if (sortOption === 'date_desc') {
@@ -129,7 +131,7 @@ const MyOrders = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value='All'>All Statuses</option>
-            <option value='Order Placed'>Order Placed</option>
+            <option value='Pending'>Pending</option>
             <option value='Processing'>Processing</option>
             <option value='Shipped'>Shipped</option>
             <option value='Delivered'>Delivered</option>
@@ -158,7 +160,7 @@ const MyOrders = () => {
           <h3 className='text-lg font-semibold text-gray-700 mb-4'>
             {group.label} ({group.count} order{group.count > 1 ? 's' : ''}) - 
             <span className='text-primary ml-2'>
-              Total: {currency} {group.totalAmount.toFixed(2)}
+              Total : {currency} {group.totalAmount.toFixed(2)}
             </span>
           </h3>
 
@@ -167,7 +169,6 @@ const MyOrders = () => {
               key={index}
               className='border border-gray-300 rounded-lg mb-6 p-4 py-5'
             >
-              {/* Order summary */}
               <div className='flex flex-wrap justify-between text-gray-600 text-sm font-medium mb-4 gap-2'>
                 <span><span className='text-gray-500'>Order ID:</span> {order._id}</span>
                 <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
@@ -189,7 +190,6 @@ const MyOrders = () => {
                     min-h-[110px]
                   "
                 >
-                  {/* IMAGE */}
                   <div className="flex justify-center md:justify-start items-center">
                     <img
                       src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
@@ -203,7 +203,6 @@ const MyOrders = () => {
                     />
                   </div>
 
-                  {/* DETAILS */}
                   <div className="
                     flex
                     justify-center
@@ -224,7 +223,6 @@ const MyOrders = () => {
                     </div>
                   </div>
 
-                  {/* PRICE */}
                   <div className="flex justify-center items-center">
                     <p className="text-primary font-semibold text-lg">
                       ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
