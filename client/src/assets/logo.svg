@@ -2,7 +2,7 @@
   <style>
     .text {
       font-family: 'Georgia', serif;
-      font-size: 48px;
+      font-size: 25px;
       font-weight: bold;
       fill: #4FBF8B;
     }
