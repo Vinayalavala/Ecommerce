@@ -1,6 +1,6 @@
 import { useAppContext } from '../../context/appContext';
 import { useState, useEffect } from 'react';
-import assets from '../../assets/assets';
+import assets, { categories } from '../../assets/assets';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -90,31 +90,28 @@ const Orders = () => {
   );
 
   const filterOrder = (order) => {
-  const search = searchTerm.toLowerCase();
+    const search = searchTerm.toLowerCase();
+    const matchesText =
+      order._id.toLowerCase().includes(search) ||
+      `${order.address?.firstName || ""} ${order.address?.lastName || ""}`
+        .toLowerCase()
+        .includes(search) ||
+      new Date(order.createdAt).toISOString().split("T")[0].includes(search);
 
-  const matchesText =
-    order._id.toLowerCase().includes(search) ||
-    `${order.address?.firstName || ""} ${order.address?.lastName || ""}`
-      .toLowerCase()
-      .includes(search) ||
-    new Date(order.createdAt)
-      .toISOString()
-      .split("T")[0]
-      .includes(search);
+    const matchesPayment =
+      paymentFilter === "all" ||
+      (paymentFilter === "paid" && order.isPaid) ||
+      (paymentFilter === "pending" && !order.isPaid);
 
-  const matchesPayment =
-    paymentFilter === "all" ||
-    (paymentFilter === "paid" && order.isPaid) ||
-    (paymentFilter === "pending" && !order.isPaid);
-
-  const matchesCategory =
-    categoryFilter === "all" ||
-    order.items.some(
-      (item) => item.product?.category === categoryFilter
+    const categoriesInOrder = order.items.map(
+      (item) => item.product?.category || item.category || "Unknown"
     );
+    const matchesCategory =
+      categoryFilter === "all" ||
+      categoriesInOrder.includes(categoryFilter);
 
-  return matchesText && matchesPayment && matchesCategory;
-};
+    return matchesText && matchesPayment && matchesCategory;
+  };
 
   if (loading) return <div className="p-10 text-center">Loading Orders...</div>;
   if (orders.length === 0) return <div className="p-10 text-center">No orders found.</div>;
@@ -242,7 +239,7 @@ const OrderCard = ({ order, currency, onMarkAsPaid }) => {
                   className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition duration-300 ease-in-out"
                   onClick={() => {
                     if (productId) {
-                      navigate(`/product/${productId}`);
+                      navigate(`/products/${categories}/${productId}`);
                     } else {
                       toast.error("No product ID found.");
                     }
