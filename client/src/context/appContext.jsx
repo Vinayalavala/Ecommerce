@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 
-axios.defaults.withCredentials = true;
 axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
 export const AppContext = createContext();
@@ -21,8 +20,25 @@ export const AppContextProvider = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Set appropriate auth header for current role
+   */
+  const setAuthHeader = () => {
+    const isSellerPath = location.pathname.startsWith('/seller');
+    const token = isSellerPath
+      ? localStorage.getItem('sellerToken')
+      : localStorage.getItem('authToken');
+
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  };
+
   const fetchSeller = async () => {
     try {
+      setAuthHeader(); // ✅ set token
       const { data } = await axios.get('/api/seller/is-auth');
       setIsSeller(data.success);
     } catch (error) {
@@ -31,10 +47,9 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
-
-
   const fetchUser = async () => {
     try {
+      setAuthHeader(); // ✅ set token
       const { data } = await axios.get('/api/user/is-auth');
       if (data.success) {
         setUser(data.user);
@@ -106,9 +121,11 @@ export const AppContextProvider = ({ children }) => {
     }, 0).toFixed(2);
   };
 
+  // ✅ Fetch data when route changes
   useEffect(() => {
     const runFetches = async () => {
       try {
+        setAuthHeader();
         if (location.pathname.startsWith("/seller")) {
           await fetchSeller();
         } else {
@@ -123,6 +140,7 @@ export const AppContextProvider = ({ children }) => {
     runFetches();
   }, [location.pathname]);
 
+  // ✅ Update cart in DB
   useEffect(() => {
     const updateCartInDB = async () => {
       if (!user?._id) return;
@@ -167,8 +185,8 @@ export const AppContextProvider = ({ children }) => {
     getCartAmount,
     axios,
     loading,
-    fetchUser,       // ✅ Optional if you want to refresh from other components
-    fetchSeller,     // ✅ Optional for seller dashboards
+    fetchUser,
+    fetchSeller,
   };
 
   return (
