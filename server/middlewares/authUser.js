@@ -1,21 +1,21 @@
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 
-const authUser = (req, res, next) => {
-  const token = req.cookies?.token;
+const authUser = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
 
-  if (!token) {
-    return res.status(401).json({ success: false, message: "Authentication token missing" });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ success: false, message: "Unauthorized: No token" });
   }
+
+  const token = authHeader.split(" ")[1];
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.id;
     next();
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error("JWT Error:", error.message);
-    }
-    res.status(401).json({ success: false, message: "Invalid or expired token" });
+    console.error("JWT Verification Error:", error.message);
+    return res.status(401).json({ success: false, message: "Invalid or expired token" });
   }
 };
 
