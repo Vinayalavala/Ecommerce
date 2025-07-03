@@ -1,45 +1,61 @@
-import React from "react";
-import { useAppContext } from "../context/appContext.jsx"; // Adjust path if needed
-import { toast } from 'react-hot-toast';
+import React, { useEffect } from "react";
+import { useAppContext } from "../context/appContext.jsx";
+import { toast } from "react-hot-toast";
 
 const Login = () => {
-  const { setShowUserLogin, setUser,axios,navigate } = useAppContext();
+  const { setShowUserLogin, setUser, axios, navigate } = useAppContext();
   const [state, setState] = React.useState("login");
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
 
   const onSubmitHandler = async (e) => {
+    e.preventDefault();
 
     try {
-      e.preventDefault();
       const { data } = await axios.post(`/api/user/${state}`, {
         name,
         email,
         password,
-      })
+      });
 
       if (data.success) {
-        navigate("/");
+        // ✅ Save token to localStorage
+        localStorage.setItem("authToken", data.token);
+
+        // ✅ Set auth header for future axios requests
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+
+        // ✅ Update app context
         setUser(data.user);
         setShowUserLogin(false);
+        navigate("/");
+
         toast.success(data.message);
-      }else{
-        toast.error(data.message)
+      } else {
+        toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error?.response?.data?.message || "Something went wrong");
     }
   };
 
+  // ✅ Optional: Set auth header if token exists (on component mount)
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    }
+  }, [axios]);
+
   return (
     <div
-      onClick={() => setShowUserLogin(false)} // ✅ fixed this
+      onClick={() => setShowUserLogin(false)}
       className="fixed top-0 left-0 bottom-0 right-0 z-30 flex items-center text-sm text-gray-600 bg-black/50"
     >
       <form
-      onSubmit={onSubmitHandler}
-        onClick={(e) => e.stopPropagation()} // ✅ fixed this
+        onSubmit={onSubmitHandler}
+        onClick={(e) => e.stopPropagation()}
         className="flex flex-col gap-4 m-auto items-start p-8 py-12 w-80 sm:w-[352px] rounded-lg shadow-xl border border-gray-200 bg-white"
       >
         <p className="text-2xl font-medium m-auto">
@@ -87,12 +103,12 @@ const Login = () => {
 
         {state === "register" ? (
           <p>
-            Already have account?{" "}
+            Already have an account?{" "}
             <span
               onClick={() => setState("login")}
               className="text-primary cursor-pointer"
             >
-              click here
+              Click here
             </span>
           </p>
         ) : (
@@ -102,7 +118,7 @@ const Login = () => {
               onClick={() => setState("register")}
               className="text-primary cursor-pointer"
             >
-              click here
+              Click here
             </span>
           </p>
         )}
