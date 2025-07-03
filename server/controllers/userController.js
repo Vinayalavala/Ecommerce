@@ -13,6 +13,7 @@ const generateTokenAndSetCookie = (userId, res) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: "/", // add this to match logout clearCookie path
   });
 
   return token;
@@ -102,18 +103,16 @@ export const isAuth = async (req, res) => {
 };
 
 // User logout
-// logoutController.js
 export const logout = async (req, res) => {
   try {
-    // Check if token cookie exists before trying to clear
     const tokenExists = req.cookies && req.cookies.token;
 
     if (tokenExists) {
       res.clearCookie("token", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",  // ensures only HTTPS in production
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // needed for cross-site cookies
-        path: "/",  // ensure it matches the path used when setting the cookie
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        path: "/",
       });
 
       res.status(200).json({ success: true, message: "User logged out successfully" });
@@ -125,4 +124,3 @@ export const logout = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
