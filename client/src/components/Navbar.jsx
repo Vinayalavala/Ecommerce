@@ -182,7 +182,7 @@ const Navbar = () => {
         flex justify-between items-center
         bg-white/30
         backdrop-blur-md
-        border border-white/40
+        border border-gray-300
         z-50
         shadow-xl
       ">
