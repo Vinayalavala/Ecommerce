@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useAppContext } from "../context/appContext.jsx";
 import { toast } from "react-hot-toast";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 const Login = () => {
   const { setShowUserLogin, setUser, axios, navigate } = useAppContext();
@@ -8,6 +9,7 @@ const Login = () => {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false); // 👈 toggle
 
   const onSubmitHandler = async (e) => {
     e.preventDefault();
@@ -20,17 +22,11 @@ const Login = () => {
       });
 
       if (data.success) {
-        // ✅ Save token to localStorage
         localStorage.setItem("authToken", data.token);
-
-        // ✅ Set auth header for future axios requests
         axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-
-        // ✅ Update app context
         setUser(data.user);
         setShowUserLogin(false);
         navigate("/");
-
         toast.success(data.message);
       } else {
         toast.error(data.message);
@@ -40,7 +36,6 @@ const Login = () => {
     }
   };
 
-  // ✅ Optional: Set auth header if token exists (on component mount)
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) {
@@ -89,16 +84,23 @@ const Login = () => {
           />
         </div>
 
-        <div className="w-full">
+        <div className="w-full relative">
           <p>Password</p>
           <input
             onChange={(e) => setPassword(e.target.value)}
             value={password}
             placeholder="type here"
-            className="border border-gray-200 rounded w-full p-2 mt-1 outline-primary"
-            type="password"
+            className="border border-gray-200 rounded w-full p-2 mt-1 pr-10 outline-primary"
+            type={showPassword ? "text" : "password"}
             required
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-[34px] text-gray-500"
+          >
+            {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+          </button>
         </div>
 
         {state === "register" ? (
