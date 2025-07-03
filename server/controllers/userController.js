@@ -2,24 +2,14 @@ import User from "../models/user.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
-// Helper function: Generate token and set cookie
-const generateTokenAndSetCookie = (userId, res) => {
-  const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+// Generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
-
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: "/", // add this to match logout clearCookie path
-  });
-
-  return token;
 };
 
-// Register new user
+// Register a new user
 export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -36,7 +26,7 @@ export const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ name, email, password: hashedPassword });
 
-    const token = generateTokenAndSetCookie(user._id, res);
+    const token = generateToken(user._id);
 
     const { password: _, ...userData } = user._doc;
 
@@ -47,12 +37,12 @@ export const register = async (req, res) => {
       user: userData,
     });
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Register Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// User login
+// Login existing user
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -71,18 +61,19 @@ export const login = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
-    const token = generateTokenAndSetCookie(user._id, res);
+    const token = generateToken(user._id);
 
     const { password: _, ...userData } = user._doc;
 
     return res.status(200).json({
       success: true,
       message: "User logged in successfully",
+      token,
       user: userData,
     });
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Login Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -95,32 +86,27 @@ export const isAuth = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    res.status(200).json({ success: true, message: "User is authenticated", user });
+    return res.status(200).json({
+      success: true,
+      message: "User is authenticated",
+      user,
+    });
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Auth Check Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// User logout
+// Logout user (for localStorage-based system, no backend action needed)
 export const logout = async (req, res) => {
-  try {
-    const tokenExists = req.cookies && req.cookies.token;
+  res.clearCookie("authToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict", // or "Lax" based on your frontend/backend origin
+  });
 
-    if (tokenExists) {
-      res.clearCookie("token", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        path: "/",
-      });
-
-      res.status(200).json({ success: true, message: "User logged out successfully" });
-    } else {
-      res.status(400).json({ success: false, message: "No token found in cookies" });
-    }
-  } catch (error) {
-    console.error("Logout Error:", error.message);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
+  return res.status(200).json({
+    success: true,
+    message: "User logged out successfully",
+  });
 };
