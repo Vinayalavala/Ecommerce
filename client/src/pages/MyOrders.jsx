@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../context/appContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { FaStar } from 'react-icons/fa';
 
 const getDateLabel = (dateString) => {
   const orderDate = new Date(dateString);
@@ -30,6 +31,7 @@ const MyOrders = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortOption, setSortOption] = useState('date_desc');
+  const [ratings, setRatings] = useState({}); // 🌟 State to track ratings
 
   const { currency, axios, user } = useAppContext();
   const navigate = useNavigate();
@@ -48,7 +50,6 @@ const MyOrders = () => {
         toast.error(data.message);
       }
     } catch (error) {
-      console.error(error);
       toast.error("Failed to fetch orders.");
     }
   };
@@ -77,6 +78,14 @@ const MyOrders = () => {
     setFilteredOrders(updated);
   }, [search, statusFilter, myOrders]);
 
+  const handleRatingChange = (productId, value) => {
+    setRatings((prev) => ({
+      ...prev,
+      [productId]: value,
+    }));
+    toast.success(`This feature is not implemented yet. Please check back later!`);
+  };
+
   const groupedOrders = filteredOrders.reduce((acc, order) => {
     const label = getDateLabel(order.createdAt);
     if (!acc[label]) acc[label] = [];
@@ -93,7 +102,7 @@ const MyOrders = () => {
       .sort((a, b) => b - a)[0],
     totalAmount: orders
       .filter((o) => o.status !== 'Cancelled')
-      .reduce((sum, o) => sum + o.amount, 0), // ✅ updated logic
+      .reduce((sum, o) => sum + o.amount, 0),
   }));
 
   if (sortOption === 'date_desc') {
@@ -165,10 +174,7 @@ const MyOrders = () => {
           </h3>
 
           {group.orders.map((order, index) => (
-            <div
-              key={index}
-              className='border border-gray-300 rounded-lg mb-6 p-4 py-5'
-            >
+            <div key={index} className='border border-gray-300 rounded-lg mb-6 p-4 py-5'>
               <div className='flex flex-wrap justify-between text-gray-600 text-sm font-medium mb-4 gap-2'>
                 <span><span className='text-gray-500'>Order ID:</span> {order._id}</span>
                 <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
@@ -176,60 +182,61 @@ const MyOrders = () => {
                 <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
               </div>
 
-              {(order.items || []).map((item, idx) => (
-                <div
-                  key={idx}
-                  className="
-                    grid
-                    grid-cols-1
-                    md:grid-cols-[auto_1fr_auto]
-                    gap-4
-                    py-4
-                    border-t
-                    border-gray-200
-                    min-h-[110px]
-                  "
-                >
-                  <div className="flex justify-center md:justify-start items-center">
-                    <img
-                      src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
-                      alt={item.product?.name || 'Product'}
-                      className="w-24 h-24 rounded-lg object-cover cursor-pointer hover:scale-105 transition-transform"
-                      onClick={() => {
-                        const productId = item.product?._id;
-                        if (productId) navigate(`/product/${productId}`);
-                        else toast.error("Product not found.");
-                      }}
-                    />
-                  </div>
+              {(order.items || []).map((item, idx) => {
+                const productId = item.product?._id;
+                const currentRating = ratings[productId] || 0;
 
-                  <div className="
-                    flex
-                    justify-center
-                    items-center
-                    h-full
-                  ">
-                    <div className="space-y-2 text-left">
-                      <h2 className="text-lg font-semibold text-gray-800">
+                return (
+                  <div
+                    key={idx}
+                    className='grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 min-h-[110px]'
+                  >
+                    <div className='flex justify-center md:justify-start items-center'>
+                      <img
+                        src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
+                        alt={item.product?.name || 'Product'}
+                        className='w-24 h-24 rounded-lg object-cover cursor-pointer hover:scale-105 transition-transform'
+                        onClick={() => {
+                          if (productId) navigate(`/product/${productId}`);
+                          else toast.error("Product not found.");
+                        }}
+                      />
+                    </div>
+
+                    <div className='flex flex-col justify-center h-full space-y-2 text-left'>
+                      <h2 className='text-lg font-semibold text-gray-800'>
                         {item.product?.name || 'Unnamed Product'}
                       </h2>
-                      <p className="text-gray-500 text-sm">
+                      <p className='text-gray-500 text-sm'>
                         Category: {item.product?.category || 'N/A'}
                       </p>
-                      <p className="text-sm">Qty: {item.quantity}</p>
-                      <p className="text-sm">
+                      <p className='text-sm'>Qty: {item.quantity}</p>
+                      <p className='text-sm'>
                         Ordered On: {new Date(order.createdAt).toLocaleString()}
+                      </p>
+
+                      {/* ⭐ Review Section */}
+                      <div className='flex items-center mt-2'>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <FaStar
+                            key={star}
+                            className={`cursor-pointer text-xl ${
+                              currentRating >= star ? 'text-yellow-400' : 'text-gray-300'
+                            }`}
+                            onClick={() => handleRatingChange(productId, star)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className='flex justify-center items-center'>
+                      <p className='text-primary font-semibold text-lg'>
+                        ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
                       </p>
                     </div>
                   </div>
-
-                  <div className="flex justify-center items-center">
-                    <p className="text-primary font-semibold text-lg">
-                      ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ))}
         </div>
