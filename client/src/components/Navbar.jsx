@@ -95,8 +95,15 @@ const Navbar = () => {
 
         {/* RIGHT SIDE - Desktop */}
         <div className="hidden lg:flex items-center gap-8">
-          <NavLink to='/' className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>Home</NavLink>
-          <NavLink to='/products' className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>Products</NavLink>
+          <NavLink to='/' className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
+            Home
+          </NavLink>
+          <NavLink to='/products' className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
+            Products
+          </NavLink>
+          <NavLink to='/contact' className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
+            Contact
+          </NavLink>
 
           <div onClick={() => navigate("/cart")} className="relative cursor-pointer">
             <img src={assets.nav_cart_icon} alt="cart" className='w-6 opacity-80' />
@@ -176,6 +183,7 @@ const Navbar = () => {
         bg-white/30
         backdrop-blur-md
         border border-white/40
+        z-50
         shadow-xl
       ">
         <button
@@ -190,7 +198,7 @@ const Navbar = () => {
           onClick={() => handleNavigate('/products')}
           className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
         >
-          <img src={assets.products_icon || assets.nav_cart_icon} alt="products" className="w-6 h-6 mb-1" />
+          <img src={assets.box_icon || assets.products_icon || assets.nav_cart_icon} alt="products" className="w-6 h-6 mb-1" />
           <span>Products</span>
         </button>
 
@@ -209,7 +217,7 @@ const Navbar = () => {
           onClick={() => handleNavigate('/contact')}
           className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
         >
-          <img src={assets.contact_icon || assets.menu_icon} alt="contact" className="w-6 h-6 mb-1" />
+          <img src={assets.call_icon || assets.contact_icon || assets.menu_icon} alt="contact" className="w-6 h-6 mb-1" />
           <span>Contact</span>
         </button>
 
