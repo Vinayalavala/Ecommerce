@@ -195,20 +195,19 @@ const Navbar = () => {
         </button>
 
         <button
-            onClick={() => navigate('/products')}
-            className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
-            >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="w-6 h-6 mb-1 text-gray-600 group-hover:text-primary transition duration-200"
-                fill="currentColor"
-            >
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73zM12 3.25L18.6 7 12 10.75 5.4 7 12 3.25zM5 8.9l6.5 3.7v7.2L5 16.1V8.9zm8.5 10.9v-7.2L20 8.9v7.2l-6.5 3.7z" />
-            </svg>
-            <span>Products</span>
-            </button>
-
+          onClick={() => navigate('/products')}
+          className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            className="w-6 h-6 mb-1 text-gray-600 group-hover:text-primary transition duration-200"
+            fill="currentColor"
+          >
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73zM12 3.25L18.6 7 12 10.75 5.4 7 12 3.25zM5 8.9l6.5 3.7v7.2L5 16.1V8.9zm8.5 10.9v-7.2L20 8.9v7.2l-6.5 3.7z" />
+          </svg>
+          <span>Products</span>
+        </button>
 
         <button
           onClick={() => handleNavigate('/cart')}
@@ -225,7 +224,14 @@ const Navbar = () => {
           onClick={() => handleNavigate('/contact')}
           className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
         >
-          <img src={assets.call_icon || assets.contact_icon || assets.menu_icon} alt="contact" className="w-6 h-6 mb-1" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="w-6 h-6 mb-1 text-gray-600"
+          >
+            <path d="M14.828 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9.172a2 2 0 0 0-.586-1.414l-5.172-5.172A2 2 0 0 0 14.828 3zM12 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm1-7h-4v5h2v-3h2V10z" />
+          </svg>
           <span>Contact</span>
         </button>
 
