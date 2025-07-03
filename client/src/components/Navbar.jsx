@@ -31,6 +31,7 @@ const Navbar = () => {
         setDropdownOpen(false);
         setMobileProfileOpen(false);
         navigate("/");
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         toast.error(data.message);
       }
@@ -42,6 +43,7 @@ const Navbar = () => {
   useEffect(() => {
     if (searchQuery.length > 0) {
       navigate('/products');
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [searchQuery, navigate]);
 
@@ -70,6 +72,7 @@ const Navbar = () => {
     setDropdownOpen(false);
     setMobileProfileOpen(false);
     navigate(path);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -77,7 +80,7 @@ const Navbar = () => {
       {/* TOP NAVBAR */}
       <nav className="z-50 fixed top-0 left-0 w-full flex items-center justify-between px-4 md:px-8 lg:px-16 py-4 border-b border-gray-300 bg-white/80 backdrop-blur-md">
         {/* Logo */}
-        <NavLink to="/">
+        <NavLink to="/" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <img className="h-9" src={assets.logo} alt="Logo" />
         </NavLink>
 
@@ -95,17 +98,17 @@ const Navbar = () => {
 
         {/* RIGHT SIDE - Desktop */}
         <div className="hidden lg:flex items-center gap-8">
-          <NavLink to='/' className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
+          <NavLink to='/' onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
             Home
           </NavLink>
-          <NavLink to='/products' className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
+          <NavLink to='/products' onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
             Products
           </NavLink>
-          <NavLink to='/contact' className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
+          <NavLink to='/contact' onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>
             Contact
           </NavLink>
 
-          <div onClick={() => navigate("/cart")} className="relative cursor-pointer">
+          <div onClick={() => handleNavigate("/cart")} className="relative cursor-pointer">
             <img src={assets.nav_cart_icon} alt="cart" className='w-6 opacity-80' />
             <button className="absolute -top-2 -right-3 text-xs text-white bg-primary w-[18px] h-[18px] rounded-full">
               {getCartCount()}
@@ -195,7 +198,7 @@ const Navbar = () => {
         </button>
 
         <button
-          onClick={() => navigate('/products')}
+          onClick={() => handleNavigate('/products')}
           className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
         >
           <svg
