@@ -195,12 +195,20 @@ const Navbar = () => {
         </button>
 
         <button
-          onClick={() => handleNavigate('/products')}
-          className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
-        >
-          <img src={assets.box_icon || assets.products_icon || assets.nav_cart_icon} alt="products" className="w-6 h-6 mb-1" />
-          <span>Products</span>
-        </button>
+            onClick={() => navigate('/products')}
+            className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
+            >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="w-6 h-6 mb-1 text-gray-600 group-hover:text-primary transition duration-200"
+                fill="currentColor"
+            >
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73zM12 3.25L18.6 7 12 10.75 5.4 7 12 3.25zM5 8.9l6.5 3.7v7.2L5 16.1V8.9zm8.5 10.9v-7.2L20 8.9v7.2l-6.5 3.7z" />
+            </svg>
+            <span>Products</span>
+            </button>
+
 
         <button
           onClick={() => handleNavigate('/cart')}
