@@ -3,14 +3,13 @@ import { useLocation, Link, NavLink, Outlet, useNavigate } from 'react-router-do
 import { useAppContext } from '../../context/appContext';
 import assets from '../../assets/assets';
 import { toast } from 'react-hot-toast';
+import { FiBarChart2 } from "react-icons/fi";
 
 const SellerLayout = () => {
   const { axios } = useAppContext();
   const navigate = useNavigate();
-
   const location = useLocation();
 
-  // SCROLL TO TOP ON ROUTE CHANGE
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
@@ -19,6 +18,7 @@ const SellerLayout = () => {
     { name: "Add Product", path: "/seller", icon: assets.add_icon },
     { name: "Product List", path: "/seller/product-list", icon: assets.product_list_icon },
     { name: "Orders", path: "/seller/orders", icon: assets.order_icon },
+    { name: "Analytics", path: "/seller/analytics", icon: FiBarChart2 },
   ];
 
   const logout = async () => {
@@ -38,13 +38,22 @@ const SellerLayout = () => {
   return (
     <>
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 md:px-8 border-b border-gray-300 py-3 bg-white ">
+      <div className="flex items-center justify-between px-4 md:px-8 border-b border-gray-300 py-3 bg-white">
         <Link to='/'>
           <img src={assets.logo} alt="logo" className='cursor-pointer w-34 md:w-38' />
         </Link>
         <div className="flex items-center gap-5 text-gray-500">
           <p>Hi! Admin</p>
-          <button onClick={logout} className='border rounded-full text-sm px-4 py-1'>
+          <button
+            onClick={() => navigate('/seller/analytics')}
+            className='border rounded-full text-sm px-4 py-1 hover:bg-gray-100'
+          >
+            Analytics
+          </button>
+          <button
+            onClick={logout}
+            className='border rounded-full text-sm px-4 py-1'
+          >
             Logout
           </button>
         </div>
@@ -52,7 +61,7 @@ const SellerLayout = () => {
 
       {/* Layout Body */}
       <div className='flex'>
-        {/* Sidebar */}
+        {/* Mobile Bottom Sidebar */}
         <div className="
           fixed bottom-3 left-1/2 transform -translate-x-1/2
           sm:hidden
@@ -79,8 +88,23 @@ const SellerLayout = () => {
                 }`
               }
             >
-              <img src={item.icon} alt={item.name} className='w-6 h-6 mb-1' />
-              <span>{item.name}</span>
+              {({ isActive }) =>
+                <>
+                  {typeof item.icon === "string" ? (
+                    <img
+                      src={item.icon}
+                      alt={item.name}
+                      className='w-6 h-6 mb-1'
+                    />
+                  ) : (
+                    <item.icon
+                      size={24}
+                      className={`mb-1 ${isActive ? "text-primary" : "text-gray-700"}`}
+                    />
+                  )}
+                  <span>{item.name}</span>
+                </>
+              }
             </NavLink>
           ))}
         </div>
@@ -96,12 +120,27 @@ const SellerLayout = () => {
                 `flex items-center py-3 px-4 gap-3 ${
                   isActive
                     ? "border-r-4 md:border-r-[6px] bg-primary/10 border-primary text-primary"
-                    : "hover:bg-gray-100/90 border-white"
+                    : "hover:bg-gray-100/90 border-white text-gray-700"
                 }`
               }
             >
-              <img src={item.icon} alt="" className='w-7 h-7'/>
-              <p className="md:block hidden text-center">{item.name}</p>
+              {({ isActive }) => (
+                <>
+                  {typeof item.icon === "string" ? (
+                    <img
+                      src={item.icon}
+                      alt={item.name}
+                      className='w-7 h-7'
+                    />
+                  ) : (
+                    <item.icon
+                      size={28}
+                      className={`${isActive ? "text-primary" : "text-gray-700"}`}
+                    />
+                  )}
+                  <p className="md:block hidden text-center">{item.name}</p>
+                </>
+              )}
             </NavLink>
           ))}
         </div>
