@@ -1,31 +1,43 @@
 import jwt from 'jsonwebtoken';
 
 const authSeller = async (req, res, next) => {
-  const { sellerToken } = req.cookies;
-
-  console.log("Incoming cookies:", req.cookies); // Debugging cookies
-
-  if (!sellerToken) {
-    return res.status(401).json({ success: false, message: "No token provided" });
-  }
-
   try {
-    const decoded = jwt.verify(sellerToken, process.env.JWT_SECRET);
+    const authHeader = req.headers.authorization;
 
-    if (!process.env.SELLER_EMAIL) {
-      console.error("SELLER_EMAIL not configured.");
-      return res.status(500).json({ success: false, message: "Server configuration error" });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: No token provided",
+      });
     }
 
-    if (decoded.email === process.env.SELLER_EMAIL) {
-      req.seller = { email: decoded.email };
-      next();
-    } else {
-      return res.status(403).json({ success: false, message: "Invalid seller credentials" });
+    const token = authHeader.split(" ")[1];
+
+    if (!process.env.JWT_SECRET || !process.env.SELLER_EMAIL) {
+      console.error("JWT_SECRET or SELLER_EMAIL is not configured.");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error",
+      });
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.email !== process.env.SELLER_EMAIL) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Invalid seller credentials",
+      });
+    }
+
+    req.seller = { email: decoded.email };
+    next();
   } catch (error) {
-    console.error("Auth Seller Error:", error.message);
-    return res.status(401).json({ success: false, message: "Invalid or expired token" });
+    console.error("authSeller error:", error.message);
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized: Invalid or expired token",
+    });
   }
 };
 
