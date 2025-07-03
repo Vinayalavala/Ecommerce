@@ -369,6 +369,9 @@ const OrderAddress = ({ address }) => {
         {address.state || ""}, {address.zipcode || ""}, {address.country || ""}
       </p>
       <p>{address.phone || ""}</p>
+      <p className="text-xs text-gray-500">
+        {address.email || "No email provided"}
+      </p>
     </div>
   );
 };
