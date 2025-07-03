@@ -249,7 +249,7 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
   });
 
   return (
-    <div className="flex flex-col md:flex-row justify-between md:items-center gap-5 p-5 max-w-5xl rounded-md border border-gray-300 shadow-sm hover:shadow-md transition">
+    <div className="flex flex-col mb-10 md:flex-row justify-between md:items-center gap-5 p-5 max-w-5xl rounded-md border border-gray-300 shadow-sm hover:shadow-md transition">
       
       {/* Left: Product images and names aligned horizontally */}
       <div className="flex flex-col gap-3 max-w-96">
