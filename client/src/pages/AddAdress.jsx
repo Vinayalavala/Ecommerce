@@ -74,7 +74,7 @@ const AddAddress = () => {
     }, [user]);
 
     return (
-        <div className='mt-16 pb-16'>
+        <div className='mt-25 pb-16'>
             <p className='text-2xl md:text-3xl text-gray-500'>Add Shipping <span className='font-bold text-primary'>Address</span></p>
             <div className='flex flex-col-reverse md:flex-row justify-between mt-10'>
                 <div className='flex-1 max-w-md'>
