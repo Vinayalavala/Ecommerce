@@ -26,7 +26,7 @@ const Navbar = () => {
     try {
       const { data } = await axios.get('/api/user/logout');
       if (data.success) {
-        localStorage.removeItem("authToken"); // ✅ Clear token from localStorage
+        localStorage.removeItem("authToken");
         toast.success(data.message);
         setUser(null);
         setDropdownOpen(false);
@@ -79,10 +79,10 @@ const Navbar = () => {
   return (
     <>
       {/* TOP NAVBAR */}
-      <nav className="z-50 fixed top-0 left-0 w-full flex items-center justify-between px-4 md:px-8 lg:px-16 py-4 border-b border-gray-300 bg-white/80 backdrop-blur-md">
+      <nav className="z-50  fixed top-0 left-0 w-full flex items-center justify-between px-3 md:px-8 lg:px-15 py-4 border-b border-gray-300 bg-white/80 backdrop-blur-md">
         {/* Logo */}
         <NavLink to="/" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-          <img className="h-9" src={assets.logo} alt="Logo" />
+          <img className="h-8" src={assets.logo} alt="Logo" />
         </NavLink>
 
         {/* Search Bar */}
@@ -117,12 +117,20 @@ const Navbar = () => {
           </div>
 
           {!user ? (
-            <button
-              onClick={() => setShowUserLogin(true)}
-              className="cursor-pointer px-6 py-2 bg-primary hover:bg-primary-dull transition text-white rounded-full"
-            >
-              Login
-            </button>
+            <div className="flex flex-col gap-2 items-start">
+              <button
+                onClick={() => setShowUserLogin(true)}
+                className="flex items-center justify-center h-6 px-4 py-1.5 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm border-2"
+              >
+                Login
+              </button>
+              <button
+                to="/seller"
+                className="flex items-center justify-center h-6 px-4 py-1.5 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm border-2"
+              >
+                Seller
+              </button>
+            </div>
           ) : (
             <div className="relative" ref={dropdownRef}>
               <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center gap-2">
@@ -160,14 +168,23 @@ const Navbar = () => {
         </div>
 
         {/* RIGHT SIDE - Mobile */}
-        <div className="lg:hidden">
+        <div className="lg:hidden flex flex-col gap-2 items-start">
           {!user && (
-            <button
-              onClick={() => setShowUserLogin(true)}
-              className="cursor-pointer px-4 py-2 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm"
-            >
-              Login
-            </button>
+            <>
+              <button
+                onClick={() => setShowUserLogin(true)}
+                className="flex items-center justify-center h-6 px-4 py-0.8 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm border-2"
+              >
+                Login
+              </button>
+              <button
+                  onClick={() => navigate('/seller')}
+                  className="flex items-center justify-center h-6 px-4 py-0.8 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm border-2"
+                >
+                  Seller
+              </button>
+
+            </>
           )}
         </div>
       </nav>
