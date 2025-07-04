@@ -45,8 +45,13 @@ const Orders = () => {
       if (data.success) {
         toast.success("Order marked as paid.");
         setOrders((prev) =>
-          prev.map((o) => (o._id === orderId ? { ...o, isPaid: true } : o))
+          prev.map((o) =>
+            o._id === orderId ? { ...o, isPaid: true, status: "Delivered" } : o
+          )
         );
+
+        // Also update status to Delivered
+        await axios.put(`/api/order/${orderId}/status`, { status: "Delivered" });
       } else {
         toast.error(data.message || "Failed to mark order as paid.");
       }
@@ -55,26 +60,43 @@ const Orders = () => {
     }
   };
 
+
   const updateOrderStatus = async (orderId, newStatus) => {
-    try {
-      const { data } = await axios.put(
-        `/api/order/${orderId}/status`,
-        { status: newStatus }
+  try {
+    const { data } = await axios.put(
+      `/api/order/${orderId}/status`,
+      { status: newStatus }
+    );
+    if (data.success) {
+      toast.success("Order status updated.");
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === orderId
+            ? {
+                ...o,
+                status: newStatus,
+                isPaid:
+                  newStatus === "Delivered"
+                    ? true
+                    : newStatus === "Cancelled"
+                    ? false
+                    : o.isPaid,
+              }
+            : o
+        )
       );
-      if (data.success) {
-        toast.success("Order status updated.");
-        setOrders((prev) =>
-          prev.map((o) =>
-            o._id === orderId ? { ...o, status: newStatus } : o
-          )
-        );
-      } else {
-        toast.error(data.message || "Failed to update order status.");
+
+      if (newStatus === "Delivered") {
+        await axios.patch(`/api/order/${orderId}/mark-paid`);
       }
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error.message || "Failed to update order status.");
+
+    } else {
+      toast.error(data.message || "Failed to update order status.");
     }
-  };
+  } catch (error) {
+    toast.error(error?.response?.data?.message || error.message || "Failed to update order status.");
+  }
+};
 
   const groupedOrders = orders.reduce((acc, order) => {
     const dateStr = new Date(order.createdAt).toDateString();
@@ -228,20 +250,32 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
   const [localStatus, setLocalStatus] = useState(order.status || "Order Placed");
 
   const handleTogglePaid = async () => {
-    if (localIsPaid || isUpdating) return;
-    setIsUpdating(true);
-    await onMarkAsPaid(order._id);
-    setLocalIsPaid(true);
-    setIsUpdating(false);
-  };
+  if (localIsPaid || isUpdating || localStatus === "Cancelled") return;
+  setIsUpdating(true);
+  await onMarkAsPaid(order._id);
+  setLocalIsPaid(true);
+  if (localStatus !== "Delivered") {
+    setLocalStatus("Delivered");
+  }
+  setIsUpdating(false);
+};
+
+
 
   const handleStatusChange = async (e) => {
-    const newStatus = e.target.value;
-    setLocalStatus(newStatus);
-    setIsUpdating(true);
-    await onUpdateStatus(order._id, newStatus);
-    setIsUpdating(false);
-  };
+  const newStatus = e.target.value;
+  setLocalStatus(newStatus);
+  setIsUpdating(true);
+  await onUpdateStatus(order._id, newStatus);
+
+  if (newStatus === "Delivered") {
+    setLocalIsPaid(true); // Mark paid if delivered
+  } else if (newStatus === "Cancelled") {
+    setLocalIsPaid(false); // Mark unpaid if cancelled
+  }
+
+  setIsUpdating(false);
+};
 
   const timeStr = new Date(order.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
@@ -321,8 +355,9 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
               className="sr-only peer"
               checked={localIsPaid}
               onChange={handleTogglePaid}
-              disabled={localIsPaid || isUpdating}
+              disabled={localIsPaid || isUpdating || localStatus === "Cancelled"}
             />
+
             <div className={`
               w-11 h-6 rounded-full peer-focus:ring-4
               ${localIsPaid ? "bg-green-600" : "bg-gray-300"}
