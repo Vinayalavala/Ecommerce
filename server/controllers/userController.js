@@ -77,6 +77,36 @@ export const login = async (req, res) => {
   }
 };
 
+// Forgot password
+// Forgot Password (without email verification)
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({ success: false, message: "Email and new password are required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error) {
+    console.error("Forgot Password Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
 // Check if user is authenticated
 export const isAuth = async (req, res) => {
   try {
@@ -97,12 +127,12 @@ export const isAuth = async (req, res) => {
   }
 };
 
-// Logout user (for localStorage-based system, no backend action needed)
+// Logout user
 export const logout = async (req, res) => {
   res.clearCookie("authToken", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "Strict", // or "Lax" based on your frontend/backend origin
+    sameSite: "Strict",
   });
 
   return res.status(200).json({
