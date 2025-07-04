@@ -106,7 +106,7 @@ const ProductList = () => {
                           <img
                             src={product.image?.[0] || assets.placeholder_image}
                             alt={product.name}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-cover"
                           />
                         </div>
                         <div className="flex flex-col truncate max-w-[200px]">
