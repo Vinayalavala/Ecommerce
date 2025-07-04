@@ -31,7 +31,7 @@ const MyOrders = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortOption, setSortOption] = useState('date_desc');
-  const [ratings, setRatings] = useState({}); // 🌟 State to track ratings
+  const [ratings, setRatings] = useState({});
 
   const { currency, axios, user } = useAppContext();
   const navigate = useNavigate();
@@ -116,8 +116,8 @@ const MyOrders = () => {
   }
 
   return (
-    <div className='mt-25 pb-16 max-w-6xl mx-auto px-4'>
-      <div className='flex flex-col items-start mb-8'>
+    <div className='mt-20 pb-16 max-w-6xl mx-auto px-4'>
+      <div className='flex flex-col items-end mb-8'>
         <p className='text-2xl font-medium uppercase'>
           My <span className='text-primary'>Orders</span>
         </p>
@@ -128,19 +128,19 @@ const MyOrders = () => {
         <input
           type='text'
           placeholder='Search by product name...'
-          className='border px-4 py-2 rounded w-full md:w-1/2'
+          className='border px-4 py-2 rounded w-full md:w-1/2 text-sm'
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
         <div className='flex gap-4 w-full md:w-1/2'>
           <select
-            className='border px-4 py-2 rounded w-full'
+            className='border px-4 py-2 rounded w-full text-sm'
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value='All'>All Statuses</option>
-            <option value='Pending'>Pending</option>
+            <option value='Order Placed'>Order Placed</option>
             <option value='Processing'>Processing</option>
             <option value='Shipped'>Shipped</option>
             <option value='Delivered'>Delivered</option>
@@ -148,7 +148,7 @@ const MyOrders = () => {
           </select>
 
           <select
-            className='border px-4 py-2 rounded w-full'
+            className='border px-4 py-2 rounded w-full text-sm'
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value)}
           >
@@ -161,13 +161,13 @@ const MyOrders = () => {
       </div>
 
       {groupedArray.length === 0 && (
-        <p className='text-center text-gray-500'>No orders found.</p>
+        <p className='text-center text-gray-500 text-sm'>No orders found.</p>
       )}
 
       {groupedArray.map((group) => (
         <div key={group.label}>
-          <h3 className='text-lg font-semibold text-gray-700 mb-4'>
-            {group.label} ({group.count} order{group.count > 1 ? 's' : ''}) - 
+          <h3 className='text-base font-semibold text-gray-700 mb-4'>
+            {group.label} ({group.count} order{group.count > 1 ? 's' : ''}) -
             <span className='text-primary ml-2'>
               Total : {currency} {group.totalAmount.toFixed(2)}
             </span>
@@ -175,7 +175,7 @@ const MyOrders = () => {
 
           {group.orders.map((order, index) => (
             <div key={index} className='border border-gray-300 rounded-lg mb-6 p-4 py-5'>
-              <div className='flex flex-wrap justify-between text-gray-600 text-sm font-medium mb-4 gap-2'>
+              <div className='flex flex-wrap justify-between text-gray-600 text-xs font-medium mb-4 gap-2'>
                 <span><span className='text-gray-500'>Order ID:</span> {order._id}</span>
                 <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
                 <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
@@ -189,13 +189,13 @@ const MyOrders = () => {
                 return (
                   <div
                     key={idx}
-                    className='grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 min-h-[110px]'
+                    className='grid grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 items-center'
                   >
-                    <div className='flex justify-center md:justify-start items-center'>
+                    <div className='flex justify-center items-center'>
                       <img
                         src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
                         alt={item.product?.name || 'Product'}
-                        className='w-24 h-24 rounded-lg object-cover cursor-pointer hover:scale-105 transition-transform'
+                        className='w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover cursor-pointer hover:scale-105 transition-transform'
                         onClick={() => {
                           if (productId) navigate(`/product/${productId}`);
                           else toast.error("Product not found.");
@@ -203,24 +203,23 @@ const MyOrders = () => {
                       />
                     </div>
 
-                    <div className='flex flex-col justify-center h-full space-y-2 text-left'>
-                      <h2 className='text-lg font-semibold text-gray-800'>
+                    <div className='flex flex-col justify-center space-y-1 text-left text-sm'>
+                      <h2 className='text-sm font-semibold text-gray-800'>
                         {item.product?.name || 'Unnamed Product'}
                       </h2>
-                      <p className='text-gray-500 text-sm'>
+                      <p className='text-gray-500 text-xs'>
                         Category: {item.product?.category || 'N/A'}
                       </p>
-                      <p className='text-sm'>Qty: {item.quantity}</p>
-                      <p className='text-sm'>
+                      <p className='text-xs'>Qty: {item.quantity}</p>
+                      <p className='text-xs'>
                         Ordered On: {new Date(order.createdAt).toLocaleString()}
                       </p>
 
-                      {/* ⭐ Review Section */}
-                      <div className='flex items-center mt-2'>
+                      <div className='flex items-center mt-2 gap-1'>
                         {[1, 2, 3, 4, 5].map((star) => (
                           <FaStar
                             key={star}
-                            className={`cursor-pointer text-xl ${
+                            className={`cursor-pointer text-sm ${
                               currentRating >= star ? 'text-yellow-400' : 'text-gray-300'
                             }`}
                             onClick={() => handleRatingChange(productId, star)}
@@ -230,7 +229,7 @@ const MyOrders = () => {
                     </div>
 
                     <div className='flex justify-center items-center'>
-                      <p className='text-primary font-semibold text-lg'>
+                      <p className='text-primary font-semibold text-sm sm:text-base'>
                         ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
                       </p>
                     </div>
