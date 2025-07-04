@@ -125,7 +125,7 @@ const Navbar = () => {
                 Login
               </button>
               <button
-                to="/seller"
+                onClick={() => navigate('/seller')}
                 className="flex items-center justify-center h-6 px-4 py-1.5 bg-primary hover:bg-primary-dull transition text-white rounded-full text-sm border-2"
               >
                 Seller
