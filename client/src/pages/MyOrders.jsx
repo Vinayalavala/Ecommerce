@@ -117,7 +117,7 @@ const MyOrders = () => {
 
   return (
     <div className='mt-25 pb-16 max-w-6xl mx-auto px-4'>
-      <div className='flex flex-col items-end mb-8'>
+      <div className='flex flex-col items-start mb-8'>
         <p className='text-2xl font-medium uppercase'>
           My <span className='text-primary'>Orders</span>
         </p>
