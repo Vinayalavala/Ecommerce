@@ -9,6 +9,7 @@ const Login = () => {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [securityQuestion, setSecurityQuestion] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
 
   const onSubmitHandler = async (e) => {
@@ -18,6 +19,7 @@ const Login = () => {
       if (state === "forgot") {
         const { data } = await axios.post("/api/user/forgot-password", {
           email,
+          securityQuestion, // ✅ fixed field name
           newPassword: password,
         });
 
@@ -30,6 +32,7 @@ const Login = () => {
         name,
         email,
         password,
+        ...(state === "register" && { securityQuestion }),
       });
 
       if (data.success) {
@@ -74,17 +77,32 @@ const Login = () => {
         </p>
 
         {state === "register" && (
-          <div className="w-full">
-            <label className="block mb-1">Name</label>
-            <input
-              onChange={(e) => setName(e.target.value)}
-              value={name}
-              placeholder="type here"
-              className="border border-gray-200 rounded w-full p-2 outline-primary"
-              type="text"
-              required
-            />
-          </div>
+          <>
+            <div className="w-full">
+              <label className="block mb-1">Name</label>
+              <input
+                onChange={(e) => setName(e.target.value)}
+                value={name}
+                placeholder="type here"
+                className="border border-gray-200 rounded w-full p-2 outline-primary"
+                type="text"
+                required
+              />
+            </div>
+            <div className="w-full">
+              <label className="block mb-1">
+                Security Question (e.g. Favorite color?)
+              </label>
+              <input
+                onChange={(e) => setSecurityQuestion(e.target.value)}
+                value={securityQuestion}
+                placeholder="type here"
+                className="border border-gray-200 rounded w-full p-2 outline-primary"
+                type="text"
+                required
+              />
+            </div>
+          </>
         )}
 
         <div className="w-full">
@@ -99,30 +117,41 @@ const Login = () => {
           />
         </div>
 
-        {(state !== "login" || state === "login") && (
-          <div className="w-full relative">
-            <label className="block mb-1">
-              {state === "forgot" ? "New Password" : "Password"}
-            </label>
+        {state === "forgot" && (
+          <div className="w-full">
+            <label className="block mb-1">Security Question</label>
             <input
-              onChange={(e) => setPassword(e.target.value)}
-              value={password}
-              placeholder="type here"
-              className="border border-gray-200 rounded w-full p-2 pr-10 outline-primary"
-              type={showPassword ? "text" : "password"}
+              onChange={(e) => setSecurityQuestion(e.target.value)}
+              value={securityQuestion}
+              placeholder="e.g. Favorite color?"
+              className="border border-gray-200 rounded w-full p-2 outline-primary"
+              type="text"
               required
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-[38px] text-gray-500"
-            >
-              {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
-            </button>
           </div>
         )}
 
-        {/* Toggle Links */}
+        <div className="w-full relative">
+          <label className="block mb-1">
+            {state === "forgot" ? "New Password" : "Password"}
+          </label>
+          <input
+            onChange={(e) => setPassword(e.target.value)}
+            value={password}
+            placeholder="type here"
+            className="border border-gray-200 rounded w-full p-2 pr-10 outline-primary"
+            type={showPassword ? "text" : "password"}
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-[38px] text-gray-500"
+          >
+            {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+          </button>
+        </div>
+
         <div className="w-full text-center text-sm space-y-1">
           {state === "login" && (
             <>
