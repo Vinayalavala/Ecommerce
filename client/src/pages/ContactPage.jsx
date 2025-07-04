@@ -2,7 +2,7 @@ import React from 'react';
 
 const ContactPage = () => {
   return (
-    <div className='flex flex-col mt-20 items-center justify-center h-screen '>
+    <div className='flex flex-col mt-25 items-center justify-center h-screen '>
       <form className="flex flex-col items-center text-sm">
       <p className="text-lg text-primary-dull font-medium pb-2">Contact Us</p>
       <h1 className="text-4xl font-semibold text-slate-700 pb-4">We'd love to hear from you</h1>
