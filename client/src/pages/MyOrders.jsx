@@ -174,7 +174,7 @@ const MyOrders = () => {
           </h3>
 
           {group.orders.map((order, index) => (
-            <div key={index} className='border border-gray-300 rounded-lg mb-6 p-4 py-5'>
+            <div key={index} className='border justify-center border-gray-300 rounded-lg mb-6 p-4 py-5'>
               <div className='flex flex-wrap justify-between text-gray-600 text-xs font-medium mb-4 gap-2'>
                 <span><span className='text-gray-500'>Order ID:</span> {order._id}</span>
                 <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
@@ -191,18 +191,20 @@ const MyOrders = () => {
                     key={idx}
                     className='grid grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 items-center'
                   >
-                    <div className='flex justify-center items-center'>
-                      <img
-                        src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
-                        alt={item.product?.name || 'Product'}
-                        className='w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover cursor-pointer hover:scale-105 transition-transform'
-                        onClick={() => {
-                          if (productId) navigate(`/product/${productId}`);
-                          else toast.error("Product not found.");
-                        }}
-                      />
+                    <div className='group flex flex-col items-center md:items-start justify-center cursor-pointer'>
+                        <img
+                          src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
+                          alt={item.product?.name || 'Product'}
+                          className='w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover transition-transform duration-200 group-hover:scale-105'
+                          onClick={() => {
+                            if (productId) navigate(`/product/${productId}`);
+                            else toast.error("Product not found.");
+                          }}
+                        />
+                        <span className='text-xs text-primary mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
+                          View Details
+                        </span>
                     </div>
-
                     <div className='flex flex-col justify-center space-y-1 text-left text-sm'>
                       <h2 className='text-sm font-semibold text-gray-800'>
                         {item.product?.name || 'Unnamed Product'}
