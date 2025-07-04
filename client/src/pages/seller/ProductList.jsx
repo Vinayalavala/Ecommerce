@@ -2,125 +2,141 @@ import { useAppContext } from '../../context/appContext';
 import assets from '../../assets/assets';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
-import { FaTrash } from 'react-icons/fa'; // Example icon, install react-icons if you don't have it
+import { FaTrash } from 'react-icons/fa';
 
 const ProductList = () => {
-    const { products, currency, axios, fetchProducts } = useAppContext();
-    const [loadingProductId, setLoadingProductId] = useState(null);
+  const { products, currency, axios, fetchProducts } = useAppContext();
+  const [loadingProductId, setLoadingProductId] = useState(null);
 
-    const toggleStock = async (id, inStock) => {
-        try {
-            setLoadingProductId(id);
-            const { data } = await axios.post('/api/product/stock', { id, inStock });
+  const toggleStock = async (id, inStock) => {
+    try {
+      setLoadingProductId(id);
+      const { data } = await axios.post('/api/product/stock', { id, inStock });
 
-            if (data.success) {
-                fetchProducts();
-                toast.success(data.message);
-            } else {
-                toast.error(data.message);
-            }
-        } catch (error) {
-            toast.error(error.message);
-        } finally {
-            setLoadingProductId(null);
-        }
-    };
+      if (data.success) {
+        fetchProducts();
+        toast.success(data.message);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoadingProductId(null);
+    }
+  };
 
-    const deleteProduct = async (id) => {
-        if (!confirm("Are you sure you want to delete this product?")) return;
+  const deleteProduct = async (id) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
 
-        try {
-            setLoadingProductId(id);
-            const { data } = await axios.delete(`/api/product/delete/${id}`);
-            if (data.success) {
-                toast.success("Product deleted successfully.");
-                fetchProducts();
-            } else {
-                toast.error(data.message);
-            }
-        } catch (error) {
-            toast.error(error.message || "Something went wrong.");
-        } finally {
-            setLoadingProductId(null);
-        }
-    };
+    try {
+      setLoadingProductId(id);
+      const { data } = await axios.delete(`/api/product/delete/${id}`);
+      if (data.success) {
+        toast.success("Product deleted successfully.");
+        fetchProducts();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Something went wrong.");
+    } finally {
+      setLoadingProductId(null);
+    }
+  };
 
-    return (
-        <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll flex flex-col justify-between">
-            <div className="w-full md:p-10 p-4">
-                <h2 className="pb-4 text-lg font-medium">All Products</h2>
-                <div className="flex flex-col items-center max-w-4xl w-full overflow-hidden rounded-md mb-15 bg-white border border-gray-500/20">
-                    <table className="md:table-auto table-fixed w-full overflow-hidden">
-                        <thead className="text-gray-900 text-sm text-left">
-                            <tr>
-                                <th className="px-4 py-3 font-semibold truncate">Product</th>
-                                <th className="px-4 py-3 font-semibold truncate">Category</th>
-                                <th className="px-4 py-3 font-semibold truncate hidden md:table-cell">Selling Price</th>
-                                <th className="px-4 py-3 font-semibold truncate">In Stock</th>
-                                <th className="px-4 py-3 font-semibold truncate text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="text-sm text-gray-500">
-                            {products && products.length > 0 ? (
-                                products.map((product) => (
-                                    <tr key={product._id} className="border-t border-gray-500/20">
-                                        <td className="md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3 truncate">
-                                            <div className="border border-gray-300 rounded p-2">
-                                                <img
-                                                    src={product.image?.[0] || assets.placeholder_image}
-                                                    alt={product.name}
-                                                    className="w-16 h-16 object-cover"
-                                                />
-                                            </div>
-                                            <span className="truncate max-sm:hidden w-full">{product.name}</span>
-                                        </td>
-                                        <td className="px-4 py-3">{product.category}</td>
-                                        <td className="px-4 py-3 max-sm:hidden">
-                                            {currency}
-                                            {product.offerPrice?.toFixed(2) || 'N/A'}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <label
-                                                className="relative inline-flex items-center cursor-pointer text-gray-900 gap-3"
-                                                aria-label={`Toggle stock for ${product.name}`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={product.inStock}
-                                                    disabled={loadingProductId === product._id}
-                                                    onChange={() =>
-                                                        toggleStock(product._id, !product.inStock)
-                                                    }
-                                                    className="sr-only peer"
-                                                />
-                                                <div className="w-12 h-7 bg-slate-300 rounded-full peer peer-checked:bg-primary-dull transition-colors duration-200"></div>
-                                                <span className="dot absolute left-1 top-1 w-5 h-5 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-5"></span>
-                                            </label>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <button
-                                                onClick={() => deleteProduct(product._id)}
-                                                disabled={loadingProductId === product._id}
-                                                className="text-red-600 hover:text-red-800 disabled:opacity-50"
-                                            >
-                                                <FaTrash size={16} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="5" className="px-4 py-3 text-center text-gray-500">
-                                        No products available.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+  return (
+    <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll flex flex-col justify-between">
+      <div className="w-full md:p-10 p-4">
+        <h2 className="pb-4 text-lg font-semibold text-gray-800">All Products</h2>
+        <div className="flex flex-col items-center max-w-6xl w-full overflow-hidden rounded-md bg-white border border-gray-300 mb-12">
+          <table className="table-fixed w-full text-left">
+            <thead className="text-gray-900 text-sm">
+              <tr>
+                <th className="w-[40%] px-3 py-3 font-semibold">Product</th>
+                <th className="w-[15%] px-3 py-3 font-semibold hidden md:table-cell">Category</th>
+                <th className="w-[15%] px-3 py-3 font-semibold hidden sm:table-cell">Price</th>
+                <th className="w-[15%] px-3 py-3 font-semibold text-center">Stock</th>
+                <th className="w-[15%] px-3 py-3 font-semibold text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm text-gray-700">
+              {products && products.length > 0 ? (
+                products.map((product) => (
+                  <tr key={product._id} className="border-t border-gray-200">
+                    {/* Product */}
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 flex-shrink-0 border border-gray-300 rounded overflow-hidden bg-white">
+                          <img
+                            src={product.image?.[0] || assets.placeholder_image}
+                            alt={product.name}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <div className="flex flex-col truncate max-w-[200px]">
+                          <span className="font-semibold text-gray-800 truncate">{product.name}</span>
+                          <span className="text-xs text-gray-400 md:hidden truncate">{product.category}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Category */}
+                    <td className="px-3 py-3 hidden md:table-cell truncate">
+                      {product.category}
+                    </td>
+
+                    {/* Price */}
+                    <td className="px-3 py-3 hidden sm:table-cell truncate">
+                      {currency}
+                      {product.offerPrice?.toFixed(2) || 'N/A'}
+                    </td>
+
+                    {/* Stock Toggle */}
+                    <td className="px-3 py-3 text-center">
+                      <div className="flex justify-center items-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={product.inStock}
+                            disabled={loadingProductId === product._id}
+                            onChange={() => toggleStock(product._id, !product.inStock)}
+                            className="sr-only peer"
+                          />
+                          {/* Outer Switch */}
+                          <div className="w-11 h-6 border border-gray-400 bg-gray-300 rounded-full peer-checked:bg-green-600 transition-colors duration-300"></div>
+                          {/* Dot */}
+                          <span className="dot absolute left-[2px] top-[2px] w-5 h-5 bg-white border border-gray-400 rounded-full transition-transform duration-300 peer-checked:translate-x-5"></span>
+                        </label>
+                      </div>
+                    </td>
+
+                    {/* Delete Button */}
+                    <td className="px-3 py-3 text-center">
+                      <button
+                        onClick={() => deleteProduct(product._id)}
+                        disabled={loadingProductId === product._id}
+                        className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                        aria-label="Delete product"
+                      >
+                        <FaTrash size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="px-4 py-4 text-center text-gray-500">
+                    No products available.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default ProductList;
