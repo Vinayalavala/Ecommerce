@@ -33,7 +33,7 @@ const AllProducts = () => {
   }, [products, searchQuery, selectedCategory, sortOrder]);
 
   return (
-    <div className='mt-20 px-4 flex flex-col'>
+    <div className='mt-25 px-4 flex flex-col'>
       {/* Title + Controls */}
       <div className='flex flex-wrap items-center justify-between gap-3 mb-4'>
         {/* Title */}
