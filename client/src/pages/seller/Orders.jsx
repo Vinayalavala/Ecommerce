@@ -264,8 +264,16 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
 
   const handleStatusChange = async (e) => {
   const newStatus = e.target.value;
+
+  // Prevent update if status is already Delivered or Cancelled
+  if (localStatus === "Delivered" || localStatus === "Cancelled") {
+    toast.error("Status cannot be changed after it's Delivered or Cancelled.");
+    return;
+  }
+
   setLocalStatus(newStatus);
   setIsUpdating(true);
+
   await onUpdateStatus(order._id, newStatus);
 
   if (newStatus === "Delivered") {
