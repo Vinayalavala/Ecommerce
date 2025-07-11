@@ -13,7 +13,6 @@ const generateToken = (userId) => {
 export const register = async (req, res) => {
   try {
     const { name, email, password, securityQuestion } = req.body;
-    console.log("Register req.body:", req.body);
 
     if (!name || !email || !password || !securityQuestion) {
       return res.status(400).json({ success: false, message: "All fields are required" });
@@ -53,35 +52,24 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("Login Request:", { email, password });
 
     if (!email || !password) {
-      console.log("Missing email/password");
       return res.status(400).json({ success: false, message: "All fields are required" });
     }
 
     const user = await User.findOne({ email });
-    console.log("Found User:", user);
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    if (!user.password) {
-      console.log("User password is missing");
-      return res.status(500).json({ success: false, message: "User has no password saved" });
-    }
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      console.log("Invalid password");
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
-    }
+    if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
+
+    const lastLoginDate = new Date().toLocaleDateString("en-IN");
+    user.lastLoginClue = `You last logged in on ${lastLoginDate}`;
+    await user.save({ validateBeforeSave: false });
+
 
     const token = generateToken(user._id);
     const { password: _, ...userData } = user._doc;
-
-    console.log("Login success. Sending token...");
 
     return res.status(200).json({
       success: true,
@@ -91,8 +79,8 @@ export const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Login Error:", error);
-    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    console.error("Login Error:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -100,7 +88,7 @@ export const login = async (req, res) => {
 export const forgotPassword = async (req, res) => {
   try {
     const { email, newPassword, securityQuestion } = req.body;
-    console.log("Forgot Password req.body:", req.body);
+
 
     if (!email || !newPassword || !securityQuestion) {
       return res.status(400).json({ success: false, message: "All fields are required" });
@@ -184,5 +172,4 @@ export const toggleWishlist = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
-
 
