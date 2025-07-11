@@ -49,6 +49,7 @@ const App = () => {
             <Route path='product-list' element={<ProductList />} />
             <Route path='orders' element={<Orders />} />
             <Route path='analytics' element={<Analytics />} />
+            <Route path='add-ad' element={<AddProduct />} />
           </Route>
 
           <Route path='*' element={<ErrorPage />} />
