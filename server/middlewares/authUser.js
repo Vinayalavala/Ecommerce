@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "../models/user.js"; // ✅ import User model to fetch full user
+import User from "../models/user.js"; // ✅ Import User
 
 const authUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -12,13 +12,12 @@ const authUser = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.id).select("-password"); // attach user
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.status(401).json({ success: false, message: "Unauthorized: User not found" });
     }
 
-    req.user = user; // ✅ Set full user object here
+    req.user = user; // attach full user
     next();
   } catch (error) {
     console.error("JWT Verification Error:", error.message);
