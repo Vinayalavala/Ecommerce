@@ -147,7 +147,7 @@ export const logout = async (req, res) => {
 
 export const toggleWishlist = async (req, res) => {
   try {
-    const userId = req.user._id; // ✅ now this is valid
+    const userId = req.userId; // ✅ Use userId from middleware
     const { productId } = req.body;
 
     if (!productId) {
@@ -155,21 +155,27 @@ export const toggleWishlist = async (req, res) => {
     }
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
     const index = user.wishlist.indexOf(productId);
 
     if (index > -1) {
-      user.wishlist.splice(index, 1); // Remove
+      user.wishlist.splice(index, 1); // ✅ Remove from wishlist
     } else {
-      user.wishlist.push(productId); // Add
+      user.wishlist.push(productId); // ✅ Add to wishlist
     }
 
     await user.save();
-    res.status(200).json({ success: true, wishlist: user.wishlist });
+
+    return res.status(200).json({
+      success: true,
+      wishlist: user.wishlist,
+    });
+
   } catch (err) {
     console.error("Toggle Wishlist Error:", err);
-    res.status(500).json({ success: false, message: 'Internal Server Error' });
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
-
