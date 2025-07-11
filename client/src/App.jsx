@@ -21,7 +21,10 @@ import ProductList from './pages/seller/ProductList';
 import Orders from './pages/seller/Orders';
 import Analytics from './pages/seller/Analytics.jsx';
 import Loading from './components/Loading';
+
+// ✅ Import the ViewCartButton component
 import ViewCartButton from './components/ViewCartButton';
+import Wishlist from './pages/WishList.jsx';
 
 const App = () => {
   const location = useLocation();
@@ -48,6 +51,7 @@ const App = () => {
           <Route path='/my-orders' element={<MyOrders />} />
           <Route path='/loader' element={<Loading />} />
           <Route path='/profile' element={<Profile />} />
+          <Route path='/wishlist' element={<Wishlist />} />
 
           
           <Route path='/seller' element={isSeller ? <SellerLayout /> : <SellerLogin />}>
@@ -62,7 +66,7 @@ const App = () => {
         </Routes>
       </div>
 
-
+      {/* ✅ Show ViewCartButton on all non-seller, non-cart pages */}
       {!isSellerPath && !isCartPage && <ViewCartButton itemCount={1} />}
 
       {!isSellerPath && <Footer />}
