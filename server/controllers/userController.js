@@ -157,3 +157,32 @@ export const logout = async (req, res) => {
   });
 };
 
+xport const toggleWishlist = async (req, res) => {
+  try {
+    const userId = req.user._id; // ✅ now this is valid
+    const { productId } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ success: false, message: 'Product ID missing' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const index = user.wishlist.indexOf(productId);
+
+    if (index > -1) {
+      user.wishlist.splice(index, 1); // Remove
+    } else {
+      user.wishlist.push(productId); // Add
+    }
+
+    await user.save();
+    res.status(200).json({ success: true, wishlist: user.wishlist });
+  } catch (err) {
+    console.error("Toggle Wishlist Error:", err);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+
