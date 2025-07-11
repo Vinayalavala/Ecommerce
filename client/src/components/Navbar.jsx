@@ -82,7 +82,7 @@ const Navbar = () => {
       <nav className="z-50  fixed top-0 left-0 w-full flex items-center justify-between px-3 md:px-8 lg:px-15 py-4 border-b border-gray-300 bg-white/80 backdrop-blur-md">
         {/* Logo */}
         <NavLink to="/" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-          <img className="h-8" src={assets.logo} alt="Logo" />
+          <img className="h-12" src={assets.logo} alt="Logo" />
         </NavLink>
 
         {/* Search Bar */}
