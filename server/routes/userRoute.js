@@ -5,7 +5,8 @@ import {
   isAuth,
   logout,
   forgotPassword, 
-  toggleWishlist
+  toggleWishlist,
+  getWishlist
 } from '../controllers/userController.js';
 import authUser from '../middlewares/authUser.js';
 
@@ -17,5 +18,9 @@ userRouter.post('/forgot-password', forgotPassword);
 userRouter.get('/is-auth', authUser, isAuth);
 userRouter.get('/logout', authUser, logout);
 userRouter.post('/toggle-wishlist', authUser, toggleWishlist);
+
+// Add this line in your routes
+userRouter.get("/wishlist", authUser, getWishlist);
+
 
 export default userRouter;
