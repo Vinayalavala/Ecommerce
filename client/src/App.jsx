@@ -21,16 +21,21 @@ import Orders from './pages/seller/Orders';
 import Analytics from './pages/seller/Analytics.jsx';
 import Loading from './components/Loading';
 
-const App = () => {
+// ✅ Import the ViewCartButton component
+import ViewCartButton from './components/ViewCartButton';
 
-  const isSellerPath = useLocation().pathname.includes('seller');
+const App = () => {
+  const location = useLocation();
+  const isSellerPath = location.pathname.includes('seller');
+  const isCartPage = location.pathname === '/cart';
   const { showUserLogin, isSeller } = useAppContext();
 
   return (
     <div className='text-default min-h-screen text-gray-700 bg-white'>
       {isSellerPath ? null : <Navbar />}
-      {showUserLogin ? <Login /> : null}
+      {showUserLogin && <Login />}
       <Toaster />
+      
       <div className={`${isSellerPath ? "" : "px-6 md:px-16 lg:px-24 xl:px-32"}`}>
         <Routes>
           <Route path='/' element={<Home />} />
@@ -55,6 +60,10 @@ const App = () => {
           <Route path='*' element={<ErrorPage />} />
         </Routes>
       </div>
+
+      {/* ✅ Show ViewCartButton on all non-seller, non-cart pages */}
+      {!isSellerPath && !isCartPage && <ViewCartButton itemCount={1} />}
+
       {!isSellerPath && <Footer />}
     </div>
   );
