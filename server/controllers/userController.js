@@ -175,3 +175,18 @@ export const toggleWishlist = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
+
+export const getWishlist = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).populate("wishlist");
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.status(200).json({ success: true, products: user.wishlist });
+  } catch (err) {
+    console.error("Get Wishlist Error:", err);
+    res.status(500).json({ success: false, message: "Failed to get wishlist" });
+  }
+};
