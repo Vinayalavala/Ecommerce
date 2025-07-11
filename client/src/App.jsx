@@ -7,6 +7,7 @@ import { useAppContext } from './context/appContext.jsx';
 import Login from './components/Login.jsx';
 import AllProducts from './pages/AllProducts.jsx';
 import ProductCategory from './pages/ProductCategory.jsx';
+import Profile from './pages/Profile.jsx';
 import ContactPage from './pages/ContactPage';
 import ErrorPage from './pages/ErrorPage.jsx';
 import ProductDetails from './pages/ProductDetails';
@@ -20,8 +21,6 @@ import ProductList from './pages/seller/ProductList';
 import Orders from './pages/seller/Orders';
 import Analytics from './pages/seller/Analytics.jsx';
 import Loading from './components/Loading';
-
-// ✅ Import the ViewCartButton component
 import ViewCartButton from './components/ViewCartButton';
 
 const App = () => {
@@ -48,6 +47,8 @@ const App = () => {
           <Route path='/product/:id' element={<ProductDetails />} />
           <Route path='/my-orders' element={<MyOrders />} />
           <Route path='/loader' element={<Loading />} />
+          <Route path='/profile' element={<Profile />} />
+
           
           <Route path='/seller' element={isSeller ? <SellerLayout /> : <SellerLogin />}>
             <Route index element={isSeller ? <AddProduct /> : null} />
@@ -61,7 +62,7 @@ const App = () => {
         </Routes>
       </div>
 
-      {/* ✅ Show ViewCartButton on all non-seller, non-cart pages */}
+
       {!isSellerPath && !isCartPage && <ViewCartButton itemCount={1} />}
 
       {!isSellerPath && <Footer />}
