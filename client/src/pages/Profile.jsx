@@ -51,7 +51,7 @@ const Profile = () => {
     {
       label: 'Your Wishlist',
       icon: <FiHeart className="text-black w-5 h-5" />,
-      action: () => toast('Wishlist is coming soon!'),
+      action: () => navigate('/wishlist'),
     },
     {
       label: 'Address Book',
