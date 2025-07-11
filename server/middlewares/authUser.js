@@ -1,9 +1,10 @@
 import jwt from "jsonwebtoken";
-import User from "../models/user.js"; // ✅ Import User
+import User from "../models/user.js";
 
 const authUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
+  // First validate header before using it
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ success: false, message: "Unauthorized: No token" });
   }
@@ -12,12 +13,13 @@ const authUser = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("-password"); // attach user
+
+    const user = await User.findById(decoded.id).select("-password");
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized: User not found" });
     }
 
-    req.user = user; // attach full user
+    req.user = user; // Attach user to request
     next();
   } catch (error) {
     console.error("JWT Verification Error:", error.message);
