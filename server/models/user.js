@@ -23,9 +23,11 @@ const userSchema = new mongoose.Schema({
   },
 
   securityQuestion: {
-    type: String,
-    required: true,
-  },
+  type: String,
+  required: true,
+  default: '', // ✅ allows saving without validation error later
+},
+
 
   lastLoginClue: {
     type: String,
