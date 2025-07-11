@@ -51,7 +51,7 @@ const App = () => {
           <Route path='/my-orders' element={<MyOrders />} />
           <Route path='/loader' element={<Loading />} />
           <Route path='/profile' element={<Profile />} />
-          <Route path='/wishlist' element={<WishList />} />
+          <Route path='/wishlist' element={<Wishlist />} />
 
           
           <Route path='/seller' element={isSeller ? <SellerLayout /> : <SellerLogin />}>
