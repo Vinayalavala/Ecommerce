@@ -63,3 +63,57 @@ export const getAddress = async (req, res) => {
         });
     }
 }
+
+export const deleteAddress = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await Address.findByIdAndDelete(id);
+
+        if (!deleted) {
+            return res.json({
+                success: false,
+                message: "Address not found",
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Address deleted successfully",
+        });
+    } catch (error) {
+        console.error("Error deleting address:", error);
+        res.json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+export const editAddress = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedAddress = req.body;
+
+        const updated = await Address.findByIdAndUpdate(id, updatedAddress, { new: true });
+
+        if (!updated) {
+            return res.json({
+                success: false,
+                message: "Address not found",
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Address updated successfully",
+            address: updated,
+        });
+    } catch (error) {
+        res.json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
