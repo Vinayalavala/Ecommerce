@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "../models/user.js";
+import User from "../models/user.js"; // ✅ import User model to fetch full user
 
 const authUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -13,16 +13,12 @@ const authUser = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // ✅ Fetch user from DB
     const user = await User.findById(decoded.id).select("-password");
     if (!user) {
-      return res.status(401).json({ success: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // ✅ Attach both for compatibility
-    req.userId = user._id;
-    req.user = user;
-
+    req.user = user; // ✅ Set full user object here
     next();
   } catch (error) {
     console.error("JWT Verification Error:", error.message);
