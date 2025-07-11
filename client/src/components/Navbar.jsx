@@ -145,7 +145,7 @@ const Navbar = () => {
               </button>
 
               {dropdownOpen && (
-                <ul className="absolute top-12 right-0 bg-white shadow-md border border-gray-200 py-2.5 z-50 rounded-md w-[220px] text-sm">
+                <ul className="absolute top-12 right-0 bg-white shadow-md border border-gray-200 py-2.5 z-51 rounded-md w-[220px] text-sm">
                   <li className="p-2 px-4 font-semibold text-gray-900 border-b border-gray-100">
                     Hello, {user.name}
                   </li>
@@ -262,7 +262,7 @@ const Navbar = () => {
             </button>
 
             {mobileProfileOpen && (
-              <ul className="absolute bottom-12 right-0 bg-white shadow-lg border border-gray-200 rounded-md w-52 text-sm z-50">
+              <ul className="absolute bottom-12 right-0 bg-white shadow-lg border border-gray-200 rounded-md w-52 text-sm z-51">
                 <li className="p-2 px-4 font-semibold text-gray-900 border-b border-gray-100">
                   Hello, {user.name}
                 </li>
