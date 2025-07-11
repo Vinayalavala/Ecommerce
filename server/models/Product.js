@@ -17,7 +17,8 @@ const reviewSchema = new mongoose.Schema({
 });
 
 // Main product schema
-const productSchema = new mongoose.Schema({
+const productSchema = new mongoose.Schema(
+  {
     name: { type: String, required: true },
     description: { type: Array, required: true },
     price: { type: Number, required: true },
@@ -25,20 +26,15 @@ const productSchema = new mongoose.Schema({
     image: { type: Array, required: true },
     category: { type: String, required: true },
     inStock: { type: Boolean, default: true },
-    reviews: [
-      {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
-        name: { type: String, required: true },
-        rating: { type: Number, required: true },
-        comment: { type: String, required: true },
-        createdAt: { type: Date, default: Date.now }
-      }
-    ]
-  }, { timestamps: true });
-  
+    reviews: [reviewSchema], // ✅ reused sub-schema
+    sellerEmail: { type: String }, // ✅ recommended if multi-seller app
+    stock: { type: Number, default: 0 } // ✅ recommended for inventory
+  },
+  { timestamps: true }
+);
 
-// Export product model
+// ✅ Model name fixed to match the reference string in user model
 const Product =
-  mongoose.models.product || mongoose.model("product", productSchema);
+  mongoose.models.Product || mongoose.model("Product", productSchema);
 
 export default Product;
