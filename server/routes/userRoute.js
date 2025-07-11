@@ -4,7 +4,8 @@ import {
   login,
   isAuth,
   logout,
-  forgotPassword 
+  forgotPassword, 
+  toggleWishlist
 } from '../controllers/userController.js';
 import authUser from '../middlewares/authUser.js';
 
@@ -15,5 +16,6 @@ userRouter.post('/login', login);
 userRouter.post('/forgot-password', forgotPassword); 
 userRouter.get('/is-auth', authUser, isAuth);
 userRouter.get('/logout', authUser, logout);
+userRouter.post('/toggle-wishlist', authUser, toggleWishlist);
 
 export default userRouter;
