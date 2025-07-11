@@ -157,7 +157,7 @@ export const logout = async (req, res) => {
   });
 };
 
-xport const toggleWishlist = async (req, res) => {
+export const toggleWishlist = async (req, res) => {
   try {
     const userId = req.user._id; // ✅ now this is valid
     const { productId } = req.body;
