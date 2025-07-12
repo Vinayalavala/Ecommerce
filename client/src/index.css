@@ -11,6 +11,11 @@
     --color-primary-dull: #44ae7c;
 }
 
-.no-scrollbar::-webkit-scrollbar{
-    display: none;
+/* index.css or App.css */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
