@@ -3,147 +3,258 @@ import { Link, useParams } from 'react-router-dom';
 import { useAppContext } from '../context/appContext';
 import assets from '../assets/assets';
 import ProductCard from '../components/ProductCard';
+import { toast } from 'react-hot-toast';
+import axios from 'axios';
+import { FaHeart, FaRegHeart, FaShoppingCart, FaBolt } from 'react-icons/fa';
 
 const ProductDetails = () => {
-    const { products, navigate, addToCart, currency } = useAppContext();
-    const { id } = useParams();
+  const { products, navigate, addToCart, currency, user } = useAppContext();
+  const { id } = useParams();
 
-    const [relatedProducts, setRelatedProducts] = useState([]);
-    const [thumbnail, setThumbnail] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [thumbnail, setThumbnail] = useState(null);
+  const [liked, setLiked] = useState(false);
 
-    const product = products.find((item) => item._id === id);
+  const product = products.find((item) => item._id === id);
 
-    useEffect(() => {
-        if (products.length > 0 && product) {
-            let productsCopy = products.filter((item) => 
-                item.category?.[0] === product.category?.[0] && item._id !== product._id
-            );
-            setRelatedProducts(productsCopy.slice(0, 5));
-        }
-    }, [products, product]);
+  useEffect(() => {
+    if (product && user?.wishlist?.includes(product._id)) {
+      setLiked(true);
+    } else {
+      setLiked(false);
+    }
+  }, [product, user]);
 
-    useEffect(() => {
-        if (product?.image?.length > 0) {
-            setThumbnail(product.image[0]);
-        }
-    }, [product]);
+  useEffect(() => {
+    if (products.length > 0 && product) {
+      const filtered = products.filter(
+        (item) => item.category === product.category && item._id !== product._id
+      );
+      setRelatedProducts(filtered.slice(0, 5));
+    }
+  }, [products, product]);
 
-    if (!product) {
-        return (
-            <div className="flex items-center justify-center h-[60vh] text-xl font-medium">
-                Product not found
-            </div>
-        );
+  useEffect(() => {
+    if (product?.image?.length > 0) {
+      setThumbnail(product.image[0]);
+    }
+  }, [product]);
+
+  const handleToggleWishlist = async () => {
+    if (!user?._id) {
+      toast.error("Login required to use wishlist");
+      return;
     }
 
+    try {
+      const { data } = await axios.post('/api/user/toggle-wishlist', {
+        productId: product._id,
+      });
+
+      if (data.success) {
+        const isNowLiked = data.wishlist.includes(product._id);
+        setLiked(isNowLiked);
+        toast.success(isNowLiked ? "Added to wishlist" : "Removed from wishlist");
+      } else {
+        toast.error(data.message || "Wishlist update failed");
+      }
+    } catch (err) {
+      toast.error("Failed to update wishlist");
+    }
+  };
+
+  if (!product) {
     return (
-        <div className="mt-25">
-            <p className="text-gray-500">
-            <Link to="/">Home</Link> / 
-            <Link to="/products"> Products</Link> / 
-            <Link to={`/products/${product.category?.toLowerCase()}`}> {product.category}</Link> / 
-            <span className="text-primary"> {product.name}</span>
-            </p>
-
-
-            <div className="flex flex-col md:flex-row gap-16 mt-4">
-                {/* Images */}
-                <div className="flex gap-3">
-                    <div className="flex flex-col gap-3">
-                        {product.image.map((image, index) => (
-                            <div
-                                key={index}
-                                onClick={() => setThumbnail(image)}
-                                className="border w-20 h-20 sm:w-24 sm:h-24 border-gray-500/30 rounded overflow-hidden cursor-pointer"
-                            >
-                                <img
-                                    src={image}
-                                    alt={`Thumbnail ${index + 1}`}
-                                    className="w-full h-full object-cover"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                    <div className="border border-gray-500/30 w-[250px] h-[250px] sm:w-[450px] sm:h-[400px] md:w-[400px] md:h-[400px] lg:w-[600px] rounded overflow-hidden">
-                        <img
-                            src={thumbnail}
-                            alt="Selected product"
-                            className="w-full h-full object-contain p-2"
-                        />
-                    </div>
-
-                </div>
-
-                {/* Details */}
-                <div className="text-sm w-full md:w-1/2">
-                    <h1 className="text-3xl font-medium">{product.name}</h1>
-
-                    <div className="flex items-center gap-0.5 mt-1">
-                        {Array(5).fill('').map((_, i) => (
-                            <img 
-                                key={i} 
-                                src={i < 4 ? assets.star_icon : assets.star_dull_icon} 
-                                alt="rating" 
-                                className="md:w-4 w-3.5" 
-                            />
-                        ))}
-                        <p className="text-base ml-2">(4)</p>
-                    </div>
-
-                    <div className="mt-6">
-                        <p className="text-gray-500/70 line-through">MRP: {currency}{product.price}</p>
-                        <p className="text-2xl font-medium">MRP: {currency}{product.offerPrice}</p>
-                        <span className="text-gray-500/70">(inclusive of all taxes)</span>
-                    </div>
-
-                    <p className="text-base font-medium mt-6">About Product</p>
-                    <ul className="list-disc ml-4 text-gray-500/70">
-                        {product.description.map((desc, index) => (
-                            <li key={index}>{desc}</li>
-                        ))}
-                    </ul>
-
-                    <div className="flex items-center mt-10 gap-4 text-base">
-                        <button 
-                            onClick={() => addToCart(product._id)} 
-                            className="w-full py-3.5 cursor-pointer font-medium bg-gray-100 text-gray-800/80 hover:bg-gray-200 transition"
-                        >
-                            Add to Cart
-                        </button>
-                        <button 
-                            onClick={() => { addToCart(product._id); navigate("/cart"); }} 
-                            className="w-full py-3.5 cursor-pointer font-medium bg-primary text-white hover:bg-primary-dull transition"
-                        >
-                            Buy now
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Related Products */}
-            <div className="flex flex-col items-center mt-20">
-                <div className="flex flex-col items-center w-max">
-                    <p className="text-3xl font-medium">Related Products</p>
-                    <div className="w-20 h-0.5 bg-primary rounded-full mt-2"></div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 mt-6 gap-3 md:gap-6 w-full">
-                    {relatedProducts
-                        .filter((relProduct) => relProduct.inStock)
-                        .map((relProduct) => (
-                            <ProductCard key={relProduct._id} product={relProduct} />
-                        ))}
-                </div>
-
-                <button 
-                    onClick={() => { navigate("/products"); window.scrollTo(0, 0); }} 
-                    className="mx-auto cursor-pointer px-12 my-16 py-2.5 rounded border text-primary hover:bg-primary/10 transition"
-                >
-                    See more
-                </button>
-            </div>
-        </div>
+      <div className="flex items-center justify-center h-screen text-xl font-medium">
+        Product not found
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen w-full bg-white text-gray-800 pt-20 px-4 sm:px-6 md:px-10 lg:px-16 xl:px-20">
+      {/* Product Section */}
+      <div className="flex flex-col lg:flex-row gap-12 w-full">
+        {/* LEFT */}
+        <div className="w-full lg:w-1/2 flex flex-col gap-4">
+          {/* Desktop layout: thumbnails left, image right */}
+          <div className="hidden lg:flex gap-3">
+            <div className="flex flex-col gap-3">
+              {product.image.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  onClick={() => setThumbnail(img)}
+                  className={`w-20 h-20 object-cover rounded-md border cursor-pointer ${
+                    thumbnail === img ? "border-primary" : "border-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="border border-gray-300 w-[400px] h-[400px] rounded-md overflow-hidden">
+              <img
+                src={thumbnail}
+                alt="product"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+
+          {/* Mobile layout: image first, breadcrumbs and thumbnails below */}
+          <div className="lg:hidden flex flex-col gap-3 w-full">
+            <div className="w-full h-[300px] sm:h-[350px] rounded-md border border-gray-300 overflow-hidden">
+              <img
+                src={thumbnail}
+                alt="product"
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <div className="text-gray-500 text-sm">
+              <Link to="/">Home</Link> / <Link to="/products">Products</Link> /{" "}
+              <Link to={`/products/${product.category?.toLowerCase()}`}>{product.category}</Link> /{" "}
+              <span className="text-primary">{product.name}</span>
+            </div>
+
+            <div className="flex gap-2 justify-center flex-wrap">
+              {product.image.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  onClick={() => setThumbnail(img)}
+                  className={`w-14 h-14 object-cover rounded-md border cursor-pointer ${
+                    thumbnail === img ? "border-primary" : "border-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT */}
+        <div className="flex-1 space-y-4 text-sm">
+          <div className="hidden lg:block text-gray-500 text-sm mb-2">
+            <Link to="/">Home</Link> / <Link to="/products">Products</Link> /{" "}
+            <Link to={`/products/${product.category?.toLowerCase()}`}>{product.category}</Link> /{" "}
+            <span className="text-primary">{product.name}</span>
+          </div>
+
+          <div className="flex items-start justify-between">
+            <h1 className="text-2xl font-semibold">{product.name}</h1>
+            <button onClick={handleToggleWishlist}>
+              {liked ? (
+                <FaHeart size={22} className="text-red-500" />
+              ) : (
+                <FaRegHeart size={22} className="text-gray-500 hover:text-red-400" />
+              )}
+            </button>
+          </div>
+
+          {/* Rating */}
+          <div className="flex items-center gap-1">
+            {Array(5).fill('').map((_, i) => (
+              <img
+                key={i}
+                src={i < 4 ? assets.star_icon : assets.star_dull_icon}
+                alt="rating"
+                className="w-4"
+              />
+            ))}
+            <span className="ml-2 text-gray-400 text-sm">(4)</span>
+          </div>
+
+          {/* Pricing */}
+          <div>
+            <p className="text-gray-400 line-through">MRP: {currency}{product.price}</p>
+            <p className="text-2xl font-semibold">Price: {currency}{product.offerPrice}</p>
+            <p className="text-sm text-gray-500">(Inclusive of all taxes)</p>
+          </div>
+
+          {/* Stock */}
+          {product.inStock ? (
+            <>
+              <p className="text-green-600 font-medium">In Stock</p>
+              {product.quantity <= 10 && (
+                <p className="text-red-500 text-sm animate-pulse">
+                  Hurry! Only {product.quantity} left.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-red-500 font-medium">Out of Stock</p>
+          )}
+
+          {/* Description */}
+          <div>
+            <p className="font-medium mt-4">About this product</p>
+            <ul className="text-gray-600 list-disc pl-5 mt-2 space-y-1">
+              {product.description.map((desc, idx) => (
+                <li key={idx}>{desc}</li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-6">
+            <button
+              onClick={() => addToCart(product._id)}
+              disabled={!product.inStock}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-sm font-semibold transition ${
+                product.inStock
+                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <FaShoppingCart /> Add to Cart
+            </button>
+
+            <button
+              onClick={() => {
+                addToCart(product._id);
+                navigate("/cart");
+              }}
+              disabled={!product.inStock}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-sm font-semibold transition ${
+                product.inStock
+                  ? 'bg-primary hover:bg-primary-dull text-white'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <FaBolt /> Buy Now
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Related Products */}
+      <div className="mt-20 w-full">
+        <div className="text-center mb-4">
+          <h2 className="text-2xl font-semibold">Related Products</h2>
+          <div className="w-16 h-0.5 bg-primary mx-auto mt-2"></div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 mt-6 gap-4">
+          {relatedProducts
+            .filter((relProduct) => relProduct.inStock)
+            .map((relProduct) => (
+              <ProductCard key={relProduct._id} product={relProduct} />
+            ))}
+        </div>
+
+        <div className="flex justify-center mt-10">
+          <button
+            onClick={() => {
+              navigate("/products");
+              scrollTo(0, 0);
+            }}
+            className="px-8 py-2 border border-primary text-primary rounded hover:bg-primary/10 transition"
+          >
+            See more
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default ProductDetails;
