@@ -134,7 +134,7 @@ const Cart = () => {
   }, [cooldownSeconds]);
 
   return products.length > 0 && cartItems ? (
-    <div className="flex flex-col md:flex-row mt-25">
+    <div className="flex flex-col md:flex-row mt-30">
       <div className="flex-1 max-w-4xl">
         <h1 className="text-3xl font-medium mb-6">
           Shopping Cart{" "}
