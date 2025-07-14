@@ -9,30 +9,39 @@ export const addProduct = async (req, res) => {
     if (!req.body.productData || !req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Product data or images are missing",
+        message: "Product data or media files are missing",
       });
     }
 
     const productData = JSON.parse(req.body.productData);
-    const images = req.files;
 
-    const imagesUrl = await Promise.all(
-      images.map(async (item) => {
-        const result = await cloudinary.uploader.upload(item.path, {
-          resource_type: "image",
-        });
-        return result.secure_url;
-      })
-    );
+    const images = [];
+    const videos = [];
+
+    // Separate image and video uploads
+    for (const file of req.files) {
+      const isVideo = file.mimetype.startsWith("video");
+
+      const uploadResult = await cloudinary.uploader.upload(file.path, {
+        resource_type: isVideo ? "video" : "image",
+      });
+
+      if (isVideo) {
+        videos.push(uploadResult.secure_url);
+      } else {
+        images.push(uploadResult.secure_url);
+      }
+    }
 
     await Product.create({
       ...productData,
-      image: imagesUrl,
+      image: images,
+      video: videos,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Product added successfully",
+      message: "Product with media added successfully",
     });
 
   } catch (error) {
@@ -43,6 +52,7 @@ export const addProduct = async (req, res) => {
     });
   }
 };
+
 
 // ---------------------------------------------
 // List All Products
