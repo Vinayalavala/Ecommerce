@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import assets from '../assets/assets';
 import { useAppContext } from '../context/appContext.jsx';
@@ -7,7 +7,8 @@ import { toast } from 'react-hot-toast';
 const Navbar = () => {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const navigate = useNavigate();
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   const {
     axios,
@@ -17,6 +18,8 @@ const Navbar = () => {
     setSearchQuery,
     searchQuery,
   } = useAppContext();
+
+  const navigate = useNavigate();
 
   const logout = async () => {
     try {
@@ -40,13 +43,6 @@ const Navbar = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    if (searchQuery.length > 0) {
-      navigate('/products');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [searchQuery]);
-
   const getUserAddress = async () => {
     try {
       const { data } = await axios.get(`/api/address/get?userId=${user._id}`);
@@ -64,17 +60,46 @@ const Navbar = () => {
   };
 
   useEffect(() => {
+    if (searchQuery.length > 0) {
+      navigate('/products');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
     if (user && user._id) {
       getUserAddress();
     }
   }, [user]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY > lastScrollY && currentScrollY > 50) {
+        setIsNavbarVisible(false); // Hide on scroll down
+      } else {
+        setIsNavbarVisible(true); // Show on scroll up
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
+
   return (
     <>
       {/* TOP NAVBAR */}
-      <nav className="z-50 fixed top-0 left-0 w-full flex flex-col px-3 md:px-8 lg:px-15 py-3 border-b border-gray-300 bg-white/90 backdrop-blur-md">
+      <nav
+        className={`z-50 fixed top-0 left-0 w-full flex flex-col px-3 md:px-8 lg:px-15 py-3 border-b border-gray-300 bg-white/80 backdrop-blur-md
+        transition-transform duration-500 ease-in-out will-change-transform ${
+          isNavbarVisible ? 'translate-y-0' : '-translate-y-full'
+        }`}
+      >
         <div className="flex items-center justify-between w-full">
-          {/* Logo - Hidden on mobile */}
+          {/* Logo */}
           <NavLink
             to="/"
             className="hidden sm:block"
@@ -84,7 +109,7 @@ const Navbar = () => {
           </NavLink>
 
           {/* Desktop Search */}
-          <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md">
+          <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md bg-white">
             <input
               onChange={(e) => setSearchQuery(e.target.value)}
               value={searchQuery}
@@ -161,7 +186,7 @@ const Navbar = () => {
         )}
 
         {/* Mobile Search */}
-        <div className="lg:hidden mt-3 flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full shadow-sm">
+        <div className="lg:hidden mt-3 flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full shadow-sm bg-white">
           <input
             onChange={(e) => setSearchQuery(e.target.value)}
             value={searchQuery}
@@ -172,6 +197,20 @@ const Navbar = () => {
           <img src={assets.search_icon} alt="search" className="w-4 h-4" />
         </div>
       </nav>
+      {/* Floating Search Bar when navbar is hidden */}
+{!isNavbarVisible && (
+  <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[95%] max-w-md px-4 py-2 bg-white/90 border border-gray-300 rounded-b-xl shadow-md z-40 flex items-center gap-2 backdrop-blur-md transition-all duration-300">
+    <img src={assets.search_icon} alt="search" className="w-4 h-4 opacity-70" />
+    <input
+      onChange={(e) => setSearchQuery(e.target.value)}
+      value={searchQuery}
+      className="w-full text-sm bg-transparent outline-none placeholder-gray-500"
+      type="text"
+      placeholder="Search products..."
+    />
+  </div>
+)}
+
 
       {/* MOBILE BOTTOM NAVBAR */}
       <div className="sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl">
