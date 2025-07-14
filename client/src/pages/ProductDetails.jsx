@@ -75,7 +75,7 @@ const ProductDetails = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-white text-gray-800 pt-20 px-4 sm:px-6 md:px-10 lg:px-16 xl:px-20">
+    <div className="min-h-screen w-full bg-white text-gray-800 pt-30 px-4 sm:px-6 md:px-10 lg:px-16 xl:px-20">
       {/* Product Section */}
       <div className="flex flex-col lg:flex-row gap-12 w-full">
         {/* LEFT */}
