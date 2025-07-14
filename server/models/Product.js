@@ -28,7 +28,12 @@ const productSchema = new mongoose.Schema(
     inStock: { type: Boolean, default: true },
     reviews: [reviewSchema], // ✅ reused sub-schema
     sellerEmail: { type: String }, // ✅ recommended if multi-seller app
-    stock: { type: Number, default: 0 } // ✅ recommended for inventory
+    stock: { type: Number, default: 0 }, // ✅ recommended for inventory,
+    video: {
+  type: [String],
+  default: []
+}
+
   },
   { timestamps: true }
 );
