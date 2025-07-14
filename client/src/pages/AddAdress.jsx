@@ -154,7 +154,7 @@ const AddAddress = () => {
   }, [user]);
 
   return (
-    <div className='mt-16 pb-16 px-4'>
+    <div className='mt-30 pb-16 px-4'>
       <div className='flex justify-between items-center mb-6'>
         <p className='text-2xl md:text-3xl text-gray-500'>
           Manage Shipping <span className='font-bold text-primary'>Addresses</span>
