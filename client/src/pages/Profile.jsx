@@ -71,7 +71,7 @@ const Profile = () => {
   ];
 
   return (
-    <div className="mt-16 pb-16 px-4 md:px-8">
+    <div className="mt-30 pb-16 px-4 md:px-8">
       {/* Title */}
       <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Information</h2>
 
