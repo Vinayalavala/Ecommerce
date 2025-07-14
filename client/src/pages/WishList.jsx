@@ -29,7 +29,7 @@ const Wishlist = () => {
   if (!user?._id) return null;
 
   return (
-    <div className="px-4 py-6 max-w-screen-lg mx-auto">
+    <div className="px-4 py-6 mt-30 max-w-screen-lg mx-auto">
       <h2 className="text-2xl font-semibold mb-4 text-gray-800">Your Wishlist</h2>
       {wishlistProducts.length === 0 ? (
         <p className="text-gray-500">Your wishlist is empty.</p>
