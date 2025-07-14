@@ -30,7 +30,7 @@ const ProductCategory = () => {
   }
 
   return (
-    <div className='mt-25 px-4 md:px-8'>
+    <div className='mt-30 px-4 md:px-8'>
       {searchCategory && (
         <div className='flex justify-between items-center mb-4 flex-wrap gap-2'>
           <div>
