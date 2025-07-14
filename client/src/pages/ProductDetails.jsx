@@ -35,8 +35,11 @@ const ProductDetails = () => {
   }, [products, product]);
 
   useEffect(() => {
-    if (product?.image?.length > 0) {
-      setThumbnail(product.image[0]);
+    if (product?.image?.length > 0 || product?.video?.length > 0) {
+      const firstMedia = product.video?.[0]
+        ? { url: product.video[0], type: 'video' }
+        : { url: product.image[0], type: 'image' };
+      setThumbnail(firstMedia);
     }
   }, [product]);
 
@@ -77,37 +80,66 @@ const ProductDetails = () => {
       <div className="flex flex-col lg:flex-row gap-12 w-full">
         {/* LEFT */}
         <div className="w-full lg:w-1/2 flex flex-col gap-4">
-          {/* Desktop layout: thumbnails left, image right */}
-          <div className="hidden lg:flex gap-3">
-            <div className="flex flex-col gap-3">
-              {product.image.map((img, idx) => (
+          {/* Desktop layout */}
+          <div className="hidden lg:flex gap-4">
+            <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto no-scrollbar">
+              {product.image?.map((img, idx) => (
                 <img
-                  key={idx}
+                  key={`img-${idx}`}
                   src={img}
-                  onClick={() => setThumbnail(img)}
+                  onClick={() => setThumbnail({ url: img, type: 'image' })}
                   className={`w-20 h-20 object-cover rounded-md border cursor-pointer ${
-                    thumbnail === img ? "border-primary" : "border-gray-300"
+                    thumbnail?.url === img ? "border-primary" : "border-gray-300"
                   }`}
                 />
               ))}
+              {product.video?.map((vid, idx) => (
+                <video
+                  key={`vid-${idx}`}
+                  src={vid}
+                  onClick={() => setThumbnail({ url: vid, type: 'video' })}
+                  className={`w-20 h-20 object-cover rounded-md border cursor-pointer ${
+                    thumbnail?.url === vid ? "border-primary" : "border-gray-300"
+                  }`}
+                  muted
+                />
+              ))}
             </div>
-            <div className="border border-gray-300 w-[400px] h-[400px] rounded-md overflow-hidden">
-              <img
-                src={thumbnail}
-                alt="product"
-                className="w-full h-full object-cover"
-              />
+            <div className="border border-gray-300 w-[400px] h-[400px] rounded-md overflow-hidden flex items-center justify-center">
+              {thumbnail?.url && thumbnail.type === 'image' && (
+                <img
+                  src={thumbnail.url}
+                  alt="product"
+                  className="w-full h-full object-cover"
+                />
+              )}
+              {thumbnail?.url && thumbnail.type === 'video' && (
+                <video
+                  src={thumbnail.url}
+                  controls
+                  className="w-full h-full object-cover"
+                />
+              )}
             </div>
           </div>
 
-          {/* Mobile layout: image first, breadcrumbs and thumbnails below */}
+          {/* Mobile layout */}
           <div className="lg:hidden flex flex-col gap-3 w-full">
-            <div className="w-full h-[300px] sm:h-[350px] rounded-md border border-gray-300 overflow-hidden">
-              <img
-                src={thumbnail}
-                alt="product"
-                className="w-full h-full object-cover"
-              />
+            <div className="w-full h-[300px] sm:h-[350px] rounded-md border border-gray-300 overflow-hidden flex items-center justify-center">
+              {thumbnail?.url && thumbnail.type === 'image' && (
+                <img
+                  src={thumbnail.url}
+                  alt="product"
+                  className="w-full h-full object-cover"
+                />
+              )}
+              {thumbnail?.url && thumbnail.type === 'video' && (
+                <video
+                  src={thumbnail.url}
+                  controls
+                  className="w-full h-full object-cover"
+                />
+              )}
             </div>
 
             <div className="text-gray-500 text-sm">
@@ -116,15 +148,26 @@ const ProductDetails = () => {
               <span className="text-primary">{product.name}</span>
             </div>
 
-            <div className="flex gap-2 justify-center flex-wrap">
-              {product.image.map((img, idx) => (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+              {product.image?.map((img, idx) => (
                 <img
-                  key={idx}
+                  key={`mob-img-${idx}`}
                   src={img}
-                  onClick={() => setThumbnail(img)}
-                  className={`w-14 h-14 object-cover rounded-md border cursor-pointer ${
-                    thumbnail === img ? "border-primary" : "border-gray-300"
+                  onClick={() => setThumbnail({ url: img, type: 'image' })}
+                  className={`w-16 h-16 object-cover flex-shrink-0 rounded-md border cursor-pointer ${
+                    thumbnail?.url === img ? "border-primary" : "border-gray-300"
                   }`}
+                />
+              ))}
+              {product.video?.map((vid, idx) => (
+                <video
+                  key={`mob-vid-${idx}`}
+                  src={vid}
+                  onClick={() => setThumbnail({ url: vid, type: 'video' })}
+                  className={`w-16 h-16 object-cover flex-shrink-0 rounded-md border cursor-pointer ${
+                    thumbnail?.url === vid ? "border-primary" : "border-gray-300"
+                  }`}
+                  muted
                 />
               ))}
             </div>
