@@ -12,6 +12,8 @@ const ProductDetails = () => {
   const { id } = useParams();
 
   const [relatedProducts, setRelatedProducts] = useState([]);
+  const [allRelated, setAllRelated] = useState([]);
+  const [showAll, setShowAll] = useState(false);
   const [thumbnail, setThumbnail] = useState(null);
   const [liked, setLiked] = useState(false);
 
@@ -30,6 +32,7 @@ const ProductDetails = () => {
       const filtered = products.filter(
         (item) => item.category === product.category && item._id !== product._id
       );
+      setAllRelated(filtered);
       setRelatedProducts(filtered.slice(0, 5));
     }
   }, [products, product]);
@@ -62,8 +65,18 @@ const ProductDetails = () => {
         toast.error(data.message || "Wishlist update failed");
       }
     } catch (err) {
-      toast.error("Failed to update wishlist");
+      toast.error("Failed to update wishlist", err.message);
     }
+  };
+
+  const handleSeeMore = () => {
+    setRelatedProducts(allRelated);
+    setShowAll(true);
+  };
+
+  const goToCategory = () => {
+    navigate(`/products/${product.category?.toLowerCase()}`);
+    scrollTo(0, 0);
   };
 
   if (!product) {
@@ -80,7 +93,6 @@ const ProductDetails = () => {
       <div className="flex flex-col lg:flex-row gap-12 w-full">
         {/* LEFT */}
         <div className="w-full lg:w-1/2 flex flex-col gap-4">
-          {/* Desktop layout */}
           <div className="hidden lg:flex gap-4">
             <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto no-scrollbar">
               {product.image?.map((img, idx) => (
@@ -106,40 +118,28 @@ const ProductDetails = () => {
               ))}
             </div>
             <div className="border border-gray-300 w-[400px] h-[400px] rounded-md overflow-hidden flex items-center justify-center">
-              {thumbnail?.url && thumbnail.type === 'image' && (
-                <img
-                  src={thumbnail.url}
-                  alt="product"
-                  className="w-full h-full object-cover"
-                />
-              )}
-              {thumbnail?.url && thumbnail.type === 'video' && (
-                <video
-                  src={thumbnail.url}
-                  controls
-                  className="w-full h-full object-cover"
-                />
-              )}
+              {thumbnail?.url && thumbnail?.type === 'image' && (
+                  <img src={thumbnail.url} alt="product" className="w-full h-full object-cover" />
+                )}
+
+                {thumbnail?.url && thumbnail?.type === 'video' && (
+                  <video src={thumbnail.url} controls className="w-full h-full object-cover" />
+                )}
+
             </div>
           </div>
 
           {/* Mobile layout */}
           <div className="lg:hidden flex flex-col gap-3 w-full">
             <div className="w-full h-[300px] sm:h-[350px] rounded-md border border-gray-300 overflow-hidden flex items-center justify-center">
-              {thumbnail?.url && thumbnail.type === 'image' && (
-                <img
-                  src={thumbnail.url}
-                  alt="product"
-                  className="w-full h-full object-cover"
-                />
+              {thumbnail?.url && thumbnail?.type === 'image' && (
+                <img src={thumbnail.url} alt="product" className="w-full h-full object-cover" />
               )}
-              {thumbnail?.url && thumbnail.type === 'video' && (
-                <video
-                  src={thumbnail.url}
-                  controls
-                  className="w-full h-full object-cover"
-                />
+
+              {thumbnail?.url && thumbnail?.type === 'video' && (
+                <video src={thumbnail.url} controls className="w-full h-full object-cover" />
               )}
+
             </div>
 
             <div className="text-gray-500 text-sm">
@@ -242,7 +242,7 @@ const ProductDetails = () => {
             <button
               onClick={() => addToCart(product._id)}
               disabled={!product.inStock}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-sm font-semibold transition ${
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-4 rounded-md text-sm font-semibold transition ${
                 product.inStock
                   ? 'bg-gray-100 hover:bg-gray-200 text-gray-800'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -257,7 +257,7 @@ const ProductDetails = () => {
                 navigate("/cart");
               }}
               disabled={!product.inStock}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-sm font-semibold transition ${
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-4 rounded-md text-sm font-semibold transition ${
                 product.inStock
                   ? 'bg-primary hover:bg-primary-dull text-white'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -284,15 +284,18 @@ const ProductDetails = () => {
             ))}
         </div>
 
-        <div className="flex justify-center mt-10">
+        <div className="flex justify-center mt-10 gap-4 flex-wrap">
           <button
-            onClick={() => {
-              navigate("/products");
-              scrollTo(0, 0);
-            }}
-            className="px-8 py-2 border border-primary text-primary rounded hover:bg-primary/10 transition"
+            onClick={handleSeeMore}
+            className="px-8 py-2 border border-primary text-primary rounded hover:bg-primary/10 transition text-sm sm:text-base"
           >
-            See more
+            {showAll ? "Showing all" : "See more"}
+          </button>
+          <button
+            onClick={goToCategory}
+            className="px-8 py-2 border border-primary text-primary rounded hover:bg-primary/10 transition text-sm sm:text-base"
+          >
+            More in {product.category}
           </button>
         </div>
       </div>
