@@ -8,6 +8,7 @@ const Navbar = () => {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [hideTopBar, setHideTopBar] = useState(false);
+  const [hideBottomBar, setHideBottomBar] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
 
   const {
@@ -79,8 +80,10 @@ const Navbar = () => {
       if (window.innerWidth < 1024) {
         if (currentScrollY > lastScrollY && currentScrollY > 50) {
           setHideTopBar(true);
+          setHideBottomBar(true);
         } else {
           setHideTopBar(false);
+          setHideBottomBar(false);
         }
       }
 
@@ -95,8 +98,8 @@ const Navbar = () => {
     <>
       {/* TOP NAVBAR */}
       <nav
-        className={`z-50 fixed top-0 left-0 w-full transition-all duration-500 ease-in-out bg-white/90 backdrop-blur-md border-b border-gray-300 px-3 md:px-8 lg:px-15 ${
-          hideTopBar ? 'translate-y-[-48px]' : 'translate-y-0'
+        className={`z-50 fixed top-0 left-0 w-full transition-transform duration-500 ease-in-out bg-white/90 backdrop-blur-md border-b border-gray-300 px-3 md:px-8 lg:px-15 ${
+          hideTopBar ? '-translate-y-12' : 'translate-y-0'
         }`}
       >
         {/* Hidden top part */}
@@ -108,7 +111,7 @@ const Navbar = () => {
               className="hidden sm:block"
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             >
-              <img src={assets.logo} alt="logo" className="w-10 h-10" />
+              <img src={assets.logo} alt="logo" className="h-10" />
             </NavLink>
 
             {/* Desktop Search */}
@@ -191,10 +194,9 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* Mobile Search Bar (always visible) */}
-        {/* Mobile Search (Always visible, centered if navbar is hidden) */}
+        {/* Mobile Search Bar (Always visible & centered when navbar is hidden) */}
         <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-5' : 'mt-0'}`}>
-          <div className="flex items-center text-sm gap-0 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm">
+          <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm">
             <input
               onChange={(e) => setSearchQuery(e.target.value)}
               value={searchQuery}
@@ -205,11 +207,10 @@ const Navbar = () => {
             <img src={assets.search_icon} alt="search" className="w-4 h-4" />
           </div>
         </div>
-
       </nav>
 
-      {/* BOTTOM NAVBAR - Always Visible */}
-      <div className="sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl">
+      {/* BOTTOM NAVBAR */}
+      <div className={`sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl transition-transform duration-500 ease-in-out ${hideBottomBar ? 'translate-y-20 opacity-0' : 'translate-y-0 opacity-100'}`}>
         <button onClick={() => handleNavigate('/')} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <img src={assets.home_icon || assets.menu_icon} alt="home" className="w-6 h-6 mb-1" />
           <span>Home</span>
