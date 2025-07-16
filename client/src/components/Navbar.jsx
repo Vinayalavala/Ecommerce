@@ -103,7 +103,7 @@ const Navbar = () => {
         }`}
       >
         {/* Hidden top part */}
-        <div className={`transition-opacity duration-300 ease-in-out ${hideTopBar ? 'opacity-0 pointer-events-none' : 'opacity-100'} py-3`}>
+        <div className={`transition-opacity duration-300 ease-in-out ${hideTopBar ? 'opacity-0 pointer-events-none' : 'opacity-100'} py-1`}>
           <div className="flex items-center justify-between w-full">
             {/* Logo */}
             <NavLink
@@ -210,7 +210,9 @@ const Navbar = () => {
       </nav>
 
       {/* BOTTOM NAVBAR */}
-      <div className={`sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl transition-transform duration-500 ease-in-out ${hideBottomBar ? 'translate-y-20 opacity-0' : 'translate-y-0 opacity-100'}`}>
+      <div className={`sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl transition-all duration-[800ms] ease-in-out ${
+  hideBottomBar ? 'translate-y-20 opacity-0' : 'translate-y-0 opacity-100'
+}`}>
         <button onClick={() => handleNavigate('/')} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <img src={assets.home_icon || assets.menu_icon} alt="home" className="w-6 h-6 mb-1" />
           <span>Home</span>
