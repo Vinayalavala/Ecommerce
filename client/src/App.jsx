@@ -6,7 +6,7 @@ import Footer from './components/Footer.jsx';
 import Login from './components/Login.jsx';
 import ViewCartButton from './components/ViewCartButton.jsx';
 import CartPreview from './components/CartPreview.jsx';
-import { FaChevronUp } from 'react-icons/fa'; // up arrow icon
+import { FaChevronUp } from 'react-icons/fa';
 
 import Home from './pages/Home.jsx';
 import AllProducts from './pages/AllProducts.jsx';
@@ -39,82 +39,73 @@ const App = () => {
 
   const [showCartPreview, setShowCartPreview] = useState(false);
   const [lastAddedProduct, setLastAddedProduct] = useState(null);
-
   const [showScrollTop, setShowScrollTop] = useState(false);
 
-useEffect(() => {
-  const handleScroll = () => {
-    setShowScrollTop(window.scrollY > 200); // show after scrolling 200px
-  };
-  window.addEventListener('scroll', handleScroll);
-  return () => window.removeEventListener('scroll', handleScroll);
-}, []);
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 200);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-
-  // Listen for cart item added event
   useEffect(() => {
     const handleProductAdded = (e) => {
       setLastAddedProduct(e.detail.product);
       setShowCartPreview(true);
     };
-
     window.addEventListener('product-added', handleProductAdded);
     return () => window.removeEventListener('product-added', handleProductAdded);
   }, []);
 
   return (
-    <div className='text-default min-h-screen text-gray-700 bg-white'>
+    <div className="min-h-screen bg-white text-black transition-colors duration-500">
       {!isSellerPath && <Navbar />}
       {showUserLogin && <Login />}
       <Toaster />
 
       <div className={`${isSellerPath ? '' : 'px-6 md:px-16 lg:px-24 xl:px-32'}`}>
         <Routes>
-          {/* Public Routes */}
-          <Route path='/' element={<Home />} />
-          <Route path='/products' element={<AllProducts />} />
-          <Route path='/products/:category' element={<ProductCategory />} />
-          <Route path='/products/:category/:id' element={<ProductDetails />} />
-          <Route path='/product/:id' element={<ProductDetails />} />
-          <Route path='/contact' element={<ContactPage />} />
-          <Route path='/cart' element={<Cart />} />
-          <Route path='/add-address' element={<AddAdress />} />
-          <Route path='/my-orders' element={<MyOrders />} />
-          <Route path='/profile' element={<Profile />} />
-          <Route path='/wishlist' element={<Wishlist />} />
-          <Route path='/loader' element={<Loading />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<AllProducts />} />
+          <Route path="/products/:category" element={<ProductCategory />} />
+          <Route path="/products/:category/:id" element={<ProductDetails />} />
+          <Route path="/product/:id" element={<ProductDetails />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/add-address" element={<AddAdress />} />
+          <Route path="/my-orders" element={<MyOrders />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/loader" element={<Loading />} />
 
-          {/* Seller Routes */}
-          <Route path='/seller' element={isSeller ? <SellerLayout /> : <SellerLogin />}>
+          <Route path="/seller" element={isSeller ? <SellerLayout /> : <SellerLogin />}>
             <Route index element={isSeller ? <AddProduct /> : null} />
-            <Route path='product-list' element={<ProductList />} />
-            <Route path='orders' element={<Orders />} />
-            <Route path='analytics' element={<Analytics />} />
-            <Route path='add-ad' element={<AddProduct />} />
+            <Route path="product-list" element={<ProductList />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="add-ad" element={<AddProduct />} />
           </Route>
 
-          {/* Error Page */}
-          <Route path='*' element={<ErrorPage />} />
+          <Route path="*" element={<ErrorPage />} />
         </Routes>
       </div>
 
+      {/* Scroll to Top Button (glassmorphic, mobile optimized) */}
       {showScrollTop && (
-  <button
-    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-    className="fixed bottom-20 right-4 z-50 backdrop-blur-md bg-white/20 border border-white/30 shadow-md hover:bg-white/30 transition-all duration-500 ease-in-out rounded-full p-3 sm:p-2"
-    style={{
-      boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
-      WebkitBackdropFilter: 'blur(10px)',
-      backdropFilter: 'blur(10px)',
-    }}
-  >
-    <FaChevronUp className="text-primary w-4 h-4 sm:w-3 sm:h-3" />
-  </button>
-)}
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-20 right-4 z-50 p-3 sm:p-2 bg-white/30 text-black border border-black/20 backdrop-blur-md rounded-full shadow-md transition-all duration-500 ease-in-out hover:bg-white/40"
+          style={{
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          <FaChevronUp className="w-4 h-4 sm:w-3 sm:h-3" />
+        </button>
+      )}
 
-
-
-      {/* Cart Preview Popup */}
+      {/* Cart Preview */}
       {showCartPreview && lastAddedProduct && (
         <CartPreview
           visible={showCartPreview}
@@ -123,9 +114,7 @@ useEffect(() => {
         />
       )}
 
-      {/* Floating Cart Button */}
       {!isSellerPath && !isCartPage && <ViewCartButton />}
-
       {!isSellerPath && <Footer />}
     </div>
   );
