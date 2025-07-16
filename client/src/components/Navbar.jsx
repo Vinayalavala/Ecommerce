@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import assets from '../assets/assets';
 import { useAppContext } from '../context/appContext.jsx';
 import { toast } from 'react-hot-toast';
+import { FiShoppingCart } from "react-icons/fi";
 
 const Navbar = () => {
   const [addresses, setAddresses] = useState([]);
@@ -223,12 +224,14 @@ const Navbar = () => {
           </svg>
           <span>Products</span>
         </button>
-        <button onClick={() => handleNavigate('/contact')} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" className="w-6 h-6 mb-1 text-gray-600" viewBox="0 0 24 24">
-            <path d="M14.828 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9.172a2 2 0 0 0-.586-1.414l-5.172-5.172A2 2 0 0 0 14.828 3zM12 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm1-7h-4v5h2v-3h2V10z" />
-          </svg>
-          <span>Contact</span>
-        </button>
+        <button
+  onClick={() => handleNavigate('/cart')}
+  className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
+>
+  <FiShoppingCart className="w-6 h-6 mb-1" />
+  <span>Cart</span>
+</button>
+
       </div>
     </>
   );
