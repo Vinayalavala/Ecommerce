@@ -26,7 +26,7 @@ const Categories = () => {
                 <img
                   src={category.image}
                   alt={category.text}
-                  className="w-12 h-12 md:w-16 md:h-16 object-contain"
+                  className="w-24 h-24 md:w-16 md:h-16 object-contain"
                 />
               </div>
               <p className="text-xs md:text-sm text-center font-medium whitespace-nowrap">
