@@ -193,6 +193,13 @@ const ProductDetails = () => {
             </button>
           </div>
 
+          {/* Net Quantity */}
+          {product.quantity?.value && product.quantity?.unit && (
+            <p className="text-gray-600 text-sm">
+              Net Quantity: {product.quantity.value} {product.quantity.unit}
+            </p>
+          )}
+
           {/* Rating */}
           <div className="flex items-center gap-1">
             {Array(5).fill('').map((_, i) => (
@@ -217,9 +224,9 @@ const ProductDetails = () => {
           {product.inStock ? (
             <>
               <p className="text-green-600 font-medium">In Stock</p>
-              {product.quantity <= 10 && (
+              {product.stock <= 10 && (
                 <p className="text-red-500 text-sm animate-pulse">
-                  Hurry! Only {product.quantity} left.
+                  Hurry! Only {product.stock} left.
                 </p>
               )}
             </>
