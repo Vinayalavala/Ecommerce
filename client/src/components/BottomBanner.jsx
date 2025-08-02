@@ -24,25 +24,25 @@ const BottomBanner = () => {
         flex flex-col items-center justify-start
         px-4 pt-6 text-center
       ">
-        <h1 className="text-lg sm:text-xl font-bold text-primary mb-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-primary mb-4">
           Why We're the Best
         </h1>
-        <div className="flex flex-col gap-2 w-full max-w-[320px]">
+        <div className="flex flex-col gap-3 w-full max-w-[360px]">
           {features.map((feature, index) => (
             <div 
               key={index} 
-              className="flex items-center gap-2 bg-white/80 rounded-md px-2 py-2 shadow-sm"
+              className="flex items-center gap-3 bg-white/85 rounded-md px-3 py-1 shadow-sm"
             >
               <img 
                 src={feature.icon} 
                 alt={feature.title} 
-                className="w-5 h-5"
+                className="w-6 h-6 sm:w-7 sm:h-7"
               />
               <div className="text-left">
-                <h3 className="text-xs font-semibold text-gray-900">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900">
                   {feature.title}
                 </h3>
-                <p className="text-gray-600 text-[10px] leading-tight">
+                <p className="text-gray-600 text-xs sm:text-sm leading-snug">
                   {feature.description}
                 </p>
               </div>
@@ -51,7 +51,7 @@ const BottomBanner = () => {
         </div>
       </div>
 
-      {/* Desktop Overlay (Right-Centered, unchanged) */}
+      {/* Desktop Overlay (Right-Centered) */}
       <div className="
         hidden md:flex absolute inset-0 
         items-center justify-end pr-24
