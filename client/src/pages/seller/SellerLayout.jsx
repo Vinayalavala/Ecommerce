@@ -41,7 +41,7 @@ const SellerLayout = () => {
       {/* Top Bar */}
       <div className="flex items-center justify-between px-4 md:px-8 border-b border-gray-300 py-3 bg-white">
         <Link to='/'>
-          <img src={assets.logo} alt="logo" className='cursor-pointer w-25 md:w-28' />
+          <img src={assets.logo} alt="logo" className='cursor-pointer w-15 md:w-15' />
         </Link>
         <div className="flex items-center gap-5 text-gray-500">
           <p>Hi! Admin</p>
