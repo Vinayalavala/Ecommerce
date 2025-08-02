@@ -6,12 +6,12 @@ const BestSeller = () => {
   const { products, navigate } = useAppContext();
 
   return (
-    <div className="mt-16">
-      <div className="flex justify-between items-center mb-6">
-        <p className="text-2xl md:text-3xl font-medium">Recently Added</p>
+    <div className="mt-6">
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-lg md:text-2xl font-medium">Recently Added</p>
         <button
           onClick={() => {
-            navigate('/products'); // Navigate to all products page
+            navigate('/products');
             scrollTo(0, 0);
           }}
           className="text-primary text-sm md:text-base font-medium hover:underline"
@@ -20,10 +20,10 @@ const BestSeller = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-6 lg:grid-cols-5 mt-6">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
         {products
           .filter((product) => product.inStock)
-          .slice(0, 5)
+          .slice(0, 12)
           .map((product, index) => (
             <ProductCard key={index} product={product} />
           ))}
