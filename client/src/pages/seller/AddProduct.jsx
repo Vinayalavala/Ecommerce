@@ -13,10 +13,10 @@ const mainCategories = [
 const quantityUnits = [
   "pc",
   "pcs",
-  "Litre",
-  "Milli liters",
-  "grams",
-  "milligrams",
+  "ML",
+  "L",
+  "g",
+  "Kg",
 ];
 
 const AddProduct = () => {
