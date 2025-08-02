@@ -3,13 +3,21 @@ import assets, { categories } from '../../assets/assets';
 import { useAppContext } from '../../context/appContext';
 import { toast } from 'react-hot-toast';
 
+const mainCategories = [
+  "Grocery & Kitchen",
+  "Snacks & Drinks",
+  "Beauty & Personal Care",
+  "Household Essentials",
+];
+
 const AddProduct = () => {
-  const [files, setFiles] = useState([null]); // start with one input
+  const [files, setFiles] = useState([null]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [mainCategory, setMainCategory] = useState(''); // new state
   const [price, setPrice] = useState('');
-  const [offerPrice, setofferprice] = useState('');
+  const [offerPrice, setOfferPrice] = useState('');
   const [stock, setStock] = useState('');
   const { axios } = useAppContext();
 
@@ -21,6 +29,7 @@ const AddProduct = () => {
         name,
         description: description.split('\n'),
         category,
+        mainCategory, // include new field
         price,
         offerPrice,
         stock,
@@ -34,9 +43,7 @@ const AddProduct = () => {
       });
 
       const { data } = await axios.post('/api/product/add', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       if (data.success) {
@@ -44,10 +51,11 @@ const AddProduct = () => {
         setName('');
         setDescription('');
         setCategory('');
+        setMainCategory('');
         setPrice('');
-        setofferprice('');
+        setOfferPrice('');
         setStock('');
-        setFiles([null]); // reset to one empty input
+        setFiles([null]);
       } else {
         toast.error(data.message);
       }
@@ -62,13 +70,12 @@ const AddProduct = () => {
     setFiles(updatedFiles);
   };
 
-  const handleAddMore = () => {
-    setFiles((prev) => [...prev, null]);
-  };
+  const handleAddMore = () => setFiles((prev) => [...prev, null]);
 
   return (
     <div className="no-scrollbar flex-1 h-[95vh] overflow-x-scroll flex flex-col justify-between mb-15">
       <form onSubmit={onSubmitHandler} className="md:p-10 p-4 space-y-5 max-w-lg">
+        {/* Product Images */}
         <div>
           <p className="text-base font-medium">Product Images</p>
           <div className="flex flex-wrap items-center gap-3 mt-2">
@@ -124,7 +131,24 @@ const AddProduct = () => {
           ></textarea>
         </div>
 
-        {/* Category */}
+        {/* Main Category */}
+        <div className="w-full flex flex-col gap-1">
+          <label className="text-base font-medium" htmlFor="main-category">Main Category</label>
+          <select
+            onChange={(e) => setMainCategory(e.target.value)}
+            value={mainCategory}
+            id="main-category"
+            className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
+            required
+          >
+            <option value="">Select Main Category</option>
+            {mainCategories.map((cat, index) => (
+              <option key={index} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Sub Category */}
         <div className="w-full flex flex-col gap-1">
           <label className="text-base font-medium" htmlFor="category">Category</label>
           <select
@@ -132,6 +156,7 @@ const AddProduct = () => {
             value={category}
             id="category"
             className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
+            required
           >
             <option value="">Select Category</option>
             {categories.map((item, index) => (
@@ -157,7 +182,7 @@ const AddProduct = () => {
           <div className="flex-1 flex flex-col gap-1 w-32">
             <label className="text-base font-medium" htmlFor="offer-price">Offer Price</label>
             <input
-              onChange={(e) => setofferprice(e.target.value)}
+              onChange={(e) => setOfferPrice(e.target.value)}
               value={offerPrice}
               id="offer-price"
               type="number"
