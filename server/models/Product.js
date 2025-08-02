@@ -24,21 +24,29 @@ const productSchema = new mongoose.Schema(
     price: { type: Number, required: true },
     offerPrice: { type: Number, required: true },
     image: { type: Array, required: true },
-    category: { type: String, required: true },
+    mainCategory: { // ✅ new field
+      type: String,
+      enum: [
+        "Grocery & Kitchen",
+        "Snacks & Drinks",
+        "Beauty & Personal Care",
+        "Household Essentials",
+      ],
+      required: true,
+    },
+    category: { type: String, required: true }, // sub-category
     inStock: { type: Boolean, default: true },
-    reviews: [reviewSchema], // ✅ reused sub-schema
-    sellerEmail: { type: String }, // ✅ recommended if multi-seller app
-    stock: { type: Number, default: 0 }, // ✅ recommended for inventory,
+    reviews: [reviewSchema], 
+    sellerEmail: { type: String },
+    stock: { type: Number, default: 0 },
     video: {
-  type: [String],
-  default: []
-}
-
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
 
-// ✅ Model name fixed to match the reference string in user model
 const Product =
   mongoose.models.Product || mongoose.model("Product", productSchema);
 
