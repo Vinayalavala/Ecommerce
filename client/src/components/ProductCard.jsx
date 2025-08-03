@@ -3,7 +3,6 @@ import assets from '../assets/assets';
 import { useAppContext } from '../context/appContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import confetti from 'canvas-confetti';
 
 const ProductCard = ({ product }) => {
   const {
@@ -43,17 +42,6 @@ const ProductCard = ({ product }) => {
       console.error('Wishlist toggle failed', err);
       toast.error("Failed to update wishlist");
     }
-  };
-
-  const handleAddToCart = (productId) => {
-    addToCart(productId);
-
-    // 🎉 Confetti animation
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.8 }, // Slightly lower
-    });
   };
 
   return (
@@ -149,9 +137,9 @@ const ProductCard = ({ product }) => {
         >
           {!cartItems[product._id] ? (
             <button
-              onClick={() => handleAddToCart(product._id)}
+              onClick={() => addToCart(product._id)}
               className="flex items-center justify-center gap-1 bg-primary/10 
-                         border border-primary/40 w-full h-[30px] rounded text-[11px] hover:bg-primary/20 transition"
+                         border border-primary/40 w-full h-[30px] rounded text-[11px]"
             >
               <img src={assets.cart_icon} alt="cart_icon" className="w-3" />
               Add
@@ -167,7 +155,7 @@ const ProductCard = ({ product }) => {
               </button>
               <span className="w-3 text-center">{cartItems[product._id]}</span>
               <button
-                onClick={() => handleAddToCart(product._id)}
+                onClick={() => addToCart(product._id)}
                 className="cursor-pointer px-2"
               >
                 +
