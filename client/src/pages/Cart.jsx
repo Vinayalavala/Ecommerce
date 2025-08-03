@@ -3,6 +3,7 @@ import { useAppContext } from "../context/appContext";
 import toast from "react-hot-toast";
 import assets from "../assets/assets";
 
+
 const Cart = () => {
   const {
     products,
@@ -23,7 +24,8 @@ const Cart = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentOption, setPaymentOption] = useState("COD");
   const [cartTotal, setCartTotal] = useState(0);
-  const [cooldownSeconds, setCooldownSeconds] = useState(0); // ✅ Added cooldown
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [showThankYou, setShowThankYou] = useState(false); // ✅ Added
 
   const getCart = () => {
     let tempArray = [];
@@ -77,10 +79,14 @@ const Cart = () => {
         if (data.success) {
           toast.success(data.message);
           setCartItems({});
-          navigate("/my-orders");
-
-          // ✅ Start cooldown after successful order
+          setShowThankYou(true); // ✅ Show thank you
           setCooldownSeconds(10);
+
+          // Auto hide thank you after 5 sec and redirect
+          setTimeout(() => {
+            setShowThankYou(false);
+            navigate("/my-orders");
+          }, 5000);
         } else {
           toast.error(data.message);
         }
@@ -117,7 +123,6 @@ const Cart = () => {
     }
   }, [user]);
 
-  // ✅ Cooldown timer logic
   useEffect(() => {
     if (cooldownSeconds > 0) {
       const timer = setInterval(() => {
@@ -133,20 +138,33 @@ const Cart = () => {
     }
   }, [cooldownSeconds]);
 
+  // ✅ Thank You Overlay
+  if (showThankYou) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-50">
+        <img src={assets.success_icon || assets.logo} alt="success" className="w-20 mb-4" />
+        <p className="text-gray-600 text-lg">Thanks for shopping with us 🎉</p>
+      </div>
+    );
+  }
+
   return products.length > 0 && cartItems ? (
     <div className="flex flex-col md:flex-row mt-30">
+      {/* Left Section */}
       <div className="flex-1 max-w-4xl">
         <h1 className="text-3xl font-medium mb-6">
           Shopping Cart{" "}
           <span className="text-sm text-primary">{getCartCount()} Items</span>
         </h1>
 
+        {/* Header */}
         <div className="grid grid-cols-[2fr_1fr_1fr] text-gray-500 text-base font-medium pb-3">
           <p className="text-left">Product Details</p>
           <p className="text-center">Subtotal</p>
           <p className="text-center">Action</p>
         </div>
 
+        {/* Cart Items */}
         {cartArray.map((product, index) => (
           <div
             key={index}
@@ -228,10 +246,12 @@ const Cart = () => {
         </button>
       </div>
 
+      {/* Right Section: Order Summary */}
       <div className="max-w-[360px] w-full bg-gray-100/40 p-5 max-md:mt-16 border border-gray-300/70">
         <h2 className="text-xl md:text-xl font-medium">Order Summary</h2>
         <hr className="border-gray-300 my-5" />
 
+        {/* Address */}
         <div className="mb-6">
           <p className="text-sm font-medium uppercase">Delivery Address</p>
           <div className="relative flex justify-between items-start mt-2">
@@ -271,6 +291,7 @@ const Cart = () => {
             )}
           </div>
 
+          {/* Payment Option */}
           <p className="text-sm font-medium uppercase mt-6">Payment Method</p>
           <div className="flex items-center justify-between mt-3">
             <span className="text-sm text-gray-600">Cash On Delivery</span>
@@ -298,6 +319,7 @@ const Cart = () => {
 
         <hr className="border-gray-300" />
 
+        {/* Order Summary */}
         <div className="text-gray-500 mt-4 space-y-2">
           <p className="flex justify-between">
             <span>Price</span>
