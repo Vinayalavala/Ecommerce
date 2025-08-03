@@ -12,6 +12,15 @@ const Navbar = () => {
   const [hideBottomBar, setHideBottomBar] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
 
+  const placeholders = [
+    'Milk / Fruits',
+    'Snacks / Chips',
+    'Vegetables / Fresh Items',
+    'Bakery / Cakes',
+    'Beverages / Juices'
+  ];
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
   const {
     axios,
     user,
@@ -95,11 +104,19 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
+  // Placeholder text rotation effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <>
       {/* TOP NAVBAR */}
       <nav
-        className={`z-50 fixed top-0 left-0 w-full transition-transform duration-500 ease-in-out bg-white/90 backdrop-blur-md border-b border-gray-300 px-3 md:px-8 lg:px-15 ${
+        className={`z-50 fixed top-0 left-0 w-full transition-transform duration-500 ease-in-out bg-white/90 backdrop-blur-md border-b border-gray-300 py-3 px-3 md:px-8 lg:px-15 ${
           hideTopBar ? '-translate-y-12' : 'translate-y-0'
         }`}
       >
@@ -115,16 +132,28 @@ const Navbar = () => {
               <img src={assets.logo} alt="logo" className="h-10" />
             </NavLink>
 
-            {/* Desktop Search */}
-            <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md bg-white">
+            {/* Desktop Search with vertical animation */}
+            <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md bg-white relative overflow-hidden">
               <input
                 onChange={(e) => setSearchQuery(e.target.value)}
                 value={searchQuery}
                 className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500"
                 type="text"
-                placeholder="Search products"
               />
-              <img src={assets.search_icon} alt="search" className="w-4 h-4" />
+              <div className="absolute left-4 flex items-center pointer-events-none select-none">
+                <span className="text-gray-400">Search for&nbsp;</span>
+                <div className="h-5 overflow-hidden relative">
+                  <div
+                    className="flex flex-col transition-transform duration-500 ease-in-out"
+                    style={{ transform: `translateY(-${placeholderIndex * 20}px)` }}
+                  >
+                    {placeholders.map((text, i) => (
+                      <span key={i} className="h-5 text-gray-500">{text}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <img src={assets.search_icon} alt="search" className="w-4 h-4 ml-auto" />
             </div>
 
             {/* Desktop Links */}
@@ -195,25 +224,37 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* Mobile Search Bar (Always visible & centered when navbar is hidden) */}
-        <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-5' : 'mt-0'}`}>
-          <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm">
+        {/* Mobile Search Bar with animation */}
+        <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-3' : 'mt-0'}`}>
+          <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-hidden">
             <input
               onChange={(e) => setSearchQuery(e.target.value)}
               value={searchQuery}
               className="w-full bg-transparent outline-none placeholder-gray-500"
               type="text"
-              placeholder="Search products..."
             />
-            <img src={assets.search_icon} alt="search" className="w-4 h-4" />
+            <div className="absolute left-4 flex items-center pointer-events-none select-none">
+              <span className="text-gray-400">Search for&nbsp;</span>
+              <div className="h-5 overflow-hidden relative">
+                <div
+                  className="flex flex-col transition-transform duration-500 ease-in-out"
+                  style={{ transform: `translateY(-${placeholderIndex * 20}px)` }}
+                >
+                  {placeholders.map((text, i) => (
+                    <span key={i} className="h-5 text-gray-500">{text}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <img src={assets.search_icon} alt="search" className="w-4 h-4 ml-auto" />
           </div>
         </div>
       </nav>
 
       {/* BOTTOM NAVBAR */}
       <div className={`sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl transition-all duration-[800ms] ease-in-out ${
-  hideBottomBar ? 'translate-y-20 opacity-0' : 'translate-y-0 opacity-100'
-}`}>
+        hideBottomBar ? 'translate-y-20 opacity-0' : 'translate-y-0 opacity-100'
+      }`}>
         <button onClick={() => handleNavigate('/')} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <img src={assets.home_icon || assets.menu_icon} alt="home" className="w-6 h-6 mb-1" />
           <span>Home</span>
@@ -225,13 +266,12 @@ const Navbar = () => {
           <span>Products</span>
         </button>
         <button
-  onClick={() => handleNavigate('/cart')}
-  className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
->
-  <FiShoppingCart className="w-6 h-6 mb-1" />
-  <span>Cart</span>
-</button>
-
+          onClick={() => handleNavigate('/cart')}
+          className="flex flex-col items-center text-xs text-gray-700 hover:text-primary"
+        >
+          <FiShoppingCart className="w-6 h-6 mb-1" />
+          <span>Cart</span>
+        </button>
       </div>
     </>
   );
