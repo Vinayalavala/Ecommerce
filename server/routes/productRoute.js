@@ -8,7 +8,9 @@ import {
   productList,
   productById,
   changeStock,
-  updateStockAfterOrder
+  updateStockAfterOrder,
+  updateProduct,       // ✅ Add update
+  deleteProduct        // ✅ Use the correct delete
 } from '../controllers/productController.js';
 
 import {
@@ -16,34 +18,53 @@ import {
   getProductReviews,
 } from '../controllers/reviewController.js';
 
-import { deleteProduct } from '../controllers/sellerController.js';
-
 const productRouter = express.Router();
 
+// ---------------------------------------------
 // 🛍️ Add new product
+// ---------------------------------------------
 productRouter.post('/add', upload.array(["images"]), authSeller, addProduct);
 
+// ---------------------------------------------
 // 📦 Get all products
+// ---------------------------------------------
 productRouter.get('/list', productList);
 
-// 📦 Get product by ID — ✅ RESTfully should be /:id not /id
-productRouter.get('/:id', productById);
-
-// 📦 Change product stock
-productRouter.post('/stock', authSeller, changeStock);
-
-// 💬 Add a review to a product
+// ---------------------------------------------
+// 💬 Reviews (put above :id to avoid conflicts)
+// ---------------------------------------------
 productRouter.post('/:productId/review', authUser, createReview);
-
-// 💬 Get reviews for a product
 productRouter.get('/:productId/reviews', authUser, getProductReviews);
 
+// ---------------------------------------------
+// ✏️ Update product
+// ---------------------------------------------
+productRouter.put(
+  '/update/:id',
+  upload.array(["images"]), 
+  updateProduct
+);
+
+
+
+// ---------------------------------------------
+// 📦 Change product stock
+// ---------------------------------------------
+productRouter.post('/stock', authSeller, changeStock);
+
+// ---------------------------------------------
 // ❌ Delete product
+// ---------------------------------------------
 productRouter.delete('/delete/:id', authSeller, deleteProduct);
 
-// 🔄 Update stock after an order (called after placing order)
-productRouter.post('/update-stock', updateStockAfterOrder); // ⛔️ No need for `authSeller` here
-// ✅ At the end of routes/productRoute.js
+// ---------------------------------------------
+// 🔄 Update stock after an order
+// ---------------------------------------------
+productRouter.post('/update-stock', updateStockAfterOrder);
 
-productRouter.post('/update-stock', changeStock);
 export default productRouter;
+
+// ---------------------------------------------
+// 📦 Get product by ID
+// ---------------------------------------------
+productRouter.get('/:id', productById);
