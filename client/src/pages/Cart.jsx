@@ -297,7 +297,7 @@ const Cart = () => {
             <span className="text-sm text-gray-600">Cash On Delivery</span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
-                type="checkbox"
+                type="checkbox disabled"
                 checked={paymentOption === "Online"}
                 onChange={() =>
                   setPaymentOption((prev) =>
