@@ -1,4 +1,4 @@
-import Order from "../models/order.js";
+import Order from "../models/Order.js";
 import moment from "moment"; // Install via `npm install moment`
 
 export const getSellerAnalytics = async (req, res) => {
