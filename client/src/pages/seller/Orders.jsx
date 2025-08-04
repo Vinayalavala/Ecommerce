@@ -411,12 +411,20 @@ const OrderAddress = ({ address }) => {
       <p>
         {address.state || ""}, {address.zipcode || ""}, {address.country || ""}
       </p>
-      <p>{address.phone || ""}</p>
+      {address.phone && (
+        <a
+          href={`tel:${address.phone}`}
+          className="text-primary  block"
+        >
+          {address.phone}
+        </a>
+      )}
       <p className="text-xs text-gray-500">
         {address.email || "No email provided"}
       </p>
     </div>
   );
 };
+
 
 export default Orders;
