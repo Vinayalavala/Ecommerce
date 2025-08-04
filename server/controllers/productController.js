@@ -80,7 +80,7 @@ export const productList = async (req, res) => {
 // ---------------------------------------------
 export const productById = async (req, res) => {
   try {
-    const { id } = req.body;
+    const { id } = req.params;
 
     if (!id) {
       return res.status(400).json({
@@ -206,5 +206,84 @@ export const updateStockAfterOrder = async (req, res) => {
   } catch (error) {
     console.error("Stock update error:", error);
     res.status(500).json({ success: false, message: "Stock update failed", error: error.message });
+  }
+};
+
+// ---------------------------------------------
+// Update Product
+// ---------------------------------------------
+// This function handles both JSON and multipart/form-data requests
+export const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, message: "Product ID is required" });
+    }
+
+    let productData;
+
+    // Handle multipart/form-data with productData string
+    if (req.body.productData) {
+      productData = JSON.parse(req.body.productData);
+    } else if (Object.keys(req.body).length > 0) {
+      productData = req.body;
+    } else {
+      return res.status(400).json({ success: false, message: "Product data is missing" });
+    }
+
+    // ✅ Flatten nested "product" object if it exists
+    if (productData.product) {
+      productData = { ...productData.product };
+    }
+
+    // Fetch existing product
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    // Preserve old media
+    let images = product.image || [];
+    let videos = product.video || [];
+
+    if (productData.image && productData.image.length > 0) {
+      images = productData.image;
+    }
+    if (productData.video && productData.video.length > 0) {
+      videos = productData.video;
+    }
+
+    // Handle new uploads
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const isVideo = file.mimetype.startsWith("video");
+        const uploadResult = await cloudinary.uploader.upload(file.path, {
+          resource_type: isVideo ? "video" : "image",
+        });
+
+        if (isVideo) {
+          videos.push(uploadResult.secure_url);
+        } else {
+          images.push(uploadResult.secure_url);
+        }
+      }
+    }
+
+    // Update document
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { ...productData, image: images, video: videos },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Product updated successfully",
+      product: updatedProduct,
+    });
+
+  } catch (error) {
+    console.error("Update Product Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
