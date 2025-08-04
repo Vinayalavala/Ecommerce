@@ -2,14 +2,17 @@ import { useAppContext } from '../../context/appContext';
 import assets from '../../assets/assets';
 import toast from 'react-hot-toast';
 import { useState, useMemo } from 'react';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaEdit } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const ProductList = () => {
   const { products, currency, axios, fetchProducts } = useAppContext();
   const [loadingProductId, setLoadingProductId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const navigate = useNavigate();
 
+  // ✅ Toggle Stock Status
   const toggleStock = async (id, inStock) => {
     try {
       setLoadingProductId(id);
@@ -27,6 +30,7 @@ const ProductList = () => {
     }
   };
 
+  // ✅ Delete Product
   const deleteProduct = async (id) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
 
@@ -46,11 +50,18 @@ const ProductList = () => {
     }
   };
 
+  // ✅ Navigate to AddProduct page for editing
+  const handleEdit = (product) => {
+    navigate(`/seller?edit=${product._id}`, { state: { product } });
+  };
+
+  // ✅ Category filter
   const categories = useMemo(() => {
     const set = new Set(products.map(p => p.category));
     return ['All', ...Array.from(set)];
   }, [products]);
 
+  // ✅ Filtered Products
   const filteredProducts = useMemo(() => {
     return products.filter(product =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -63,7 +74,7 @@ const ProductList = () => {
       <div className="w-full md:p-10 p-4">
         <h2 className="pb-4 text-lg font-semibold text-gray-800">All Products</h2>
 
-        {/* Search and Sort Filters */}
+        {/* Search and Filter */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
           <input
             type="text"
@@ -83,23 +94,23 @@ const ProductList = () => {
           </select>
         </div>
 
-        {/* Table */}
+        {/* Product Table */}
         <div className="flex flex-col items-center max-w-6xl w-full overflow-hidden rounded-md bg-white border border-gray-300 mb-12">
           <table className="table-fixed w-full text-left">
             <thead className="text-gray-900 text-sm">
               <tr>
-                <th className="w-[40%] px-3 py-3 font-semibold">Product</th>
+                <th className="w-[35%] px-3 py-3 font-semibold">Product</th>
                 <th className="w-[15%] px-3 py-3 font-semibold hidden md:table-cell">Category</th>
                 <th className="w-[15%] px-3 py-3 font-semibold hidden sm:table-cell">Price</th>
                 <th className="w-[15%] px-3 py-3 font-semibold text-center">Stock</th>
-                <th className="w-[15%] px-3 py-3 font-semibold text-center">Actions</th>
+                <th className="w-[20%] px-3 py-3 font-semibold text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm text-gray-700">
               {filteredProducts.length > 0 ? (
                 filteredProducts.map((product) => (
                   <tr key={product._id} className="border-t border-gray-200">
-                    {/* Product */}
+                    {/* Product Info */}
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-14 h-14 flex-shrink-0 border border-gray-300 rounded overflow-hidden bg-white">
@@ -121,8 +132,7 @@ const ProductList = () => {
 
                     {/* Price */}
                     <td className="px-3 py-3 hidden sm:table-cell truncate">
-                      {currency}
-                      {product.offerPrice?.toFixed(2) || 'N/A'}
+                      {currency}{product.offerPrice?.toFixed(2) || 'N/A'}
                     </td>
 
                     {/* Stock Toggle */}
@@ -142,16 +152,25 @@ const ProductList = () => {
                       </div>
                     </td>
 
-                    {/* Delete Button */}
-                    <td className="px-3 py-3 text-center">
-                      <button
-                        onClick={() => deleteProduct(product._id)}
-                        disabled={loadingProductId === product._id}
-                        className="text-red-600 hover:text-red-800 disabled:opacity-50"
-                        aria-label="Delete product"
-                      >
-                        <FaTrash size={14} />
-                      </button>
+                    {/* Actions - Centered */}
+                    <td className="px-3 py-3">
+                      <div className="flex justify-center items-center gap-6">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="text-blue-600 hover:text-blue-800 hover:scale-110 transition-transform duration-200"
+                          aria-label="Edit product"
+                        >
+                          <FaEdit size={16} />
+                        </button>
+                        <button
+                          onClick={() => deleteProduct(product._id)}
+                          disabled={loadingProductId === product._id}
+                          className="text-red-600 hover:text-red-800 disabled:opacity-50 hover:scale-110 transition-transform duration-200"
+                          aria-label="Delete product"
+                        >
+                          <FaTrash size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
