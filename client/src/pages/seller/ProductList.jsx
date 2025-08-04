@@ -118,6 +118,10 @@ const ProductList = () => {
                             src={product.image?.[0] || assets.placeholder_image}
                             alt={product.name}
                             className="w-full h-full object-cover"
+                            onClick={() => {
+                              navigate(`/products/${product.category.toLowerCase()}/${product._id}`);
+                              scrollTo(0, 0);
+                            }}
                           />
                         </div>
                         <div className="flex flex-col truncate max-w-[200px]">
