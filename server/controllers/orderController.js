@@ -10,26 +10,53 @@ const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-04-10',
 });
 
+/**
+ * ✅ Helper function to update product stock
+ * Deducts quantity, prevents negative stock, and updates inStock
+ */
+const updateProductStock = async (items) => {
+  for (const item of items) {
+    const product = await Product.findById(item.product);
+    if (product) {
+      product.stock -= item.quantity;
+
+      if (product.stock <= 0) {
+        product.stock = 0;
+        product.inStock = false;
+      }
+
+      await product.save();
+    }
+  }
+};
+
 export const placeOrderCOD = async (req, res) => {
   try {
     const { userId, items, address, isPaid } = req.body;
 
-    if (!address || items.length === 0) {
+    if (!address || !items || items.length === 0) {
       return res.json({ success: false, message: "Invalid data" });
     }
 
     let amount = 0;
+
+    // ✅ Validate products and stock
     for (const item of items) {
       const product = await Product.findById(item.product);
       if (!product) {
         return res.json({ success: false, message: `Product not found: ${item.product}` });
       }
+
+      if (product.stock < item.quantity) {
+        return res.json({ success: false, message: `${product.name} is out of stock` });
+      }
+
       amount += product.offerPrice * item.quantity;
     }
 
-    amount += Math.floor(amount * 0.02);
+    amount += Math.floor(amount * 0.02); // Add 2% GST
 
-    await Order.create({
+    const newOrder = await Order.create({
       userId,
       items,
       address,
@@ -38,7 +65,10 @@ export const placeOrderCOD = async (req, res) => {
       isPaid: isPaid ?? false,
     });
 
-    res.json({ success: true, message: "Order placed successfully" });
+    // ✅ Update stock
+    await updateProductStock(items);
+
+    res.json({ success: true, message: "Order placed successfully", order: newOrder });
   } catch (error) {
     console.log(error.message);
     res.json({ success: false, message: error.message });
@@ -65,8 +95,16 @@ export const stripeWebhook = async (req, res) => {
       const paymentIntent = event.data.object;
       const { orderId, userId } = paymentIntent.metadata;
 
-      await Order.findByIdAndUpdate(orderId, { isPaid: true });
-      await User.findByIdAndUpdate(userId, { cartItems: {} });
+      const order = await Order.findById(orderId);
+      if (order && !order.isPaid) {
+        order.isPaid = true;
+        await order.save();
+
+        // ✅ Update stock after payment
+        await updateProductStock(order.items);
+
+        await User.findByIdAndUpdate(userId, { cartItems: {} });
+      }
       break;
     }
     case 'payment_intent.payment_failed': {
@@ -254,4 +292,3 @@ export const updateOrderStatus = async (req, res) => {
     });
   }
 };
-
