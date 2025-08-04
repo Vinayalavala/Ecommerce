@@ -41,6 +41,7 @@ const App = () => {
   const [lastAddedProduct, setLastAddedProduct] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // ✅ Show scroll-to-top button on scroll
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 200);
@@ -49,6 +50,7 @@ const App = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // ✅ Show cart preview when a product is added
   useEffect(() => {
     const handleProductAdded = (e) => {
       setLastAddedProduct(e.detail.product);
@@ -57,6 +59,13 @@ const App = () => {
     window.addEventListener('product-added', handleProductAdded);
     return () => window.removeEventListener('product-added', handleProductAdded);
   }, []);
+
+  // ✅ Scroll to top automatically when user navigates to cart page
+  useEffect(() => {
+    if (isCartPage) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [isCartPage]);
 
   return (
     <div className="min-h-screen bg-white text-black transition-colors duration-500">
@@ -91,7 +100,7 @@ const App = () => {
         </Routes>
       </div>
 
-      {/* Scroll to Top Button (glassmorphic, mobile optimized) */}
+      {/* Scroll to Top Button */}
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
