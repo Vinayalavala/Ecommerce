@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import assets, { categories } from "../../assets/assets";
 import { useAppContext } from "../../context/appContext";
 import { toast } from "react-hot-toast";
+import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 
 const mainCategories = [
   "Grocery & Kitchen",
@@ -10,18 +11,12 @@ const mainCategories = [
   "Household Essentials",
 ];
 
-const quantityUnits = [
-  "pc",
-  "pcs",
-  "ML",
-  "L",
-  "g",
-  "Kg",
-];
+const quantityUnits = ["pc", "pcs", "ML", "L", "g", "Kg"];
 
 const AddProduct = () => {
-  
-  const [files, setFiles] = useState([null]);
+  const [files, setFiles] = useState([null]); // New image uploads
+  const [existingImages, setExistingImages] = useState([]); // Existing images for edit
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -33,15 +28,51 @@ const AddProduct = () => {
   const [quantityUnit, setQuantityUnit] = useState("");
 
   const { axios } = useAppContext();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
 
+  const editId = searchParams.get("edit");
+  const productFromState = location.state?.product || null;
+
+  // ✅ Fill data instantly from navigation state if available
+  useEffect(() => {
+    if (productFromState) {
+      fillFormData(productFromState);
+    } else if (editId) {
+      // Fallback: Fetch product from API if direct link opened
+      axios.get(`/api/product/${editId}`).then(({ data }) => {
+        if (data.success) {
+          fillFormData(data.product);
+        }
+      });
+    }
+  }, [editId, productFromState]);
+
+  const fillFormData = (product) => {
+    setName(product.name);
+    setDescription(product.description?.join("\n") || "");
+    setCategory(product.category);
+    setMainCategory(product.mainCategory);
+    setPrice(product.price);
+    setOfferPrice(product.offerPrice);
+    setStock(product.stock);
+    setQuantityValue(product.quantity?.value || "");
+    setQuantityUnit(product.quantity?.unit || "");
+    setExistingImages(product.image || []);
+  };
+
+  // ✅ Submit Handler
   const onSubmitHandler = async (event) => {
-    try {
-      event.preventDefault();
+    event.preventDefault();
 
-      // ✅ Construct product data with quantity object
+    try {
       const productData = {
         name: name.trim(),
-        description: description.split("\n").map((line) => line.trim()).filter(Boolean),
+        description: description
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean),
         category,
         mainCategory,
         price: Number(price),
@@ -51,40 +82,56 @@ const AddProduct = () => {
           value: Number(quantityValue),
           unit: quantityUnit,
         },
+        image: existingImages,
       };
 
       const formData = new FormData();
       formData.append("productData", JSON.stringify(productData));
-      console.log("Final productData for DB:", productData);
+      files.forEach((file) => file && formData.append("images", file));
 
+      const url = editId
+        ? `/api/product/update/${editId}`
+        : "/api/product/add";
 
-      files.forEach((file) => {
-        if (file) formData.append("images", file);
-      });
+      // ✅ Use proper HTTP method
+      const method = editId ? "put" : "post";
 
-      const { data } = await axios.post("/api/product/add", formData, {
+      console.log("🔹 Submitting to:", url, "with method:", method);
+      console.log("🔹 Payload:", productData);
+
+      const { data } = await axios[method](url, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
+      console.log("✅ Response:", data);
+
       if (data.success) {
         toast.success(data.message);
-        // Reset all fields
-        setName("");
-        setDescription("");
-        setCategory("");
-        setMainCategory("");
-        setPrice("");
-        setOfferPrice("");
-        setStock("");
-        setQuantityValue("");
-        setQuantityUnit("");
-        setFiles([null]);
+
+        // ✅ Clear the form and redirect to seller page
+        resetForm();
+        navigate("/seller");
       } else {
-        toast.error(data.message);
+        toast.error(data.message || "Update failed");
       }
     } catch (error) {
+      console.error("❌ Submit error:", error);
       toast.error(error.response?.data?.message || error.message);
     }
+  };
+
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setCategory("");
+    setMainCategory("");
+    setPrice("");
+    setOfferPrice("");
+    setStock("");
+    setQuantityValue("");
+    setQuantityUnit("");
+    setFiles([null]);
+    setExistingImages([]);
   };
 
   const handleFileChange = (index, file) => {
@@ -95,15 +142,47 @@ const AddProduct = () => {
 
   const handleAddMore = () => setFiles((prev) => [...prev, null]);
 
+  const handleRemoveExistingImage = (index) => {
+    const updated = [...existingImages];
+    updated.splice(index, 1);
+    setExistingImages(updated);
+  };
+
   return (
     <div className="no-scrollbar flex-1 h-[95vh] overflow-x-scroll flex flex-col justify-between mb-15">
-      <form
-        onSubmit={onSubmitHandler}
-        className="md:p-10 p-4 space-y-5 max-w-lg"
-      >
-        {/* Product Images */}
+      <form onSubmit={onSubmitHandler} className="md:p-10 p-4 space-y-5 max-w-lg">
+        <h2 className="text-xl font-semibold">
+          {editId ? "Edit Product" : "Add Product"}
+        </h2>
+
+        {/* Existing Images Preview in Edit Mode */}
+        {editId && existingImages.length > 0 && (
+          <div>
+            <p className="text-base font-medium mb-2">Existing Images</p>
+            <div className="flex flex-wrap gap-3">
+              {existingImages.map((img, idx) => (
+                <div key={idx} className="relative">
+                  <img
+                    src={img}
+                    alt="product"
+                    className="w-24 h-24 object-cover border border-gray-300 rounded-md"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveExistingImage(idx)}
+                    className="absolute top-0 right-0 bg-red-600 text-white text-xs px-1 rounded"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Upload New Images */}
         <div>
-          <p className="text-base font-medium">Product Images</p>
+          <p className="text-base font-medium">Upload New Images</p>
           <div className="flex flex-wrap items-center gap-3 mt-2">
             {files.map((file, index) => (
               <label key={index} htmlFor={`image${index}`}>
@@ -287,7 +366,7 @@ const AddProduct = () => {
         </div>
 
         <button className="px-8 py-2.5 bg-primary text-white font-medium rounded cursor-pointer">
-          ADD
+          {editId ? "UPDATE" : "ADD"}
         </button>
       </form>
     </div>
@@ -295,5 +374,3 @@ const AddProduct = () => {
 };
 
 export default AddProduct;
-
-
