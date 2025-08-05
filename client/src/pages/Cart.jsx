@@ -59,57 +59,61 @@ const Cart = () => {
   };
 
   const placeOrder = async () => {
-    try {
-      if (!selectedAddress) {
-        toast.error("Please select a delivery address.");
-        return;
-      }
+  // ✅ Disable button immediately to prevent double click
+  if (cooldownSeconds > 0) return; // Prevent double call manually (extra safety)
+  setCooldownSeconds(60);
 
-      if (paymentOption === "COD") {
-        const { data } = await axios.post("/api/order/cod", {
-          userId: user._id,
-          items: cartArray.map(item => ({
-            product: item._id,
-            quantity: item.quantity
-          })),
-          address: selectedAddress._id,
-          isPaid: false,
-        });
-
-        if (data.success) {
-          toast.success(data.message);
-          setCartItems({});
-          setShowThankYou(true); // ✅ Show thank you
-          setCooldownSeconds(10);
-
-          // Auto hide thank you after 5 sec and redirect
-          setTimeout(() => {
-            setShowThankYou(false);
-            navigate("/my-orders");
-          }, 5000);
-        } else {
-          toast.error(data.message);
-        }
-      } else {
-        const { data } = await axios.post("/api/order/stripe", {
-          userId: user._id,
-          items: cartArray.map(item => ({
-            product: item._id,
-            quantity: item.quantity
-          })),
-          address: selectedAddress._id,
-        });
-
-        if (data.success) {
-          window.location.href = data.url;
-        } else {
-          toast.error(data.message);
-        }
-      }
-    } catch (error) {
-      toast.error(error.message);
+  try {
+    if (!selectedAddress) {
+      toast.error("Please select a delivery address.");
+      return;
     }
-  };
+
+    if (paymentOption === "COD") {
+      const { data } = await axios.post("/api/order/cod", {
+        userId: user._id,
+        items: cartArray.map(item => ({
+          product: item._id,
+          quantity: item.quantity
+        })),
+        address: selectedAddress._id,
+        isPaid: false,
+      });
+
+      if (data.success) {
+        toast.success(data.message);
+        setCartItems({});
+        setShowThankYou(true);
+
+        setTimeout(() => {
+          setShowThankYou(false);
+          navigate("/my-orders");
+        }, 5000);
+      } else {
+        toast.error(data.message);
+      }
+    } else {
+      const { data } = await axios.post("/api/order/stripe", {
+        userId: user._id,
+        items: cartArray.map(item => ({
+          product: item._id,
+          quantity: item.quantity
+        })),
+        address: selectedAddress._id,
+      });
+
+      if (data.success) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data.message);
+      }
+    }
+  } catch (error) {
+    toast.error(error.message);
+    setCooldownSeconds(0);
+  }
+};
+
 
   useEffect(() => {
     if (products.length > 0 && cartItems) {
@@ -190,7 +194,7 @@ const Cart = () => {
                 <p className="hidden md:block font-semibold">{product.name}</p>
                 <div className="font-normal text-gray-500/70">
                   <p>
-                    Weight: <span>{product.weight || "N/A"}</span>
+                    Weight: <span>{product.quantity || "N/A"}</span>
                   </p>
                   <div className="flex items-center">
                     <p>Qty:</p>
@@ -297,7 +301,7 @@ const Cart = () => {
             <span className="text-sm text-gray-600">Cash On Delivery</span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
-                type="checkbox disabled"
+                type="checkbox disabled disabled={cooldownSeconds > 0}"
                 checked={paymentOption === "Online"}
                 onChange={() =>
                   setPaymentOption((prev) =>
@@ -362,6 +366,7 @@ const Cart = () => {
               ? "Place Order"
               : "Proceed to Payment"}
         </button>
+
       </div>
     </div>
   ) : null;
