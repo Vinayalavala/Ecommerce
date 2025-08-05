@@ -292,3 +292,35 @@ export const updateOrderStatus = async (req, res) => {
     });
   }
 };
+
+// controllers/orderController.js
+
+export const cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (order.status !== "Order Placed") {
+      return res.status(400).json({ success: false, message: "Only orders with status 'Order Placed' can be cancelled." });
+    }
+
+    const orderCreatedTime = new Date(order.createdAt).getTime();
+    const currentTime = Date.now();
+    const timeDiff = currentTime - orderCreatedTime;
+
+    if (timeDiff > 5 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: "Cancellation window (5 minutes) has expired." });
+    }
+
+    order.status = "Cancelled";
+    await order.save();
+
+    res.status(200).json({ success: true, message: "Order cancelled successfully." });
+  } catch (error) {
+    console.error("Cancel order error:", error);
+    res.status(500).json({ success: false, message: "Server error. Please try again later." });
+  }
+};
