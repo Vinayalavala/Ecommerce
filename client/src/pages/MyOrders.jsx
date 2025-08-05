@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../context/appContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+
 import { FaStar } from 'react-icons/fa';
+
+/* Ratings state and fetchReviews useEffect moved inside MyOrders component */
+
 
 const getDateLabel = (dateString) => {
   const orderDate = new Date(dateString);
@@ -37,29 +41,47 @@ const MyOrders = () => {
   const { currency, axios, user } = useAppContext();
   const navigate = useNavigate();
 
-  const fetchMyOrders = async () => {
-    if (!user || !user._id) {
-      toast.error("User ID is not available.");
-      return;
-    }
+const fetchMyOrders = async () => {
+  if (!user || !user._id) {
+    toast.error("User ID is not available.");
+    return;
+  }
 
+  try {
+    const { data } = await axios.get(`/api/order/user?userId=${user._id}`);
+    setMyOrders(data.orders || []);
+  } catch (error) {
+    toast.error("Failed to fetch orders.");
+  }
+};
+
+// Fetch reviews and set ratings
+useEffect(() => {
+  const fetchReviews = async () => {
+    if (!user || !user._id) return;
     try {
-      const { data } = await axios.get(`/api/order/user?userId=${user._id}`);
-      if (data.success) {
-        setMyOrders(data.orders);
-      } else {
-        toast.error(data.message);
-      }
+      const res = await axios.get(`/api/review?userId=${user._id}`);
+      const fetchedRatings = {};
+
+      res.data.forEach((review) => {
+        const key = `${review.orderId}_${review.productId}`;
+        fetchedRatings[key] = review.rating;
+      });
+
+      setRatings(fetchedRatings);
     } catch (error) {
-      toast.error("Failed to fetch orders.");
+      console.error("Error fetching reviews:", error);
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchMyOrders();
-    }
-  }, [user]);
+  fetchReviews();
+}, [user, axios]);
+
+useEffect(() => {
+  if (user) {
+    fetchMyOrders();
+  }
+}, [user]);
 
   useEffect(() => {
     let updated = [...myOrders];
@@ -79,15 +101,34 @@ const MyOrders = () => {
     setFilteredOrders(updated);
   }, [search, statusFilter, myOrders]);
 
-  const handleRatingChange = (productId, value) => {
+  const handleRatingChange = async (productId, orderId, ratingValue) => {
+  try {
+    // Convert orderId to string, in case it's a number
+    const payload = {
+      userId: user._id,
+      productId,
+      orderId: String(orderId),  // ✅ convert to string
+      rating: Number(ratingValue),  // ✅ ensure it's a number
+    };
+
+    console.log("Submitting Review:", payload);
+
+    await axios.post('/api/review', payload);
+
+    toast.success('Review submitted!');
     setRatings((prev) => ({
       ...prev,
-      [productId]: value,
+      [`${orderId}_${productId}`]: ratingValue,
     }));
-    toast.success(`This feature is not implemented yet. Please check back later!`);
-  };
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    toast.error(err.response?.data?.message || "Failed to submit review");
+  }
+};
 
 
+
+  // 🔁 Cancel Order Handler
   const handleCancelOrder = async (orderId) => {
     try {
       const { data } = await axios.put(`/api/order/cancel/${orderId}`);
@@ -215,12 +256,16 @@ const MyOrders = () => {
                 <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
                 <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
                 {/* Show timer if cancellable */}
-                
+                {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
+                  <span className='text-red-500'>
+                    Cancel in: {Math.floor(remainingTimes[order._id] / 60)}:
+                    {(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins
+                  </span>
+                )}
               </div>
 
               {(order.items || []).map((item, idx) => {
                 const productId = item.product?._id;
-                const currentRating = ratings[productId] || 0;
 
                 return (
                   <div
@@ -254,14 +299,13 @@ const MyOrders = () => {
                       </p>
 
                       <div className='flex items-center mt-2 gap-1'>
-                        {[1, 2, 3, 4, 5].map((star) => (
+                        {[0, 1, 2, 3, 4].map((starIndex) => (
                           <FaStar
-                            key={star}
-                            className={`cursor-pointer text-sm ${
-                              currentRating >= star ? 'text-yellow-400' : 'text-gray-300'
-                            }`}
-                            onClick={() => handleRatingChange(productId, star)}
+                            key={starIndex}
+                            onClick={() => handleRatingChange(item.product?._id, order._id, starIndex + 1)}
+                            color={(starIndex + 1) <= (ratings[`${order._id}_${item.product?._id}`] || 0) ? 'gold' : 'gray'}
                           />
+
                         ))}
                       </div>
                     </div>
@@ -278,15 +322,10 @@ const MyOrders = () => {
               {/* 🔴 Cancel Button */}
               {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
                 <button
-                  className='mt-4  px-4 py-2  bg-red-500 text-white text-xs rounded hover:bg-red-600'
+                  className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
                   onClick={() => handleCancelOrder(order._id)}
                 >
-                  {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
-                  <span className='text-white-500'>
-                    Cancel within: {Math.floor(remainingTimes[order._id] / 60)}:
-                    {(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins
-                  </span>
-                )}
+                  Cancel Order
                 </button>
               )}
             </div>
