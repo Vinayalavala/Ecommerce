@@ -32,6 +32,7 @@ const MyOrders = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortOption, setSortOption] = useState('date_desc');
   const [ratings, setRatings] = useState({});
+  const [remainingTimes, setRemainingTimes] = useState({});
 
   const { currency, axios, user } = useAppContext();
   const navigate = useNavigate();
@@ -86,6 +87,41 @@ const MyOrders = () => {
     toast.success(`This feature is not implemented yet. Please check back later!`);
   };
 
+  // 🔁 Cancel Order Handler
+  const handleCancelOrder = async (orderId) => {
+    try {
+      const { data } = await axios.put(`/api/order/cancel/${orderId}`);
+      if (data.success) {
+        toast.success("Order cancelled.");
+        fetchMyOrders();
+      } else {
+        toast.error(data.message || "Failed to cancel.");
+      }
+    } catch (err) {
+      toast.error("Error cancelling order.");
+    }
+  };
+
+  // ⏱️ Timer Effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const times = {};
+
+      myOrders.forEach((order) => {
+        const createdTime = new Date(order.createdAt).getTime();
+        const diff = 5 * 60 * 1000 - (now - createdTime); // 5 minutes
+        if (diff > 0 && order.status === 'Order Placed') {
+          times[order._id] = Math.floor(diff / 1000);
+        }
+      });
+
+      setRemainingTimes(times);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [myOrders]);
+
   const groupedOrders = filteredOrders.reduce((acc, order) => {
     const label = getDateLabel(order.createdAt);
     if (!acc[label]) acc[label] = [];
@@ -97,9 +133,7 @@ const MyOrders = () => {
     label,
     orders,
     count: orders.length,
-    latestDate: orders
-      .map((o) => new Date(o.createdAt))
-      .sort((a, b) => b - a)[0],
+    latestDate: orders.map((o) => new Date(o.createdAt)).sort((a, b) => b - a)[0],
     totalAmount: orders
       .filter((o) => o.status !== 'Cancelled')
       .reduce((sum, o) => sum + o.amount, 0),
@@ -180,6 +214,13 @@ const MyOrders = () => {
                 <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
                 <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
                 <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
+                {/* Show timer if cancellable */}
+                {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
+                  <span className='text-red-500'>
+                    Cancel in: {Math.floor(remainingTimes[order._id] / 60)}:
+                    {(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins
+                  </span>
+                )}
               </div>
 
               {(order.items || []).map((item, idx) => {
@@ -192,18 +233,18 @@ const MyOrders = () => {
                     className='grid grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 items-center'
                   >
                     <div className='group flex flex-col items-center md:items-start justify-center cursor-pointer'>
-                        <img
-                          src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
-                          alt={item.product?.name || 'Product'}
-                          className='w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover transition-transform duration-200 group-hover:scale-105'
-                          onClick={() => {
-                            if (productId) navigate(`/product/${productId}`);
-                            else toast.error("Product not found.");
-                          }}
-                        />
-                        <span className='text-xs text-primary mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
-                          View Details
-                        </span>
+                      <img
+                        src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
+                        alt={item.product?.name || 'Product'}
+                        className='w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover transition-transform duration-200 group-hover:scale-105'
+                        onClick={() => {
+                          if (productId) navigate(`/product/${productId}`);
+                          else toast.error("Product not found.");
+                        }}
+                      />
+                      <span className='text-xs text-primary mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
+                        View Details
+                      </span>
                     </div>
                     <div className='flex flex-col justify-center space-y-1 text-left text-sm'>
                       <h2 className='text-sm font-semibold text-gray-800'>
@@ -238,6 +279,16 @@ const MyOrders = () => {
                   </div>
                 );
               })}
+
+              {/* 🔴 Cancel Button */}
+              {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
+                <button
+                  className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
+                  onClick={() => handleCancelOrder(order._id)}
+                >
+                  Cancel Order
+                </button>
+              )}
             </div>
           ))}
         </div>
