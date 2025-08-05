@@ -12,7 +12,7 @@ import cartRouter from './routes/cartRoute.js';
 import addressRouter from './routes/addressRoute.js';
 import orderRouter from './routes/orderRoute.js';
 import { stripeWebhook } from './controllers/orderController.js';
-import reviewRoutes from './routes/reviewRoute.js';
+import reviewRoute from './routes/reviewRoute.js';
 
 const app = express();
 const PORT = process.env.PORT || 4001;
