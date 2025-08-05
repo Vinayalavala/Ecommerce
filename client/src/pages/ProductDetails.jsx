@@ -200,19 +200,6 @@ const ProductDetails = () => {
             </p>
           )}
 
-          {/* Rating */}
-          <div className="flex items-center gap-1">
-            {Array(5).fill('').map((_, i) => (
-              <img
-                key={i}
-                src={i < 4 ? assets.star_icon : assets.star_dull_icon}
-                alt="rating"
-                className="w-4"
-              />
-            ))}
-            <span className="ml-2 text-gray-400 text-sm">(4)</span>
-          </div>
-
           {/* Pricing */}
           <div>
             <p className="text-gray-400 line-through">MRP: {currency}{product.price}</p>
