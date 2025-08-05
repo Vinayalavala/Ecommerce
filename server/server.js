@@ -47,7 +47,7 @@ app.use('/api/product', productRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/address', addressRouter);
 app.use('/api/order', orderRouter);
-app.use('/api/review', reviewRoutes);
+app.use('/api/review', reviewRoute);
 app.use("/api", analyticsRoutes);
 
 // Test route
