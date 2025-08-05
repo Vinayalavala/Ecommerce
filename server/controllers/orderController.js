@@ -5,6 +5,8 @@ import Stripe from 'stripe';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import User from '../models/user.js';
+// POST /api/review
+import Review from "../models/Review.js";
 
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-04-10',
@@ -152,6 +154,13 @@ export const getAllOrders = async (req, res) => {
     const orders = await Order.find()
       .populate("items.product")
       .populate("address")
+      .populate({
+        path: 'items.product',
+        populate: {
+          path: 'reviews', // assuming `reviews` is a virtual or field on the product model
+          match: { user: { $exists: true } }, // optional: filter if needed
+        }
+      })
       .sort({ createdAt: -1 });
 
     if (!orders) {
@@ -322,5 +331,45 @@ export const cancelOrder = async (req, res) => {
   } catch (error) {
     console.error("Cancel order error:", error);
     res.status(500).json({ success: false, message: "Server error. Please try again later." });
+  }
+};
+
+/* Duplicate submitReview function removed to resolve redeclaration error. */
+
+
+export const submitReview = async (req, res) => {
+  const { userId, productId, orderId, rating, comment } = req.body;
+
+  if (!userId || !productId || !orderId ) {
+    return res.status(400).json({ success: false, message: "Missing fields" });
+  }
+
+  try {
+    // Prevent duplicate reviews for the same product in same order
+    const existing = await Review.findOne({ userId, productId, orderId });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "You already reviewed this product in this order." });
+    }
+
+    const review = await Review.create({ userId, productId, orderId, rating, comment });
+
+    // Push to product's reviews array
+    await Product.findByIdAndUpdate(productId, { $push: { reviews: review._id } });
+
+    res.json({ success: true, review });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUserReviews = async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    const reviews = await Review.find({ userId });
+    res.json(reviews);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch reviews" });
   }
 };
