@@ -87,7 +87,7 @@ const MyOrders = () => {
     toast.success(`This feature is not implemented yet. Please check back later!`);
   };
 
-  // 🔁 Cancel Order Handler
+
   const handleCancelOrder = async (orderId) => {
     try {
       const { data } = await axios.put(`/api/order/cancel/${orderId}`);
@@ -215,12 +215,7 @@ const MyOrders = () => {
                 <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
                 <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
                 {/* Show timer if cancellable */}
-                {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
-                  <span className='text-red-500'>
-                    Cancel in: {Math.floor(remainingTimes[order._id] / 60)}:
-                    {(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins
-                  </span>
-                )}
+                
               </div>
 
               {(order.items || []).map((item, idx) => {
@@ -283,10 +278,15 @@ const MyOrders = () => {
               {/* 🔴 Cancel Button */}
               {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
                 <button
-                  className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
+                  className='mt-4  px-4 py-2  bg-red-500 text-white text-xs rounded hover:bg-red-600'
                   onClick={() => handleCancelOrder(order._id)}
                 >
-                  Cancel Order
+                  {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
+                  <span className='text-white-500'>
+                    Cancel within: {Math.floor(remainingTimes[order._id] / 60)}:
+                    {(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins
+                  </span>
+                )}
                 </button>
               )}
             </div>
