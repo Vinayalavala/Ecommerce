@@ -144,12 +144,20 @@ const Cart = () => {
 
   // ✅ Thank You Overlay
   if (showThankYou) {
-    return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-50">
-        <img src={assets.success_icon || assets.logo} alt="success" className="w-20 mb-4" />
-        <p className="text-gray-600 text-lg">Thanks for shopping with us 🎉</p>
-      </div>
-    );
+      return (
+        <div className="fixed inset-0 flex flex-col items-center justify-center bg-white z-50 animate-fade-in">
+          <img
+            src={assets.success_icon || assets.logo}
+            alt="success"
+            className="w-20 mb-4"
+          />
+          <p className="text-gray-600 text-lg">Thanks for shopping with us!</p>
+          <p className="text-gray-600 text-lg mt-1">
+            Your items will be delivered & we hope to see you again soon!
+          </p>
+        </div>
+      );
+
   }
 
   return products.length > 0 && cartItems ? (
