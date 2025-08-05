@@ -153,7 +153,7 @@ const Cart = () => {
           />
           <p className="text-gray-600 text-lg">Thanks for shopping with us!</p>
           <p className="text-gray-600 text-lg mt-1">
-            Your items will be delivered & we hope to see you again soon!
+            Your items will be delivered soon!
           </p>
         </div>
       );
