@@ -130,13 +130,22 @@ export const getUserOrders = async (req, res) => {
       return res.json({ success: false, message: "User ID is required" });
     }
 
-    const orders = await Order.find({
-      userId,
-      $or: [{ paymentType: "COD" }, { isPaid: true }],
-    })
-      .populate("items.product")
-      .populate("address")
-      .sort({ createdAt: -1 });
+    const orders = await Order.find()
+  .populate("items.product")
+  .populate("address")
+  .lean();
+
+for (const order of orders) {
+  for (const item of order.items) {
+    item.reviews = await Review.find({
+      productId: item.product._id,
+      orderId: order._id
+    }).lean();
+  }
+}
+    if (!orders) {
+      return res.json({ success: false, message: "No orders found" });
+    }
 
     if (orders.length === 0) {
       return res.json({ success: false, message: "No orders found" });
@@ -154,25 +163,34 @@ export const getAllOrders = async (req, res) => {
     const orders = await Order.find()
       .populate("items.product")
       .populate("address")
-      .populate({
-        path: 'items.product',
-        populate: {
-          path: 'reviews', // assuming `reviews` is a virtual or field on the product model
-          match: { user: { $exists: true } }, // optional: filter if needed
-        }
-      })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean(); // lean() so we can mutate objects directly
 
-    if (!orders) {
+    if (!orders || orders.length === 0) {
       return res.json({ success: false, message: "No orders found" });
+    }
+
+    // ✅ Attach reviews for each product in each order
+    for (const order of orders) {
+      for (const item of order.items) {
+        if (item.product?._id) {
+          item.reviews = await Review.find({
+            productId: item.product._id,
+            orderId: order._id
+          }).lean();
+        } else {
+          item.reviews = [];
+        }
+      }
     }
 
     res.json({ success: true, orders });
   } catch (error) {
-    console.log(error.message);
+    console.log("Error in getAllOrders:", error.message);
     res.json({ success: false, message: error.message });
   }
 };
+
 
 export const placeOrderStripe = async (req, res) => {
   try {
