@@ -2,11 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../context/appContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-
 import { FaStar } from 'react-icons/fa';
-
-/* Ratings state and fetchReviews useEffect moved inside MyOrders component */
-
 
 const getDateLabel = (dateString) => {
   const orderDate = new Date(dateString);
@@ -41,55 +37,49 @@ const MyOrders = () => {
   const { currency, axios, user } = useAppContext();
   const navigate = useNavigate();
 
-const fetchMyOrders = async () => {
-  if (!user || !user._id) {
-    toast.error("User ID is not available.");
-    return;
-  }
-
-  try {
-    const { data } = await axios.get(`/api/order/user?userId=${user._id}`);
-    setMyOrders(data.orders || []);
-  } catch (error) {
-    toast.error("Failed to fetch orders.");
-  }
-};
-
-// Fetch reviews and set ratings
-useEffect(() => {
-  const fetchReviews = async () => {
-    if (!user || !user._id) return;
+  const fetchMyOrders = async () => {
+    if (!user || !user._id) {
+      toast.error("User ID is not available.");
+      return;
+    }
     try {
-      const res = await axios.get(`/api/review?userId=${user._id}`);
-      const fetchedRatings = {};
-
-      res.data.forEach((review) => {
-        const key = `${review.orderId}_${review.productId}`;
-        fetchedRatings[key] = review.rating;
-      });
-
-      setRatings(fetchedRatings);
+      const { data } = await axios.get(`/api/order/user?userId=${user._id}`);
+      setMyOrders(data.orders || []);
     } catch (error) {
-      console.error("Error fetching reviews:", error);
+      toast.error("Failed to fetch orders.");
     }
   };
 
-  fetchReviews();
-}, [user, axios]);
+  // Fetch reviews and set ratings
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!user || !user._id) return;
+      try {
+        const res = await axios.get(`/api/review?userId=${user._id}`);
+        const fetchedRatings = {};
+        res.data.forEach((review) => {
+          const key = `${review.orderId}_${review.productId}`;
+          fetchedRatings[key] = review.rating;
+        });
+        setRatings(fetchedRatings);
+      } catch (error) {
+        console.error("Error fetching reviews:", error);
+      }
+    };
+    fetchReviews();
+  }, [user, axios]);
 
-useEffect(() => {
-  if (user) {
-    fetchMyOrders();
-  }
-}, [user]);
+  useEffect(() => {
+    if (user) {
+      fetchMyOrders();
+    }
+  }, [user]);
 
   useEffect(() => {
     let updated = [...myOrders];
-
     if (statusFilter !== 'All') {
       updated = updated.filter((order) => order.status === statusFilter);
     }
-
     if (search.trim() !== '') {
       updated = updated.filter((order) =>
         order.items.some((item) =>
@@ -97,38 +87,29 @@ useEffect(() => {
         )
       );
     }
-
     setFilteredOrders(updated);
   }, [search, statusFilter, myOrders]);
 
   const handleRatingChange = async (productId, orderId, ratingValue) => {
-  try {
-    // Convert orderId to string, in case it's a number
-    const payload = {
-      userId: user._id,
-      productId,
-      orderId: String(orderId),  // ✅ convert to string
-      rating: Number(ratingValue),  // ✅ ensure it's a number
-    };
+    try {
+      const payload = {
+        userId: user._id,
+        productId,
+        orderId: String(orderId),
+        rating: Number(ratingValue),
+      };
+      await axios.post('/api/review', payload);
+      toast.success('Review submitted!');
+      setRatings((prev) => ({
+        ...prev,
+        [`${orderId}_${productId}`]: ratingValue,
+      }));
+    } catch (err) {
+      console.error(err.response?.data || err.message);
+      toast.error(err.response?.data?.message || "Failed to submit review");
+    }
+  };
 
-    console.log("Submitting Review:", payload);
-
-    await axios.post('/api/review', payload);
-
-    toast.success('Review submitted!');
-    setRatings((prev) => ({
-      ...prev,
-      [`${orderId}_${productId}`]: ratingValue,
-    }));
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    toast.error(err.response?.data?.message || "Failed to submit review");
-  }
-};
-
-
-
-  // 🔁 Cancel Order Handler
   const handleCancelOrder = async (orderId) => {
     try {
       const { data } = await axios.put(`/api/order/cancel/${orderId}`);
@@ -148,18 +129,15 @@ useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date().getTime();
       const times = {};
-
       myOrders.forEach((order) => {
         const createdTime = new Date(order.createdAt).getTime();
-        const diff = 5 * 60 * 1000 - (now - createdTime); // 5 minutes
+        const diff = 5 * 60 * 1000 - (now - createdTime);
         if (diff > 0 && order.status === 'Order Placed') {
           times[order._id] = Math.floor(diff / 1000);
         }
       });
-
       setRemainingTimes(times);
     }, 1000);
-
     return () => clearInterval(interval);
   }, [myOrders]);
 
@@ -207,7 +185,6 @@ useEffect(() => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-
         <div className='flex gap-4 w-full md:w-1/2'>
           <select
             className='border px-4 py-2 rounded w-full text-sm'
@@ -221,7 +198,6 @@ useEffect(() => {
             <option value='Delivered'>Delivered</option>
             <option value='Cancelled'>Cancelled</option>
           </select>
-
           <select
             className='border px-4 py-2 rounded w-full text-sm'
             value={sortOption}
@@ -255,7 +231,6 @@ useEffect(() => {
                 <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
                 <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
                 <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
-                {/* Show timer if cancellable */}
                 {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
                   <span className='text-red-500'>
                     Cancel in: {Math.floor(remainingTimes[order._id] / 60)}:
@@ -266,12 +241,17 @@ useEffect(() => {
 
               {(order.items || []).map((item, idx) => {
                 const productId = item.product?._id;
+                const reviewKey = `${order._id}_${productId}`;
+                const existingRating = (order.reviews || []).find(
+                  (r) => r.productId === productId && r.orderId === order._id
+                )?.rating;
 
                 return (
                   <div
                     key={idx}
                     className='grid grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 items-center'
                   >
+                    {/* Product Image */}
                     <div className='group flex flex-col items-center md:items-start justify-center cursor-pointer'>
                       <img
                         src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
@@ -286,6 +266,8 @@ useEffect(() => {
                         View Details
                       </span>
                     </div>
+
+                    {/* Product Info + Rating */}
                     <div className='flex flex-col justify-center space-y-1 text-left text-sm'>
                       <h2 className='text-sm font-semibold text-gray-800'>
                         {item.product?.name || 'Unnamed Product'}
@@ -298,18 +280,38 @@ useEffect(() => {
                         Ordered On: {new Date(order.createdAt).toLocaleString()}
                       </p>
 
+                      {/* Star Rating Display */}
                       <div className='flex items-center mt-2 gap-1'>
-                        {[0, 1, 2, 3, 4].map((starIndex) => (
+                        {[1, 2, 3, 4, 5].map((starIndex) => (
                           <FaStar
                             key={starIndex}
-                            onClick={() => handleRatingChange(item.product?._id, order._id, starIndex + 1)}
-                            color={(starIndex + 1) <= (ratings[`${order._id}_${item.product?._id}`] || 0) ? 'gold' : 'gray'}
+                            onClick={() => {
+                              if (order.status === 'Delivered' && !existingRating) {
+                                handleRatingChange(productId, order._id, starIndex);
+                              } else if (order.status !== 'Delivered') {
+                                toast.error("You can only review after delivery.");
+                              }
+                            }}
+                            color={
+                              starIndex <=
+                              (existingRating || ratings[reviewKey] || 0)
+                                ? 'gold'
+                                : 'gray'
+                            }
+                            className={`cursor-pointer ${
+                              existingRating ? 'pointer-events-none' : ''
+                            }`}
                           />
-
                         ))}
+                        {existingRating && (
+                          <span className="text-xs text-gray-500 ml-2">
+                            You rated: {existingRating} ★
+                          </span>
+                        )}
                       </div>
                     </div>
 
+                    {/* Price */}
                     <div className='flex justify-center items-center'>
                       <p className='text-primary font-semibold text-sm sm:text-base'>
                         ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
@@ -319,7 +321,6 @@ useEffect(() => {
                 );
               })}
 
-              {/* 🔴 Cancel Button */}
               {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
                 <button
                   className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
