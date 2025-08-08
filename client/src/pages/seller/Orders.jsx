@@ -4,6 +4,9 @@ import assets, { categories } from '../../assets/assets';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
+/* Added import for star icons (kept original imports above intact) */
+import { FaStar } from 'react-icons/fa';
+
 const Orders = () => {
   const { currency, axios } = useAppContext();
   const [orders, setOrders] = useState([]);
@@ -11,6 +14,7 @@ const Orders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [ratings, setRatings] = useState({}); // <-- added ratings state
   const navigate = useNavigate();
 
   const fetchOrders = async () => {
@@ -19,7 +23,7 @@ const Orders = () => {
         withCredentials: true,
       });
       if (data.success) {
-        setOrders(data.orders);
+        setOrders(data.orders || []);
       } else {
         toast.error(data.message || "Failed to fetch orders.");
       }
@@ -38,6 +42,66 @@ const Orders = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  // Build ratings map whenever orders change.
+  // The map key is `${orderId}_${productId}` -> rating number
+  useEffect(() => {
+    const map = {};
+    if (!orders || orders.length === 0) {
+      setRatings({});
+      return;
+    }
+
+    for (const order of orders) {
+      const orderId = order._id;
+      // 1) If order has top-level reviews array (some implementations)
+      if (Array.isArray(order.reviews)) {
+        for (const r of order.reviews) {
+          if (r && r.productId) {
+            map[`${orderId}_${String(r.productId)}`] = Number(r.rating || r.score || 0);
+          }
+        }
+      }
+
+      // 2) Iterate items; item.reviews or product.reviews
+      for (const item of order.items || []) {
+        const productId = item?.product?._id || item?.product || item?.productId || item?.productId;
+        // If item has its own reviews array (populated by backend)
+        if (Array.isArray(item.reviews) && item.reviews.length > 0) {
+          // prefer a review that matches this order
+          const matched = item.reviews.find((rv) => {
+            // possible field names: orderId, order, order_id
+            if (!rv) return false;
+            const ored = rv.orderId || rv.order || rv.order_id;
+            return ored ? String(ored) === String(orderId) : false;
+          }) || item.reviews[0];
+
+          if (matched && productId) {
+            map[`${orderId}_${String(productId)}`] = Number(matched.rating || matched.score || 0);
+          }
+        }
+
+        // 3) If product has embedded reviews (product.reviews), use those
+        if (item.product && Array.isArray(item.product.reviews) && item.product.reviews.length > 0) {
+          const matchedProdReview = item.product.reviews.find((rv) => {
+            if (!rv) return false;
+            const ored = rv.orderId || rv.order || rv.order_id;
+            return ored ? String(ored) === String(orderId) : false;
+          }) || item.product.reviews[0];
+
+          if (matchedProdReview && productId) {
+            // only set if not already set by item.reviews above (order-level priority)
+            const key = `${orderId}_${String(productId)}`;
+            if (!map[key]) {
+              map[key] = Number(matchedProdReview.rating || matchedProdReview.score || 0);
+            }
+          }
+        }
+      }
+    }
+
+    setRatings(map);
+  }, [orders]);
 
   const markOrderAsPaid = async (orderId) => {
     try {
@@ -232,6 +296,7 @@ const Orders = () => {
                       currency={currency}
                       onMarkAsPaid={markOrderAsPaid}
                       onUpdateStatus={updateOrderStatus}
+                      ratings={ratings}
                     />
                   ))}
                 </div>
@@ -243,7 +308,7 @@ const Orders = () => {
   );
 };
 
-const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
+const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus, ratings }) => {
   const navigate = useNavigate();
   const [isUpdating, setIsUpdating] = useState(false);
   const [localIsPaid, setLocalIsPaid] = useState(order.isPaid);
@@ -296,9 +361,13 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
       {/* Left: Product images and names aligned horizontally */}
       <div className="flex flex-col gap-3 max-w-96">
         {order.items?.map((item) => {
-          const productId = item.product?._id;
+          const productId = item.product?._id || item.product || item.productId;
           const imageSrc = item.product?.image?.[0] || assets.box_icon;
           const productName = item.product?.name || item.name || 'Unnamed Product';
+
+          // derive key and rating from ratings map (built in parent)
+          const key = `${order._id}_${String(productId)}`;
+          const existingRating = Number(ratings?.[key] || 0);
 
           return (
             <div
@@ -313,6 +382,7 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
                   className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition duration-300 ease-in-out"
                   onClick={() => {
                     if (productId) {
+                      // keep your previous path behaviour
                       navigate(`/products/${categories}/${productId}`);
                     } else {
                       toast.error("No product ID found.");
@@ -324,10 +394,27 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus }) => {
                 </div>
               </div>
 
-              <p className="font-medium text-gray-800 whitespace-normal break-words">
-                {productName}{" "}
-                <span className="text-primary">x {item.quantity}</span>
-              </p>
+              <div className="flex-1">
+                <p className="font-medium text-gray-800 whitespace-normal break-words">
+                  {productName}{" "}
+                  <span className="text-primary">x {item.quantity}</span>
+                </p>
+
+                {/* ---------- Read-only star rating (sellers view) ---------- */}
+                <div className="flex items-center mt-0.5 gap-0.5">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <FaStar
+                      key={star}
+                      size={14}
+                      color={star <= existingRating ? '#facc15' : '#d1d5db'} // gold for filled, gray-300 for empty
+                      className="cursor-default"
+                    />
+                  ))}
+                  
+                </div>
+                {/* --------------------------------------------------------- */}
+
+              </div>
             </div>
           );
         })}
