@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useState, useMemo } from "react";
+import { useAppContext } from "../../context/appContext";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, CartesianGrid, Legend, PieChart, Pie, Cell,
@@ -11,22 +11,84 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#845EC2'];
 const TREND_OPTIONS = ["daily", "weekly", "monthly", "yearly", "all"];
 
 const Analytics = () => {
-  const [analytics, setAnalytics] = useState(null);
+  const { axios } = useAppContext();
+  const [orders, setOrders] = useState([]);
   const [trend, setTrend] = useState("all");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const fetchOrders = async () => {
       try {
-        const query = `?trend=${trend}&from=${dateRange.from}&to=${dateRange.to}`;
-        const res = await axios.get(`/api/seller-analytics${query}`);
-        setAnalytics(res.data);
+        const { data } = await axios.get("/api/order/seller", {
+          withCredentials: true,
+        });
+        if (data.success) {
+          setOrders(data.orders);
+        }
       } catch (err) {
-        console.error("Failed to load analytics", err);
+        console.error("Failed to fetch orders", err);
       }
     };
-    fetchAnalytics();
-  }, [trend, dateRange]);
+    fetchOrders();
+  }, [axios]);
+
+  const analytics = useMemo(() => {
+    if (!orders.length) return null;
+
+    // Filter by date range
+    let filtered = [...orders];
+    if (dateRange.from) {
+      filtered = filtered.filter(o => new Date(o.createdAt) >= new Date(dateRange.from));
+    }
+    if (dateRange.to) {
+      filtered = filtered.filter(o => new Date(o.createdAt) <= new Date(dateRange.to));
+    }
+
+    // Filter by trend
+    const now = moment();
+    if (trend !== "all") {
+      filtered = filtered.filter(o => {
+        const orderDate = moment(o.createdAt);
+        if (trend === "daily") return orderDate.isSame(now, "day");
+        if (trend === "weekly") return orderDate.isSame(now, "week");
+        if (trend === "monthly") return orderDate.isSame(now, "month");
+        if (trend === "yearly") return orderDate.isSame(now, "year");
+        return true;
+      });
+    }
+
+    const totalOrders = filtered.length;
+    const totalIncome = filtered
+      .filter(o => o.status !== "Cancelled")
+      .reduce((sum, o) => sum + o.amount, 0);
+
+    // Product sales aggregation
+    const productMap = {};
+    filtered.forEach(order => {
+      order.items.forEach(item => {
+        const name = item.product?.name || "Unknown";
+        if (!productMap[name]) {
+          productMap[name] = { name, quantitySold: 0, totalRevenue: 0 };
+        }
+        productMap[name].quantitySold += item.quantity;
+        productMap[name].totalRevenue += (item.product?.offerPrice || 0) * item.quantity;
+      });
+    });
+    const productSales = Object.values(productMap).sort((a, b) => b.quantitySold - a.quantitySold);
+
+    // Cancelled orders list
+    const cancelledOrders = filtered
+      .filter(o => o.status === "Cancelled")
+      .map(o => ({
+        _id: o._id,
+        name: o.items[0]?.product?.name || "N/A",
+        quantity: o.items[0]?.quantity || 0,
+        reason: o.cancelReason || "",
+        createdAt: o.createdAt,
+      }));
+
+    return { totalOrders, totalIncome, productSales, cancelledOrders };
+  }, [orders, trend, dateRange]);
 
   return (
     <div className="p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-gray-100 h-screen overflow-y-auto">
@@ -73,7 +135,7 @@ const Analytics = () => {
           {/* Summary Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-8">
             <SummaryCard title="Total Orders" value={analytics.totalOrders} icon={<FaBox />} color="text-blue-600" />
-            <SummaryCard title="Total Revenue" value={`₹${analytics.totalIncome}`} icon={<FaRupeeSign />} color="text-green-600" />
+            <SummaryCard title="Total Revenue" value={`₹${analytics.totalIncome.toFixed(2)}`} icon={<FaRupeeSign />} color="text-green-600" />
             <SummaryCard title="Top Product" value={analytics.productSales[0]?.name || 'N/A'} icon={<FaChartPie />} color="text-indigo-600" />
             <SummaryCard title="Cancelled Orders" value={analytics.cancelledOrders.length} icon={<FaTimesCircle />} color="text-red-500" />
           </div>
@@ -92,8 +154,8 @@ const Analytics = () => {
 
           <ChartBlock title="Quantity Sold per Product">
             <ResponsiveContainer width="100%" height={300}>
+              <CartesianGrid strokeDasharray="3 3" />
               <LineChart data={analytics.productSales}>
-                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
@@ -124,7 +186,7 @@ const Analytics = () => {
             </ResponsiveContainer>
           </ChartBlock>
 
-          {/* Cancelled Orders List (mobile-friendly stack) */}
+          {/* Cancelled Orders List */}
           <ChartBlock title="Cancelled Orders List">
             {analytics.cancelledOrders.length === 0 ? (
               <p className="text-sm text-gray-600">No cancelled orders.</p>
@@ -136,7 +198,7 @@ const Analytics = () => {
                     className="bg-white rounded-lg shadow border p-4 text-sm flex flex-col gap-1"
                   >
                     <div><span className="font-semibold">Order ID:</span> {order._id}</div>
-                    <div><span className="font-semibold">Product:</span> {order.name || "N/A"}</div>
+                    <div><span className="font-semibold">Product:</span> {order.name}</div>
                     <div><span className="font-semibold">Quantity:</span> {order.quantity}</div>
                     <div><span className="font-semibold">Reason:</span> {order.reason || "Not specified"}</div>
                     <div><span className="font-semibold">Date:</span> {moment(order.createdAt).format("DD MMM YYYY")}</div>
@@ -167,3 +229,5 @@ const ChartBlock = ({ title, children, className = "" }) => (
 );
 
 export default Analytics;
+
+
