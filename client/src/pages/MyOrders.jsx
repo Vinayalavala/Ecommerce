@@ -50,6 +50,24 @@ const MyOrders = () => {
     }
   };
 
+  useEffect(() => {
+  let updated = [...myOrders];
+
+  if (statusFilter !== 'All') {
+    updated = updated.filter((order) => order.status === statusFilter);
+  }
+
+  if (search.trim() !== '') {
+    updated = updated.filter((order) =>
+      order.items.some((item) =>
+        item.product?.name?.toLowerCase().includes(search.toLowerCase())
+      )
+    );
+  }
+
+  setFilteredOrders(updated);
+}, [search, statusFilter, myOrders, sortOption]); // ✅ added sortOption
+
   // Fetch reviews and set ratings
   useEffect(() => {
     const fetchReviews = async () => {
@@ -75,20 +93,27 @@ const MyOrders = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    let updated = [...myOrders];
-    if (statusFilter !== 'All') {
-      updated = updated.filter((order) => order.status === statusFilter);
-    }
-    if (search.trim() !== '') {
-      updated = updated.filter((order) =>
-        order.items.some((item) =>
-          item.product?.name?.toLowerCase().includes(search.toLowerCase())
-        )
-      );
-    }
-    setFilteredOrders(updated);
-  }, [search, statusFilter, myOrders]);
+ useEffect(() => {
+  let updated = [...myOrders];
+
+  // ✅ Sort orders before filtering/grouping (most recent first)
+  updated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (statusFilter !== 'All') {
+    updated = updated.filter((order) => order.status === statusFilter);
+  }
+
+  if (search.trim() !== '') {
+    updated = updated.filter((order) =>
+      order.items.some((item) =>
+        item.product?.name?.toLowerCase().includes(search.toLowerCase())
+      )
+    );
+  }
+
+  setFilteredOrders(updated);
+}, [search, statusFilter, myOrders, sortOption]);
+
 
   const handleRatingChange = async (productId, orderId, ratingValue) => {
     try {
