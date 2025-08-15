@@ -318,7 +318,7 @@ const MyOrders = () => {
                             {[1, 2, 3, 4, 5].map((starIndex) => (
                               <FaStar
                                 key={starIndex}
-                                onClick={() => {
+                                onClick={(e) => {
                                   e.preventDefault();
                                   if (order.status === 'Delivered' && !existingRating) {
                                     handleRatingChange(productId, order._id, starIndex);
@@ -358,7 +358,7 @@ const MyOrders = () => {
                   {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
                     <button
                       className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
-                      onClick={() => handleCancelOrder(order._id);e.preventDefault();}
+                      onClick={(e) => { e.preventDefault(); handleCancelOrder(order._id); }}
                     >
                       Cancel Order
                     </button>
