@@ -33,6 +33,7 @@ const MyOrders = () => {
   const [sortOption, setSortOption] = useState('date_desc');
   const [ratings, setRatings] = useState({});
   const [remainingTimes, setRemainingTimes] = useState({});
+  const [loading, setLoading] = useState(false); // ✅ Added loading state
 
   const { currency, axios, user } = useAppContext();
   const navigate = useNavigate();
@@ -42,31 +43,34 @@ const MyOrders = () => {
       toast.error("User ID is not available.");
       return;
     }
+    setLoading(true); // ✅ Start loading
     try {
       const { data } = await axios.get(`/api/order/user?userId=${user._id}`);
       setMyOrders(data.orders || []);
     } catch (error) {
       toast.error("Failed to fetch orders.");
+    } finally {
+      setLoading(false); // ✅ End loading
     }
   };
 
   useEffect(() => {
-  let updated = [...myOrders];
+    let updated = [...myOrders];
 
-  if (statusFilter !== 'All') {
-    updated = updated.filter((order) => order.status === statusFilter);
-  }
+    if (statusFilter !== 'All') {
+      updated = updated.filter((order) => order.status === statusFilter);
+    }
 
-  if (search.trim() !== '') {
-    updated = updated.filter((order) =>
-      order.items.some((item) =>
-        item.product?.name?.toLowerCase().includes(search.toLowerCase())
-      )
-    );
-  }
+    if (search.trim() !== '') {
+      updated = updated.filter((order) =>
+        order.items.some((item) =>
+          item.product?.name?.toLowerCase().includes(search.toLowerCase())
+        )
+      );
+    }
 
-  setFilteredOrders(updated);
-}, [search, statusFilter, myOrders, sortOption]); // ✅ added sortOption
+    setFilteredOrders(updated);
+  }, [search, statusFilter, myOrders, sortOption]);
 
   // Fetch reviews and set ratings
   useEffect(() => {
@@ -93,27 +97,24 @@ const MyOrders = () => {
     }
   }, [user]);
 
- useEffect(() => {
-  let updated = [...myOrders];
+  useEffect(() => {
+    let updated = [...myOrders];
+    updated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  // ✅ Sort orders before filtering/grouping (most recent first)
-  updated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (statusFilter !== 'All') {
+      updated = updated.filter((order) => order.status === statusFilter);
+    }
 
-  if (statusFilter !== 'All') {
-    updated = updated.filter((order) => order.status === statusFilter);
-  }
+    if (search.trim() !== '') {
+      updated = updated.filter((order) =>
+        order.items.some((item) =>
+          item.product?.name?.toLowerCase().includes(search.toLowerCase())
+        )
+      );
+    }
 
-  if (search.trim() !== '') {
-    updated = updated.filter((order) =>
-      order.items.some((item) =>
-        item.product?.name?.toLowerCase().includes(search.toLowerCase())
-      )
-    );
-  }
-
-  setFilteredOrders(updated);
-}, [search, statusFilter, myOrders, sortOption]);
-
+    setFilteredOrders(updated);
+  }, [search, statusFilter, myOrders, sortOption]);
 
   const handleRatingChange = async (productId, orderId, ratingValue) => {
     try {
@@ -149,7 +150,7 @@ const MyOrders = () => {
     }
   };
 
-  // ⏱️ Timer Effect
+  // Timer Effect
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date().getTime();
@@ -202,162 +203,171 @@ const MyOrders = () => {
         <div className='w-16 h-0.5 bg-primary rounded-full'></div>
       </div>
 
-      <div className='flex flex-col md:flex-row justify-between gap-4 mb-8'>
-        <input
-          type='text'
-          placeholder='Search by product name...'
-          className='border px-4 py-2 rounded w-full md:w-1/2 text-sm'
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className='flex gap-4 w-full md:w-1/2'>
-          <select
-            className='border px-4 py-2 rounded w-full text-sm'
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value='All'>All Statuses</option>
-            <option value='Order Placed'>Order Placed</option>
-            <option value='Processing'>Processing</option>
-            <option value='Shipped'>Shipped</option>
-            <option value='Delivered'>Delivered</option>
-            <option value='Cancelled'>Cancelled</option>
-          </select>
-          <select
-            className='border px-4 py-2 rounded w-full text-sm'
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-          >
-            <option value='date_desc'>Newest Date First</option>
-            <option value='date_asc'>Oldest Date First</option>
-            <option value='count_desc'>Most Orders Per Day</option>
-            <option value='count_asc'>Fewest Orders Per Day</option>
-          </select>
-        </div>
-      </div>
-
-      {groupedArray.length === 0 && (
-        <p className='text-center text-gray-500 text-sm'>No orders found.</p>
+      {/* ✅ Loading indicator */}
+      {loading && (
+        <div className="text-center text-gray-500 py-6">Loading orders...</div>
       )}
 
-      {groupedArray.map((group) => (
-        <div key={group.label}>
-          <h3 className='text-base font-semibold text-gray-700 mb-4'>
-            {group.label} ({group.count} order{group.count > 1 ? 's' : ''}) -
-            <span className='text-primary ml-2'>
-              Total : {currency} {group.totalAmount.toFixed(2)}
-            </span>
-          </h3>
+      {!loading && (
+        <>
+          <div className='flex flex-col md:flex-row justify-between gap-4 mb-8'>
+            <input
+              type='text'
+              placeholder='Search by product name...'
+              className='border px-4 py-2 rounded w-full md:w-1/2 text-sm'
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div className='flex gap-4 w-full md:w-1/2'>
+              <select
+                className='border px-4 py-2 rounded w-full text-sm'
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value='All'>All Statuses</option>
+                <option value='Order Placed'>Order Placed</option>
+                <option value='Processing'>Processing</option>
+                <option value='Shipped'>Shipped</option>
+                <option value='Delivered'>Delivered</option>
+                <option value='Cancelled'>Cancelled</option>
+              </select>
+              <select
+                className='border px-4 py-2 rounded w-full text-sm'
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+              >
+                <option value='date_desc'>Newest Date First</option>
+                <option value='date_asc'>Oldest Date First</option>
+                <option value='count_desc'>Most Orders Per Day</option>
+                <option value='count_asc'>Fewest Orders Per Day</option>
+              </select>
+            </div>
+          </div>
 
-          {group.orders.map((order, index) => (
-            <div key={index} className='border justify-center border-gray-300 rounded-lg mb-6 p-4 py-5'>
-              <div className='flex flex-wrap justify-between text-gray-600 text-xs font-medium mb-4 gap-2'>
-                <span><span className='text-gray-500'>Order ID:</span> {order._id}</span>
-                <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
-                <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
-                <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
-                {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
-                  <span className='text-red-500'>
-                    Cancel in: {Math.floor(remainingTimes[order._id] / 60)}:
-                    {(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins
-                  </span>
-                )}
-              </div>
+          {groupedArray.length === 0 && (
+            <p className='text-center text-gray-500 text-sm'>No orders found.</p>
+          )}
 
-              {(order.items || []).map((item, idx) => {
-                const productId = item.product?._id;
-                const reviewKey = `${order._id}_${productId}`;
-                const existingRating = (order.reviews || []).find(
-                  (r) => r.productId === productId && r.orderId === order._id
-                )?.rating;
+          {groupedArray.map((group) => (
+            <div key={group.label}>
+              <h3 className='text-base font-semibold text-gray-700 mb-4'>
+                {group.label} ({group.count} order{group.count > 1 ? 's' : ''}) -
+                <span className='text-primary ml-2'>
+                  Total : {currency} {group.totalAmount.toFixed(2)}
+                </span>
+              </h3>
 
-                return (
-                  <div
-                    key={idx}
-                    className='grid grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 items-center'
-                  >
-                    {/* Product Image */}
-                    <div className='group flex flex-col items-center md:items-start justify-center cursor-pointer'>
-                      <img
-                        src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
-                        alt={item.product?.name || 'Product'}
-                        className='w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover transition-transform duration-200 group-hover:scale-105'
-                        onClick={() => {
-                          if (productId) navigate(`/product/${productId}`);
-                          else toast.error("Product not found.");
-                        }}
-                      />
-                      <span className='text-xs text-primary mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
-                        View Details
+              {group.orders.map((order, index) => (
+                <div key={index} className='border justify-center border-gray-300 rounded-lg mb-6 p-4 py-5'>
+                  <div className='flex flex-wrap justify-between text-gray-600 text-xs font-medium mb-4 gap-2'>
+                    <span><span className='text-gray-500'>Order ID:</span> {order._id}</span>
+                    <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
+                    <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
+                    <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
+                    {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
+                      <span className='text-red-500'>
+                        Cancel in: {Math.floor(remainingTimes[order._id] / 60)}:
+                        {(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins
                       </span>
-                    </div>
-
-                    {/* Product Info + Rating */}
-                    <div className='flex flex-col justify-center space-y-1 text-left text-sm'>
-                      <h2 className='text-sm font-semibold text-gray-800'>
-                        {item.product?.name || 'Unnamed Product'}
-                      </h2>
-                      <p className='text-gray-500 text-xs'>
-                        Category: {item.product?.category || 'N/A'}
-                      </p>
-                      <p className='text-xs'>Qty: {item.quantity}</p>
-                      <p className='text-xs'>
-                        Ordered On: {new Date(order.createdAt).toLocaleString()}
-                      </p>
-
-                      {/* Star Rating Display */}
-                      <div className='flex items-center mt-2 gap-1'>
-                        {[1, 2, 3, 4, 5].map((starIndex) => (
-                          <FaStar
-                            key={starIndex}
-                            onClick={() => {
-                              if (order.status === 'Delivered' && !existingRating) {
-                                handleRatingChange(productId, order._id, starIndex);
-                              } else if (order.status !== 'Delivered') {
-                                toast.error("You can only review after delivery.");
-                              }
-                            }}
-                            color={
-                              starIndex <=
-                              (existingRating || ratings[reviewKey] || 0)
-                                ? 'gold'
-                                : 'gray'
-                            }
-                            className={`cursor-pointer ${
-                              existingRating ? 'pointer-events-none' : ''
-                            }`}
-                          />
-                        ))}
-                        {existingRating && (
-                          <span className="text-xs text-gray-500 ml-2">
-                            You rated: {existingRating} ★
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Price */}
-                    <div className='flex justify-center items-center'>
-                      <p className='text-primary font-semibold text-sm sm:text-base'>
-                        ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
+                    )}
                   </div>
-                );
-              })}
 
-              {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
-                <button
-                  className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
-                  onClick={() => handleCancelOrder(order._id)}
-                >
-                  Cancel Order
-                </button>
-              )}
+                  {(order.items || []).map((item, idx) => {
+                    const productId = item.product?._id;
+                    const reviewKey = `${order._id}_${productId}`;
+                    const existingRating = (order.reviews || []).find(
+                      (r) => r.productId === productId && r.orderId === order._id
+                    )?.rating;
+
+                    return (
+                      <div
+                        key={idx}
+                        className='grid grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 items-center'
+                      >
+                        {/* Product Image */}
+                        <div className='group flex flex-col items-center md:items-start justify-center cursor-pointer'>
+                          <img
+                            src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
+                            alt={item.product?.name || 'Product'}
+                            className='w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover transition-transform duration-200 group-hover:scale-105'
+                            onClick={() => {
+                              if (productId) navigate(`/product/${productId}`);
+                              else toast.error("Product not found.");
+                            }}
+                          />
+                          <span className='text-xs text-primary mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
+                            View Details
+                          </span>
+                        </div>
+
+                        {/* Product Info + Rating */}
+                        <div className='flex flex-col justify-center space-y-1 text-left text-sm'>
+                          <h2 className='text-sm font-semibold text-gray-800'>
+                            {item.product?.name || 'Unnamed Product'}
+                          </h2>
+                          <p className='text-gray-500 text-xs'>
+                            Category: {item.product?.category || 'N/A'}
+                          </p>
+                          <p className='text-xs'>Qty: {item.quantity}</p>
+                          <p className='text-xs'>
+                            Ordered On: {new Date(order.createdAt).toLocaleString()}
+                          </p>
+
+                          {/* Star Rating Display */}
+                          <div className='flex items-center mt-2 gap-1'>
+                            {[1, 2, 3, 4, 5].map((starIndex) => (
+                              <FaStar
+                                key={starIndex}
+                                onClick={() => {
+                                  if (order.status === 'Delivered' && !existingRating) {
+                                    handleRatingChange(productId, order._id, starIndex);
+                                  } else if (order.status !== 'Delivered') {
+                                    toast.error("You can only review after delivery.");
+                                  }
+                                }}
+                                color={
+                                  starIndex <=
+                                  (existingRating || ratings[reviewKey] || 0)
+                                    ? 'gold'
+                                    : 'gray'
+                                }
+                                className={`cursor-pointer ${
+                                  existingRating ? 'pointer-events-none' : ''
+                                }`}
+                              />
+                            ))}
+                            {existingRating && (
+                              <span className="text-xs text-gray-500 ml-2">
+                                You rated: {existingRating} ★
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Price */}
+                        <div className='flex justify-center items-center'>
+                          <p className='text-primary font-semibold text-sm sm:text-base'>
+                            ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
+                    <button
+                      className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
+                      onClick={() => handleCancelOrder(order._id)}
+                    >
+                      Cancel Order
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           ))}
-        </div>
-      ))}
+        </>
+      )}
     </div>
   );
 };
