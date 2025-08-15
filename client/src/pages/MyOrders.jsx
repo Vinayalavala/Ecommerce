@@ -319,6 +319,7 @@ const MyOrders = () => {
                               <FaStar
                                 key={starIndex}
                                 onClick={() => {
+                                  e.preventDefault();
                                   if (order.status === 'Delivered' && !existingRating) {
                                     handleRatingChange(productId, order._id, starIndex);
                                   } else if (order.status !== 'Delivered') {
@@ -357,7 +358,7 @@ const MyOrders = () => {
                   {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
                     <button
                       className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
-                      onClick={() => handleCancelOrder(order._id)}
+                      onClick={() => handleCancelOrder(order._id);e.preventDefault();}
                     >
                       Cancel Order
                     </button>
