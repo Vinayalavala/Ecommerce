@@ -230,8 +230,8 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Search Bar */}
-        <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-2.8' : 'mt-0'}`}>
-          <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-hidden">
+        <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-2.4' : 'mt-0'}`}>
+          <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.45 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-hidden">
             <input
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
