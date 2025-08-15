@@ -48,7 +48,7 @@ const Wishlist = () => {
           <p className="mb-3">Your wishlist is empty.</p>
           <Link
             to="/products"
-            className="px-5 py-2 bg-primary-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+            className="px-5 py-2 bg-primary text-white rounded-lg shadow hover:bg-blue-700 transition"
           >
             Browse Products
           </Link>
