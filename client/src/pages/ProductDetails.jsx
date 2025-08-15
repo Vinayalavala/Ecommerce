@@ -4,7 +4,6 @@ import { Link, useParams } from 'react-router-dom';
 import { useAppContext } from '../context/appContext';
 import assets from '../assets/assets';
 import ProductCard from '../components/ProductCard';
-import PersonalizedAds from '../components/PersonalizedAds'; // make sure this exists
 import { toast } from 'react-hot-toast';
 import { FaHeart, FaRegHeart, FaShoppingCart, FaBolt, FaShareAlt } from 'react-icons/fa';
 
@@ -362,11 +361,6 @@ const ProductDetails = () => {
                 ? descriptionItems.map((desc, idx) => <li key={idx}>{desc}</li>)
                 : <li>No description available.</li>}
             </ul>
-          </div>
-
-          {/* Ads (personalized) */}
-          <div className="mt-6">
-            <PersonalizedAds limit={6} placement="below-product" />
           </div>
 
           {/* Buttons */}
