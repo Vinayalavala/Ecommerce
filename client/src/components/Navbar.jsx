@@ -11,6 +11,7 @@ const Navbar = () => {
   const [hideTopBar, setHideTopBar] = useState(false);
   const [hideBottomBar, setHideBottomBar] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const placeholders = [
     'Milk / Fruits',
@@ -132,27 +133,31 @@ const Navbar = () => {
               <img src={assets.logo} alt="logo" className="h-10" />
             </NavLink>
 
-            {/* Desktop Search with vertical animation */}
+            {/* Desktop Search with hideable placeholder */}
             <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md bg-white relative overflow-hidden">
               <input
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
                 value={searchQuery}
                 className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500"
                 type="text"
               />
-              <div className="absolute left-4 flex items-center pointer-events-none select-none">
-                <span className="text-gray-400">Search for&nbsp;</span>
-                <div className="h-5 overflow-hidden relative">
-                  <div
-                    className="flex flex-col transition-transform duration-500 ease-in-out"
-                    style={{ transform: `translateY(-${placeholderIndex * 20}px)` }}
-                  >
-                    {placeholders.map((text, i) => (
-                      <span key={i} className="h-5 text-gray-500">{text}</span>
-                    ))}
+              {(!searchFocused && searchQuery === '') && (
+                <div className="absolute left-4 flex items-center pointer-events-none select-none">
+                  <span className="text-gray-400">Search for&nbsp;</span>
+                  <div className="h-5 overflow-hidden relative">
+                    <div
+                      className="flex flex-col transition-transform duration-500 ease-in-out"
+                      style={{ transform: `translateY(-${placeholderIndex * 20}px)` }}
+                    >
+                      {placeholders.map((text, i) => (
+                        <span key={i} className="h-5 text-gray-500">{text}</span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               <img src={assets.search_icon} alt="search" className="w-4 h-4 ml-auto" />
             </div>
 
@@ -224,28 +229,32 @@ const Navbar = () => {
           )}
         </div>
 
-        {/* Mobile Search Bar with animation */}
+        {/* Mobile Search Bar */}
         <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-3' : 'mt-0'}`}>
           <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-hidden">
             <input
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               value={searchQuery}
               className="w-full bg-transparent outline-none placeholder-gray-500"
               type="text"
             />
-            <div className="absolute left-4 flex items-center pointer-events-none select-none">
-              <span className="text-gray-400">Search for&nbsp;</span>
-              <div className="h-5 overflow-hidden relative">
-                <div
-                  className="flex flex-col transition-transform duration-500 ease-in-out"
-                  style={{ transform: `translateY(-${placeholderIndex * 20}px)` }}
-                >
-                  {placeholders.map((text, i) => (
-                    <span key={i} className="h-5 text-gray-500">{text}</span>
-                  ))}
+            {(!searchFocused && searchQuery === '') && (
+              <div className="absolute left-4 flex items-center pointer-events-none select-none">
+                <span className="text-gray-400">Search for&nbsp;</span>
+                <div className="h-5 overflow-hidden relative">
+                  <div
+                    className="flex flex-col transition-transform duration-500 ease-in-out"
+                    style={{ transform: `translateY(-${placeholderIndex * 20}px)` }}
+                  >
+                    {placeholders.map((text, i) => (
+                      <span key={i} className="h-5 text-gray-500">{text}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             <img src={assets.search_icon} alt="search" className="w-4 h-4 ml-auto" />
           </div>
         </div>
