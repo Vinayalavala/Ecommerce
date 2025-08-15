@@ -81,7 +81,7 @@ const ProductDetails = () => {
   const handleShareProduct = () => {
     const shareData = {
       title: product.name,
-      text: `Check out this product: ${product.name} for just ${currency}${product.price}`,
+      text: `Check out this product: ${product.name} for just ${currency}${product.offerPrice}`,
       url: window.location.href
     };
 
