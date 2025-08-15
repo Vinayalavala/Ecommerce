@@ -6,7 +6,7 @@ import { FaHeartBroken } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
 const Wishlist = () => {
-  const { user, currency, navigate } = useAppContext();
+  const { user, navigate } = useAppContext();
   const [wishlistProducts, setWishlistProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +35,7 @@ const Wishlist = () => {
   if (!user?._id) return null;
 
   return (
-    <div className="px-4 py-6 mt-20 max-w-screen-lg mx-auto">
+    <div className="px-4 py-6 mt-20 max-w-screen-xl mx-auto">
       <h2 className="text-2xl font-semibold mb-6 text-gray-800">Your Wishlist</h2>
 
       {loading ? (
@@ -54,9 +54,11 @@ const Wishlist = () => {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid gap-5 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {wishlistProducts.map((product) => (
-            <ProductCard key={product._id} product={product} />
+            <div key={product._id} className="flex">
+              <ProductCard product={product} />
+            </div>
           ))}
         </div>
       )}
