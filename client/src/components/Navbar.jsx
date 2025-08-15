@@ -195,7 +195,7 @@ const Navbar = () => {
 
           {/* Mobile Profile Info */}
           {user && (
-            <div className="lg:hidden flex items-center gap-3 mt-3 px-1">
+            <div className="lg:hidden flex items-center gap-3 mt-2 px-1">
               <div className="flex items-center gap-2" onClick={() => navigate('/profile')}>
                 <img src={assets.profile_icon} alt="user" className="w-7 h-7" />
                 <span className="text-sm font-medium">{user.name}</span>
@@ -230,8 +230,8 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Search Bar */}
-        <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-2.4' : 'mt-0'}`}>
-          <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.45 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-hidden">
+        <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-3' : 'mt-0'}`}>
+          <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-hidden">
             <input
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
