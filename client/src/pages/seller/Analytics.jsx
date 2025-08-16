@@ -309,12 +309,12 @@ const Analytics = () => {
   const maxWeek = Math.max(...analytics.weekdayData.map(d=>d.revenue), 0);
 
   return (
-    <div className="p-4 mb-7.5 sm:p-6 min-h-screen bg-gradient-to-br from-[#F1F5F9] to-white">
+    <div className="w-full md:p-10 p-4 no-scrollbar flex-1 h-[95vh] overflow-y-scroll flex flex-col justify-between">
       {/* Header + Actions */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+      <div className=" flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
           <h1 className="text-lg font-medium">Analytics</h1>
-          <p className="text-sm text-[#475569]">Comprehensive insights for your store — updated client-side.</p>
+          <p className="text-sm text-gray-600">Comprehensive insights for your store — updated client-side.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={exportProductsCSV} className="px-3 py-2 bg-[#2563EB] text-xs text-white rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Products</button>
@@ -328,29 +328,29 @@ const Analytics = () => {
         <div className="bg-white rounded shadow p-4 mb-4">
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-[120px]">
-              <label className="text-xs font-medium text-[#1E293B]">Trend</label>
+              <label className="text-xs font-medium text-gray-600">Trend</label>
               <select className="w-full p-2 border rounded" value={trend} onChange={e=>setTrend(e.target.value)}>
                 {TREND_OPTIONS.map(opt => <option key={opt} value={opt}>{opt.charAt(0).toUpperCase()+opt.slice(1)}</option>)}
               </select>
             </div>
 
             <div className="flex-1 min-w-[120px]">
-              <label className="text-xs font-medium text-[#1E293B]">From</label>
+              <label className="text-xs font-medium text-gray-600">From</label>
               <input type="date" value={dateRange.from} onChange={e=>setDateRange(prev=>({...prev, from:e.target.value}))} className="w-full p-2 border rounded" />
             </div>
 
             <div className="flex-1 min-w-[120px]">
-              <label className="text-xs font-medium text-[#1E293B]">To</label>
+              <label className="text-xs font-medium text-gray-600">To</label>
               <input type="date" value={dateRange.to} onChange={e=>setDateRange(prev=>({...prev, to:e.target.value}))} className="w-full p-2 border rounded" />
             </div>
 
             <div className="flex-1 min-w-[140px]">
-              <label className="text-xs font-medium text-[#1E293B]">Customer (email/id)</label>
+              <label className="text-xs font-medium text-gray-600">Customer (email/id)</label>
               <input placeholder="email or user id" value={customerFilter} onChange={e=>setCustomerFilter(e.target.value)} className="w-full p-2 border rounded" />
             </div>
 
             <div className="flex-1 min-w-[140px]">
-              <label className="text-xs font-medium text-[#1E293B]">Monthly Target (₹)</label>
+              <label className="text-xs font-medium text-gray-600">Monthly Target (₹)</label>
               <input type="number" value={monthlyTarget} onChange={e=>setMonthlyTarget(Number(e.target.value||0))} className="w-full p-2 border rounded" />
             </div>
           </div>
@@ -736,14 +736,14 @@ const Analytics = () => {
 
 /* ------------------ Small components ------------------ */
 
-const Tab = ({ name, active, onClick, children }) => (
-  <button onClick={onClick} className={`px-3 py-2 rounded-t ${active ? "bg-white border-t border-l border-r text-[#1E293B] font-semibold" : "bg-transparent text-[#475569] hover:text-[#111827]"}`}>
+const Tab = ({ active, onClick, children }) => (
+  <button onClick={onClick} className={`px-3 py-2 rounded-t ${active ? " border-b-2 *:text-[#1E293B] font-semibold" : "bg-transparent text-gray-600 hover:text-gray-500"}`}>
     {children}
   </button>
 );
 
 const KPI = ({ title, value, icon, color }) => (
-  <div className="bg-white rounded p-3 shadow flex items-center gap-3">
+  <div className="bg-white rounded p-3 shadow items-center flex  gap-3">
     <div style={{background: color, color:"white"}} className="p-2 rounded"><span>{icon}</span></div>
     <div>
       <div className="text-xs text-[#475569]">{title}</div>
