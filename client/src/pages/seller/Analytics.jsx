@@ -34,16 +34,14 @@ import {
 } from "react-icons/fa";
 
 /**
- * Full-featured Analytics.jsx
- * - Preserves original logic
- * - Mobile-first responsive adjustments:
- *   - Remove horizontal scrolling by stacking components vertically on small screens
- *   - Convert tables to stacked cards on mobile (sm:hidden for cards -> show table on sm+)
- *   - Charts shrink on mobile (fixed height) and wrap naturally
- *   - KPI cards and filters wrap using flex-wrap instead of forcing horizontal scroll
+ * Full-featured Analytics.jsx (text color corrected + minor fixes)
  *
- * NOTE: This file keeps all original logic and functions. Only layout / classes and
- * small rendering choices (cards vs table) were added to avoid horizontal scrolling on mobile.
+ * - Preserves original logic
+ * - Standardized text color usage:
+ *   - Headings / important numbers: text-slate-900
+ *   - Secondary info: text-slate-600
+ *   - Muted text: text-slate-500
+ * - Fixed small typos in classNames and Tab component
  */
 
 /* ------------------ Config ------------------ */
@@ -302,8 +300,8 @@ const Analytics = () => {
   const clearFilters = () => { setTrend("all"); setDateRange({ from: "", to: "" }); setCustomerFilter(""); };
 
   /* ------------------ Render ------------------ */
-  if (loading) return <div className="p-8 text-center">Loading analytics...</div>;
-  if (!analytics) return <div className="p-8 text-center text-gray-600">No data available.</div>;
+  if (loading) return <div className="p-8 text-center text-slate-600">Loading analytics...</div>;
+  if (!analytics) return <div className="p-8 text-center text-slate-600">No data available.</div>;
 
   /* heatmap color */
   const maxWeek = Math.max(...analytics.weekdayData.map(d=>d.revenue), 0);
@@ -313,56 +311,56 @@ const Analytics = () => {
       {/* Header + Actions */}
       <div className=" flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-lg font-medium">Analytics</h1>
-          <p className="text-sm text-gray-600">Comprehensive insights for your store — updated client-side.</p>
+          <h1 className="text-lg font-medium text-slate-900">Analytics</h1>
+          <p className="text-sm text-slate-600">Comprehensive insights for your store — updated client-side.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={exportProductsCSV} className="px-3 py-2  text-xs text-gray-600 border rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Products</button>
-          <button onClick={exportOrdersCSV} className="px-3 py-2  text-xs text-gray-600 border rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Orders</button>
-          <button onClick={() => setFiltersOpen(s=>!s)} className="px-3 py-2 text-xs  border text-gray-600 rounded flex items-center gap-2"><FaFilter/> Filters</button>
+          <button onClick={exportProductsCSV} className="px-3 py-2 text-xs text-slate-600 border rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Products</button>
+          <button onClick={exportOrdersCSV} className="px-3 py-2 text-xs text-slate-600 border rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Orders</button>
+          <button onClick={() => setFiltersOpen(s=>!s)} className="px-3 py-2 text-xs border text-slate-600 rounded flex items-center gap-2"><FaFilter/> Filters</button>
         </div>
       </div>
 
       {/* Filters */}
       {filtersOpen && (
-        <div className="bg-white rounded shadow p-4 mb-4">
+        <div className="bg-white rounded border border-gray-300  p-4 mb-4">
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-[120px]">
-              <label className="text-xs font-medium text-gray-600">Trend</label>
-              <select className="w-full p-2 border rounded" value={trend} onChange={e=>setTrend(e.target.value)}>
+              <label className="text-xs font-medium text-slate-600">Trend</label>
+              <select className="w-full p-2 border border-gray-300 rounded text-slate-800" value={trend} onChange={e=>setTrend(e.target.value)}>
                 {TREND_OPTIONS.map(opt => <option key={opt} value={opt}>{opt.charAt(0).toUpperCase()+opt.slice(1)}</option>)}
               </select>
             </div>
 
             <div className="flex-1 min-w-[120px]">
-              <label className="text-xs font-medium text-gray-600">From</label>
-              <input type="date" value={dateRange.from} onChange={e=>setDateRange(prev=>({...prev, from:e.target.value}))} className="w-full p-2 border rounded" />
+              <label className="text-xs font-medium text-slate-600">From</label>
+              <input type="date" value={dateRange.from} onChange={e=>setDateRange(prev=>({...prev, from:e.target.value}))} className="w-full p-2 border border-gray-300 rounded text-slate-800" />
             </div>
 
             <div className="flex-1 min-w-[120px]">
-              <label className="text-xs font-medium text-gray-600">To</label>
-              <input type="date" value={dateRange.to} onChange={e=>setDateRange(prev=>({...prev, to:e.target.value}))} className="w-full p-2 border rounded" />
+              <label className="text-xs font-medium text-slate-600">To</label>
+              <input type="date" value={dateRange.to} onChange={e=>setDateRange(prev=>({...prev, to:e.target.value}))} className="w-full p-2 border border-gray-300 rounded text-slate-800" />
             </div>
 
             <div className="flex-1 min-w-[140px]">
-              <label className="text-xs font-medium text-gray-600">Customer (email/id)</label>
-              <input placeholder="email or user id" value={customerFilter} onChange={e=>setCustomerFilter(e.target.value)} className="w-full p-2 border rounded" />
+              <label className="text-xs font-medium text-slate-600">Customer (email/id)</label>
+              <input placeholder="email or user id" value={customerFilter} onChange={e=>setCustomerFilter(e.target.value)} className="w-full p-2 border border-gray-300 rounded text-slate-800" />
             </div>
 
             <div className="flex-1 min-w-[140px]">
-              <label className="text-xs font-medium text-gray-600">Monthly Target (₹)</label>
-              <input type="number" value={monthlyTarget} onChange={e=>setMonthlyTarget(Number(e.target.value||0))} className="w-full p-2 border rounded" />
+              <label className="text-xs font-medium text-slate-600">Monthly Target (₹)</label>
+              <input type="number" value={monthlyTarget} onChange={e=>setMonthlyTarget(Number(e.target.value||0))} className="w-full p-2 border border-gray-300 rounded text-slate-800" />
             </div>
           </div>
 
           <div className="flex items-center justify-end mt-3 gap-2">
-            <button className="px-3 py-1 border rounded bg-white" onClick={clearFilters}>Clear</button>
+            <button className="px-3 py-1 border border-gray-300 rounded bg-white text-slate-700" onClick={clearFilters}>Clear</button>
           </div>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="mb-4 border-b-2 border-gray-200  ">
+      <div className="mb-4 border-b-2 border-gray-200">
         <nav className="flex flex-wrap gap-2">
           <Tab name="performance" active={activeTab==="performance"} onClick={()=>setActiveTab("performance")}>Performance</Tab>
           <Tab name="products" active={activeTab==="products"} onClick={()=>setActiveTab("products")}>Products</Tab>
@@ -383,17 +381,17 @@ const Analytics = () => {
       </div>
 
       {/* Monthly Target Progress */}
-      <div className="bg-white rounded p-4 shadow mb-6">
+      <div className="bg-white rounded p-4 mb-6 border border-gray-300">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <div className="text-sm text-[#475569]">Monthly Target</div>
-            <div className="text-lg font-semibold">{formatCurrency(monthlyTarget)}</div>
+            <div className="text-sm text-slate-600">Monthly Target</div>
+            <div className="text-lg font-semibold text-slate-900">{formatCurrency(monthlyTarget)}</div>
           </div>
           <div className="w-full sm:w-1/2">
             <div className="h-4 bg-gray-200 rounded overflow-hidden">
               <div style={{ width: `${Math.min(100, (analytics.totalRevenue / monthlyTarget) * 100)}%` }} className="h-full bg-[#2563EB]"></div>
             </div>
-            <div className="text-xs text-gray-600 mt-1">{((analytics.totalRevenue / monthlyTarget) * 100).toFixed(1)}% achieved</div>
+            <div className="text-xs text-slate-600 mt-1">{((analytics.totalRevenue / monthlyTarget) * 100).toFixed(1)}% achieved</div>
           </div>
         </div>
       </div>
@@ -405,9 +403,9 @@ const Analytics = () => {
           {perfVisible || activeTab==="performance" ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               {/* Revenue + Cumulative */}
-              <div className="bg-white rounded p-4 shadow col-span-2">
-                <h3 className="font-semibold mb-2">Revenue Over Time & Cumulative</h3>
-                {analytics.revenueTrend.length === 0 ? <div className="text-sm text-gray-500">No revenue data.</div> : (
+              <div className="bg-white rounded border border-gray-300 p-4 col-span-2">
+                <h3 className="font-semibold mb-2 text-slate-900">Revenue Over Time & Cumulative</h3>
+                {analytics.revenueTrend.length === 0 ? <div className="text-sm text-slate-500">No revenue data.</div> : (
                   <div style={{ width: "100%", height: 260 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={analytics.cumulative}>
@@ -431,11 +429,11 @@ const Analytics = () => {
               </div>
 
               {/* Sales vs Cancelled */}
-              <div className="bg-white rounded p-4 shadow">
-                <h3 className="font-semibold mb-2">Sales vs Cancelled</h3>
+              <div className="bg-white rounded border border-gray-300 p-4">
+                <h3 className="font-semibold mb-2 text-slate-900">Sales vs Cancelled</h3>
                 <div style={{ width: "100%", height: 260 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[{ name: "Orders", Sales: analytics.salesCount, Cancelled: analytics.cancelledCount, "SalesValue": analytics.salesValue, "CancelledValue": analytics.cancelledValue }]}>
+                    <BarChart data={[{ name: "Orders", Sales: analytics.salesCount, Cancelled: analytics.cancelledCount, SalesValue: analytics.salesValue, CancelledValue: analytics.cancelledValue }]}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
@@ -447,7 +445,7 @@ const Analytics = () => {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="mt-3 text-sm text-gray-600">
+                <div className="mt-3 text-sm text-slate-600">
                   <div>Sales value: {formatCurrency(analytics.salesValue)}</div>
                   <div>Cancelled value: {formatCurrency(analytics.cancelledValue)}</div>
                 </div>
@@ -460,18 +458,18 @@ const Analytics = () => {
         <section ref={prodRef} style={{ display: activeTab==="products" ? "block" : "none" }}>
           {prodVisible || activeTab==="products" ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              <div className="bg-white rounded p-4 shadow lg:col-span-2">
-                <h3 className="font-semibold mb-3">Top Products</h3>
+              <div className="bg-white border border-gray-300 rounded p-4 lg:col-span-2">
+                <h3 className="font-semibold mb-3 text-slate-900">Top Products</h3>
 
                 {/* MOBILE: stacked cards (no horizontal scroll) */}
                 <div className="sm:hidden space-y-3">
                   {analytics.productSales.map((p, idx) => (
                     <div key={p.productId || idx} className="bg-white border rounded p-3 shadow-sm">
                       <div className="flex items-center justify-between">
-                        <div className="font-medium truncate">{p.name}</div>
-                        <div className="text-sm text-gray-500">#{idx+1}</div>
+                        <div className="font-medium text-slate-900 truncate">{p.name}</div>
+                        <div className="text-sm text-slate-500">#{idx+1}</div>
                       </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-700">
                         <div>Qty: {p.quantitySold}</div>
                         <div>Stock: {p.stock !== null ? p.stock : "N/A"}</div>
                         <div>Revenue: {formatCurrency(p.totalRevenue)}</div>
@@ -489,23 +487,23 @@ const Analytics = () => {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="p-2 text-left">#</th>
-                        <th className="p-2 text-left">Product</th>
-                        <th className="p-2 text-left">Qty Sold</th>
-                        <th className="p-2 text-left">Revenue</th>
-                        <th className="p-2 text-left">Est. Profit</th>
-                        <th className="p-2 text-left">Stock</th>
+                        <th className="p-2 text-left text-slate-700">#</th>
+                        <th className="p-2 text-left text-slate-700">Product</th>
+                        <th className="p-2 text-left text-slate-700">Qty Sold</th>
+                        <th className="p-2 text-left text-slate-700">Revenue</th>
+                        <th className="p-2 text-left text-slate-700">Est. Profit</th>
+                        <th className="p-2 text-left text-slate-700">Stock</th>
                       </tr>
                     </thead>
                     <tbody>
                       {analytics.productSales.map((p, idx) => (
                         <tr key={p.productId || idx} className="hover:bg-gray-50 cursor-pointer" onClick={()=>goToProduct(p.productId)}>
-                          <td className="p-2">{idx+1}</td>
-                          <td className="p-2">{p.name}</td>
-                          <td className="p-2">{p.quantitySold}</td>
-                          <td className="p-2">{formatCurrency(p.totalRevenue)}</td>
-                          <td className="p-2">{formatCurrency(p.totalRevenue - (p.totalCost||0))}</td>
-                          <td className={`p-2 ${p.stock !== null && p.stock <= LOW_STOCK_THRESHOLD ? "text-red-600 font-semibold" : ""}`}>{p.stock !== null ? p.stock : "N/A"}</td>
+                          <td className="p-2 text-slate-700">{idx+1}</td>
+                          <td className="p-2 text-slate-900">{p.name}</td>
+                          <td className="p-2 text-slate-700">{p.quantitySold}</td>
+                          <td className="p-2 text-slate-700">{formatCurrency(p.totalRevenue)}</td>
+                          <td className="p-2 text-slate-700">{formatCurrency(p.totalRevenue - (p.totalCost||0))}</td>
+                          <td className={`p-2 ${p.stock !== null && p.stock <= LOW_STOCK_THRESHOLD ? "text-red-600 font-semibold" : "text-slate-700"}`}>{p.stock !== null ? p.stock : "N/A"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -514,15 +512,15 @@ const Analytics = () => {
 
               </div>
 
-              <div className="bg-white rounded p-4 shadow">
-                <h3 className="font-semibold mb-3">Low Stock Warnings</h3>
-                {analytics.lowStock.length === 0 ? <div className="text-sm text-gray-500">No low stock items (threshold: {LOW_STOCK_THRESHOLD})</div> : (
-                  <ul className="text-sm">
+              <div className="bg-white border border-gray-300 rounded p-4">
+                <h3 className="font-semibold mb-3 text-slate-900">Low Stock Warnings</h3>
+                {analytics.lowStock.length === 0 ? <div className="text-sm text-slate-500">No low stock items (threshold: {LOW_STOCK_THRESHOLD})</div> : (
+                  <ul className="text-sm text-slate-700">
                     {analytics.lowStock.map(p => (
                       <li key={p.productId} className="mb-2 flex justify-between items-center">
                         <div>
-                          <div className="font-medium">{p.name}</div>
-                          <div className="text-xs text-gray-500">Stock: {p.stock}</div>
+                          <div className="font-medium text-slate-900">{p.name}</div>
+                          <div className="text-xs text-slate-500">Stock: {p.stock}</div>
                         </div>
                         <button className="px-2 py-1 bg-[#F97316] text-white rounded" onClick={()=>goToProduct(p.productId)}>View</button>
                       </li>
@@ -538,15 +536,15 @@ const Analytics = () => {
         <section ref={custRef} style={{ display: activeTab==="customers" ? "block" : "none" }}>
           {custVisible || activeTab==="customers" ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              <div className="bg-white rounded p-4 shadow">
-                <h3 className="font-semibold mb-2">Best Customers (by Orders)</h3>
+              <div className="bg-white rounded p-4 border border-gray-300">
+                <h3 className="font-semibold mb-2 text-slate-900">Best Customers (by Orders)</h3>
 
                 {/* Mobile stacked */}
                 <div className="sm:hidden space-y-2">
                   {analytics.bestByOrders.map(c => (
                     <div key={c.key} className="border rounded p-3">
-                      <div className="font-medium">{c.display}</div>
-                      <div className="text-xs text-gray-500">{c.orders} orders</div>
+                      <div className="font-medium text-slate-900">{c.display}</div>
+                      <div className="text-xs text-slate-500">{c.orders} orders</div>
                       <div className="mt-2">
                         <button onClick={()=>{ setCustomerFilter(c.key); window.scrollTo({top:0, behavior:"smooth"}); }} className="text-sm px-2 py-1 bg-[#2563EB] text-white rounded">Filter</button>
                       </div>
@@ -559,22 +557,22 @@ const Analytics = () => {
                   {analytics.bestByOrders.map(c => (
                     <li key={c.key} className="mb-2">
                       <button onClick={()=>{ setCustomerFilter(c.key); window.scrollTo({top:0, behavior:"smooth"}); }} className="text-left">
-                        <div className="font-medium">{c.display}</div>
-                        <div className="text-xs text-gray-500">{c.orders} orders</div>
+                        <div className="font-medium text-slate-900">{c.display}</div>
+                        <div className="text-xs text-slate-500">{c.orders} orders</div>
                       </button>
                     </li>
                   ))}
                 </ol>
               </div>
 
-              <div className="bg-white rounded p-4 shadow">
-                <h3 className="font-semibold mb-2">Best Customers (by Revenue)</h3>
+              <div className="bg-white border border-gray-300 rounded p-4">
+                <h3 className="font-semibold mb-2 text-slate-900">Best Customers (by Revenue)</h3>
 
                 <div className="sm:hidden space-y-2">
                   {analytics.bestByRevenue.map(c => (
                     <div key={c.key} className="border rounded p-3">
-                      <div className="font-medium">{c.display}</div>
-                      <div className="text-xs text-gray-500">{formatCurrency(c.revenue)}</div>
+                      <div className="font-medium text-slate-900">{c.display}</div>
+                      <div className="text-xs text-slate-500">{formatCurrency(c.revenue)}</div>
                       <div className="mt-2">
                         <button onClick={()=>{ setCustomerFilter(c.key); window.scrollTo({top:0, behavior:"smooth"}); }} className="text-sm px-2 py-1 bg-[#10B981] text-white rounded">Filter</button>
                       </div>
@@ -586,17 +584,17 @@ const Analytics = () => {
                   {analytics.bestByRevenue.map(c => (
                     <li key={c.key} className="mb-2">
                       <button onClick={()=>{ setCustomerFilter(c.key); window.scrollTo({top:0, behavior:"smooth"}); }} className="text-left">
-                        <div className="font-medium">{c.display}</div>
-                        <div className="text-xs text-gray-500">{formatCurrency(c.revenue)}</div>
+                        <div className="font-medium text-slate-900">{c.display}</div>
+                        <div className="text-xs text-slate-500">{formatCurrency(c.revenue)}</div>
                       </button>
                     </li>
                   ))}
                 </ol>
               </div>
 
-              <div className="bg-white rounded p-4 shadow">
-                <h3 className="font-semibold mb-2">Payment Method Breakdown</h3>
-                {analytics.paymentData.length === 0 ? <div className="text-sm text-gray-500">No payment data</div> : (
+              <div className="bg-white border border-gray-300 rounded p-4">
+                <h3 className="font-semibold mb-2 text-slate-900">Payment Method Breakdown</h3>
+                {analytics.paymentData.length === 0 ? <div className="text-sm text-slate-500">No payment data</div> : (
                   <div style={{ width: "100%", height: 220 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -617,8 +615,8 @@ const Analytics = () => {
         <section ref={opsRef} style={{ display: activeTab==="ops" ? "block" : "none" }}>
           {opsVisible || activeTab==="ops" ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              <div className="bg-white rounded p-4 shadow lg:col-span-2">
-                <h3 className="font-semibold mb-3">Order Status & Avg Delivery Time</h3>
+              <div className="bg-white rounded border border-gray-300 p-4 lg:col-span-2">
+                <h3 className="font-semibold mb-3 text-slate-900">Order Status & Avg Delivery Time</h3>
                 <div style={{ width: "100%", height: 260 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={analytics.statusData}>
@@ -630,33 +628,33 @@ const Analytics = () => {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="mt-3 text-sm">
+                <div className="mt-3 text-sm text-slate-600">
                   <div>Avg delivery days: {analytics.avgDeliveryDays ? analytics.avgDeliveryDays.toFixed(2)+" days" : "N/A (deliveredAt missing)"}</div>
                 </div>
               </div>
 
-              <div className="bg-white rounded p-4 shadow">
-                <h3 className="font-semibold mb-3">Sales Heatmap (Weekdays)</h3>
+              <div className="bg-white border border-gray-300 rounded p-4">
+                <h3 className="font-semibold mb-3 text-slate-900">Sales Heatmap (Weekdays)</h3>
                 <div className="grid grid-cols-7 gap-2">
                   {analytics.weekdayData.map(d => (
                     <div key={d.idx} className="flex flex-col items-center">
                       <div title={`${d.day}: ${formatCurrency(d.revenue)}`} style={{ width:48, height:48, borderRadius:8, background: getHeatColor(d.revenue, maxWeek), display:"flex", alignItems:"center", justifyContent:"center"}}>
-                        <div className="text-xs font-medium text-[#0f172a]">{d.day}</div>
+                        <div className="text-xs font-medium text-slate-900">{d.day}</div>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">{Math.round(d.revenue)}</div>
+                      <div className="text-xs text-slate-500 mt-1">{Math.round(d.revenue)}</div>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-3">
-                  <h4 className="font-medium text-sm mb-1">Low Stock Items</h4>
-                  {analytics.lowStock.length === 0 ? <div className="text-sm text-gray-500">No low stock</div> : (
-                    <ul className="text-sm">
+                <div className="mt-3 border border-gray-300 p-3">
+                  <h4 className="font-medium text-sm text-slate-900 mb-1">Low Stock Items</h4>
+                  {analytics.lowStock.length === 0 ? <div className="text-sm text-slate-500">No low stock</div> : (
+                    <ul className="text-sm text-slate-700">
                       {analytics.lowStock.slice(0,6).map(p => (
                         <li key={p.productId} className="flex justify-between items-center mb-2">
                           <div>
-                            <div className="font-medium">{p.name}</div>
-                            <div className="text-xs text-gray-500">Stock: {p.stock}</div>
+                            <div className="font-medium text-slate-900">{p.name}</div>
+                            <div className="text-xs text-slate-500">Stock: {p.stock}</div>
                           </div>
                           <button onClick={()=>goToProduct(p.productId)} className="px-2 py-1 bg-[#F97316] text-white rounded">View</button>
                         </li>
@@ -672,10 +670,10 @@ const Analytics = () => {
         {/* Recents Tab */}
         <section ref={recRef} style={{ display: activeTab==="recents" ? "block" : "none" }}>
           {recVisible || activeTab==="recents" ? (
-            <div className="bg-white rounded p-4 shadow mb-6">
+            <div className="bg-white rounded p-4 border border-gray-300 mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold">Recent Orders</h3>
-                <div className="text-sm text-gray-500">Showing {analytics.recentOrders.length} recent orders</div>
+                <h3 className="font-semibold text-slate-900">Recent Orders</h3>
+                <div className="text-sm text-slate-500">Showing {analytics.recentOrders.length} recent orders</div>
               </div>
 
               {/* Mobile stacked rows */}
@@ -684,12 +682,12 @@ const Analytics = () => {
                   <div key={o._id} className="border rounded p-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <div className="font-medium text-sm">{o._id}</div>
-                        <div className="text-xs text-gray-500">{moment(o.createdAt).format("YYYY-MM-DD HH:mm")}</div>
+                        <div className="font-medium text-sm text-slate-900">{o._id}</div>
+                        <div className="text-xs text-slate-500">{moment(o.createdAt).format("YYYY-MM-DD HH:mm")}</div>
                       </div>
-                      <div className="text-sm">{formatCurrency(o.amount)}</div>
+                      <div className="text-sm text-slate-700">{formatCurrency(o.amount)}</div>
                     </div>
-                    <div className="mt-2 text-sm">
+                    <div className="mt-2 text-sm text-slate-700">
                       <div>Customer: {o.address?.email || `${o.address?.firstName||""} ${o.address?.lastName||""}`.trim() || "Guest"}</div>
                       <div>Products: {(o.items||[]).map(i=>i.product?.name||i.name||"Unknown").slice(0,3).join(", ")}{(o.items||[]).length>3?"...":""}</div>
                       <div className="mt-2"><button onClick={()=>goToOrder(o._id)} className="text-sm px-2 py-1 bg-[#2563EB] text-white rounded">Open</button></div>
@@ -703,23 +701,23 @@ const Analytics = () => {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="p-2 text-left">Order ID</th>
-                      <th className="p-2">Date</th>
-                      <th className="p-2">Customer</th>
-                      <th className="p-2">Products</th>
-                      <th className="p-2">Amount</th>
-                      <th className="p-2">Status</th>
+                      <th className="p-2 text-left text-slate-700">Order ID</th>
+                      <th className="p-2 text-slate-700">Date</th>
+                      <th className="p-2 text-slate-700">Customer</th>
+                      <th className="p-2 text-slate-700">Products</th>
+                      <th className="p-2 text-slate-700">Amount</th>
+                      <th className="p-2 text-slate-700">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {analytics.recentOrders.map(o => (
                       <tr key={o._id} className="hover:bg-gray-50">
                         <td className="p-2"><button className="text-blue-600 underline" onClick={()=>goToOrder(o._id)}>{o._id}</button></td>
-                        <td className="p-2">{moment(o.createdAt).format("YYYY-MM-DD HH:mm")}</td>
-                        <td className="p-2">{o.address?.email || `${o.address?.firstName||""} ${o.address?.lastName||""}`.trim() || "Guest"}</td>
-                        <td className="p-2">{(o.items||[]).map(i=>i.product?.name||i.name||"Unknown").slice(0,3).join(", ")}{(o.items||[]).length>3?"...":""}</td>
-                        <td className="p-2">{formatCurrency(o.amount)}</td>
-                        <td className="p-2">{o.status}</td>
+                        <td className="p-2 text-slate-700">{moment(o.createdAt).format("YYYY-MM-DD HH:mm")}</td>
+                        <td className="p-2 text-slate-700">{o.address?.email || `${o.address?.firstName||""} ${o.address?.lastName||""}`.trim() || "Guest"}</td>
+                        <td className="p-2 text-slate-700">{(o.items||[]).map(i=>i.product?.name||i.name||"Unknown").slice(0,3).join(", ")}{(o.items||[]).length>3?"...":""}</td>
+                        <td className="p-2 text-slate-700">{formatCurrency(o.amount)}</td>
+                        <td className="p-2 text-slate-700">{o.status}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -737,17 +735,20 @@ const Analytics = () => {
 /* ------------------ Small components ------------------ */
 
 const Tab = ({ active, onClick, children }) => (
-  <button onClick={onClick} className={`px-3 py-2 rounded-t ${active ? " border-b-2 *:text-[#1E293B] font-semibold" : "bg-transparent text-gray-600 hover:text-gray-500"}`}>
+  <button
+    onClick={onClick}
+    className={`px-3 py-2 rounded-t ${active ? "border-b-2 text-slate-900 font-semibold" : "bg-transparent text-slate-600 hover:text-slate-500"}`}
+  >
     {children}
   </button>
 );
 
 const KPI = ({ title, value, icon, color }) => (
-  <div className="bg-white rounded p-3 shadow items-center flex  gap-3">
-    <div style={{background: color, color:"white"}} className="p-2 rounded"><span>{icon}</span></div>
+  <div className="bg-white rounded p-3 items-center border border-gray-300 flex gap-3">
+    <div style={{background: color, color:"white"}} className="p-2 rounded"><span aria-hidden>{icon}</span></div>
     <div>
-      <div className="text-xs text-[#475569]">{title}</div>
-      <div className="text-lg font-semibold text-[#0f172a]">{value}</div>
+      <div className="text-xs text-slate-600">{title}</div>
+      <div className="text-lg font-semibold text-slate-900">{value}</div>
     </div>
   </div>
 );
