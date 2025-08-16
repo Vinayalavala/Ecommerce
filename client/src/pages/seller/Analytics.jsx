@@ -1,4 +1,4 @@
-// Analytics.jsx
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAppContext } from "../../context/appContext";
 import { useNavigate } from "react-router-dom";
