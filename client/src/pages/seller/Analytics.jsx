@@ -362,7 +362,7 @@ const Analytics = () => {
       )}
 
       {/* Tabs */}
-      <div className="mb-4">
+      <div className="mb-4 border-b-2 border-gray-200">
         <nav className="flex flex-wrap gap-2">
           <Tab name="performance" active={activeTab==="performance"} onClick={()=>setActiveTab("performance")}>Performance</Tab>
           <Tab name="products" active={activeTab==="products"} onClick={()=>setActiveTab("products")}>Products</Tab>
