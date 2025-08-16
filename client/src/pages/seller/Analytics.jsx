@@ -373,7 +373,7 @@ const Analytics = () => {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <KPI title="Total Orders" value={analytics.totalOrders} icon={<FaBox />} color="#2563EB" />
         <KPI title="Total Revenue" value={formatCurrency(analytics.totalRevenue)} icon={<FaRupeeSign />} color="#10B981" />
         <KPI title="Avg Order Value" value={formatCurrency(analytics.avgOrderValue)} icon={<FaRupeeSign />} color="#9333EA" />
