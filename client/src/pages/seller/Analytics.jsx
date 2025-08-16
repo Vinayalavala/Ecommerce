@@ -317,9 +317,9 @@ const Analytics = () => {
           <p className="text-sm text-gray-600">Comprehensive insights for your store — updated client-side.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={exportProductsCSV} className="px-3 py-2 bg-[#2563EB] text-xs text-white rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Products</button>
-          <button onClick={exportOrdersCSV} className="px-3 py-2 bg-[#10B981] text-xs text-white rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Orders</button>
-          <button onClick={() => setFiltersOpen(s=>!s)} className="px-3 py-2 text-xs bg-white border rounded flex items-center gap-2"><FaFilter/> Filters</button>
+          <button onClick={exportProductsCSV} className="px-3 py-2  text-xs text-gray-600 border rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Products</button>
+          <button onClick={exportOrdersCSV} className="px-3 py-2  text-xs text-gray-600 border rounded hover:opacity-95 flex items-center gap-2"><FaDownload/> Orders</button>
+          <button onClick={() => setFiltersOpen(s=>!s)} className="px-3 py-2 text-xs  border text-gray-600 rounded flex items-center gap-2"><FaFilter/> Filters</button>
         </div>
       </div>
 
