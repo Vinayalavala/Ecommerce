@@ -313,7 +313,7 @@ const Analytics = () => {
       {/* Header + Actions */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">Seller Analytics Hub</h1>
+          <h1 className="text-lg font-medium">Analytics</h1>
           <p className="text-sm text-[#475569]">Comprehensive insights for your store — updated client-side.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
