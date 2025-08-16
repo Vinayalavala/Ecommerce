@@ -743,7 +743,7 @@ const Tab = ({ name, active, onClick, children }) => (
 );
 
 const KPI = ({ title, value, icon, color }) => (
-  <div className="bg-white rounded p-3 shadow flex items-start gap-3">
+  <div className="bg-white rounded p-3 shadow flex items-center gap-3">
     <div style={{background: color, color:"white"}} className="p-2 rounded"><span>{icon}</span></div>
     <div>
       <div className="text-xs text-[#475569]">{title}</div>
