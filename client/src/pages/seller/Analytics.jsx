@@ -309,7 +309,7 @@ const Analytics = () => {
   const maxWeek = Math.max(...analytics.weekdayData.map(d=>d.revenue), 0);
 
   return (
-    <div className="p-4 sm:p-6 min-h-screen bg-gradient-to-br from-[#F1F5F9] to-white">
+    <div className="p-4 mb-7.5 sm:p-6 min-h-screen bg-gradient-to-br from-[#F1F5F9] to-white">
       {/* Header + Actions */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
