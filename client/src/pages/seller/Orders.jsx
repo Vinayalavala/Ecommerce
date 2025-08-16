@@ -282,7 +282,7 @@ const Orders = () => {
 
             return (
               <div key={dateKey}>
-                <h3 className="text-xl font-semibold text-primary mt-8 mb-2">
+                <h3 className="text-xl font-semibold text-gray-700 mt-8 mb-2">
                   {formatHeading(dateKey)}{" "}
                   <span className="text-gray-500 text-base font-normal">
                     ({filtered.length} order{filtered.length > 1 ? "s" : ""})
