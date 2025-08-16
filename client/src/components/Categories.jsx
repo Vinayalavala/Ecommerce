@@ -22,7 +22,7 @@ const Categories = () => {
               }}
             >
               {/* Larger square image wrapper */}
-              <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-lg shadow flex items-center justify-center">
+              <div className="w-20 h-20 md:w-24 md:h-24 bg-white border border-gray-300 rounded-lg flex items-center justify-center">
                 <img
                   src={category.image}
                   alt={category.text}
