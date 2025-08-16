@@ -309,7 +309,7 @@ const Analytics = () => {
   const maxWeek = Math.max(...analytics.weekdayData.map(d=>d.revenue), 0);
 
   return (
-    <div className="w-full md:p-10 p-4 no-scrollbar flex-1 h-[95vh] overflow-y-scroll flex flex-col justify-between">
+    <div className="w-full md:p-10 mb-8 p-4 no-scrollbar flex-1 h-[95vh] overflow-y-scroll flex flex-col justify-between">
       {/* Header + Actions */}
       <div className=" flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
@@ -362,7 +362,7 @@ const Analytics = () => {
       )}
 
       {/* Tabs */}
-      <div className="mb-4 border-b-2 border-gray-200">
+      <div className="mb-4 border-b-2 border-gray-200  ">
         <nav className="flex flex-wrap gap-2">
           <Tab name="performance" active={activeTab==="performance"} onClick={()=>setActiveTab("performance")}>Performance</Tab>
           <Tab name="products" active={activeTab==="products"} onClick={()=>setActiveTab("products")}>Products</Tab>
