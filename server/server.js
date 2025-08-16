@@ -20,7 +20,7 @@ const PORT = process.env.PORT || 4001;
 const allowedOrigins = [
   'http://localhost:5173',
   'https://padmavatimilkpoint.vercel.app',
-  'https://vishwaadhika.vercel.app',
+  'https://alavalasrootandcraft.vercel.app',
   'https://milkpoint.vercel.app'
 ];
 
