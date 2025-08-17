@@ -1,4 +1,4 @@
-
+// Analytics.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAppContext } from "../../context/appContext";
 import { useNavigate } from "react-router-dom";
@@ -45,7 +45,7 @@ import {
  */
 
 /* ------------------ Config ------------------ */
-const COLORS = ["#2563EB", "#F97316", "#10B981", "#EC4899", "#9333EA", "#F59E0B", "#14B8A6"];
+const COLORS = ["#1f2937", "#374151", "#4b5563", "#6b7280", "#9ca3af", "#d1d5db", "#111827"];
 const TREND_OPTIONS = ["all", "daily", "weekly", "monthly", "yearly"];
 const DEFAULT_MARGIN_PERCENT = 30; // fallback margin if no costPrice
 const LOW_STOCK_THRESHOLD = 10; // products with stock <= this are shown in warnings
@@ -68,6 +68,15 @@ const useOnScreen = (ref, rootMargin = "0px") => {
   }, [ref, rootMargin]);
   return isIntersecting;
 };
+
+const blackShades = [
+  "#1f2937", // dark gray (for Orders)
+  "#374151", // slightly lighter (for Revenue)
+  "#4b5563", // mid gray (for AOV)
+  "#6b7280", // gray (for Top Product)
+  "#9ca3af", // light gray (for Cancelled Orders)
+  "#111827", // near black (for Profit)
+];
 
 /* ------------------ Component ------------------ */
 const Analytics = () => {
@@ -372,13 +381,13 @@ const Analytics = () => {
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <KPI title="Total Orders" value={analytics.totalOrders} icon={<FaBox />} color="#2563EB" />
-        <KPI title="Total Revenue" value={formatCurrency(analytics.totalRevenue)} icon={<FaRupeeSign />} color="#10B981" />
-        <KPI title="Avg Order Value" value={formatCurrency(analytics.avgOrderValue)} icon={<FaRupeeSign />} color="#9333EA" />
-        <KPI title="Top Product" value={analytics.productSales[0]?.name || "N/A"} icon={<FaChartPie />} color="#F97316" />
-        <KPI title="Cancelled Orders" value={analytics.statusData.find(s=>s.name==='Cancelled')?.value||0} icon={<FaTimesCircle />} color="#EF4444" />
-        <KPI title="Est. Profit" value={formatCurrency(analytics.estimatedProfit)} icon={<FaRupeeSign />} color="#F59E0B" />
-      </div>
+  <KPI title="Total Orders" value={analytics.totalOrders} icon={<FaBox />} color={blackShades[0]} />
+  <KPI title="Total Revenue" value={formatCurrency(analytics.totalRevenue)} icon={<FaRupeeSign />} color={blackShades[1]} />
+  <KPI title="Avg Order Value" value={formatCurrency(analytics.avgOrderValue)} icon={<FaRupeeSign />} color={blackShades[2]} />
+  <KPI title="Top Product" value={analytics.productSales[0]?.name || "N/A"} icon={<FaChartPie />} color={blackShades[3]} />
+  <KPI title="Cancelled Orders" value={analytics.statusData.find(s=>s.name==='Cancelled')?.value||0} icon={<FaTimesCircle />} color={blackShades[4]} />
+  <KPI title="Est. Profit" value={formatCurrency(analytics.estimatedProfit)} icon={<FaRupeeSign />} color={blackShades[5]} />
+</div>
 
       {/* Monthly Target Progress */}
       <div className="bg-white rounded p-4 mb-6 border border-gray-300">
@@ -389,7 +398,7 @@ const Analytics = () => {
           </div>
           <div className="w-full sm:w-1/2">
             <div className="h-4 bg-gray-200 rounded overflow-hidden">
-              <div style={{ width: `${Math.min(100, (analytics.totalRevenue / monthlyTarget) * 100)}%` }} className="h-full bg-[#2563EB]"></div>
+              <div style={{ width: `${Math.min(100, (analytics.totalRevenue / monthlyTarget) * 100)}%` }} className="h-full bg-[#1a1a1a]"></div>
             </div>
             <div className="text-xs text-slate-600 mt-1">{((analytics.totalRevenue / monthlyTarget) * 100).toFixed(1)}% achieved</div>
           </div>
@@ -399,60 +408,98 @@ const Analytics = () => {
       {/* Tab Panels */}
       <div>
         {/* Performance Tab */}
-        <section ref={perfRef} style={{ display: activeTab==="performance" ? "block" : "none" }}>
-          {perfVisible || activeTab==="performance" ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              {/* Revenue + Cumulative */}
-              <div className="bg-white rounded border border-gray-300 p-4 col-span-2">
-                <h3 className="font-semibold mb-2 text-slate-900">Revenue Over Time & Cumulative</h3>
-                {analytics.revenueTrend.length === 0 ? <div className="text-sm text-slate-500">No revenue data.</div> : (
-                  <div style={{ width: "100%", height: 260 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={analytics.cumulative}>
-                        <defs>
-                          <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" tickFormatter={(d)=>moment(d).format("DD MMM")} />
-                        <YAxis />
-                        <Tooltip formatter={(v)=>formatCurrency(v)} labelFormatter={(d)=>moment(d).format("MMMM DD, YYYY")} />
-                        <Legend />
-                        <Area type="monotone" dataKey="cumulative" stroke="#2563EB" fill="url(#revenueGrad)" name="Cumulative Revenue" />
-                        <Line type="monotone" dataKey="revenue" stroke="#10B981" dot={false} name="Daily Revenue" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
+        <section
+  ref={perfRef}
+  style={{ display: activeTab === "performance" ? "block" : "none" }}
+>
+  {perfVisible || activeTab === "performance" ? (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      {/* Revenue + Cumulative */}
+      <div className="bg-white rounded border border-gray-300 p-4 col-span-2">
+        <h3 className="font-semibold mb-2 text-slate-900">
+          Revenue Over Time & Cumulative
+        </h3>
+        {analytics.revenueTrend.length === 0 ? (
+          <div className="text-sm text-slate-500">No revenue data.</div>
+        ) : (
+          <div style={{ width: "100%", height: 260 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={analytics.cumulative}>
+                <defs>
+                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1f2937" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#6b7280" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(d) => moment(d).format("DD MMM")}
+                />
+                <YAxis />
+                <Tooltip
+                  formatter={(v) => formatCurrency(v)}
+                  labelFormatter={(d) => moment(d).format("MMMM DD, YYYY")}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="cumulative"
+                  stroke="#1f2937" // dark gray
+                  fill="url(#revenueGrad)"
+                  name="Cumulative Revenue"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#4b5563" // medium gray
+                  dot={false}
+                  name="Daily Revenue"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
 
-              {/* Sales vs Cancelled */}
-              <div className="bg-white rounded border border-gray-300 p-4">
-                <h3 className="font-semibold mb-2 text-slate-900">Sales vs Cancelled</h3>
-                <div style={{ width: "100%", height: 260 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[{ name: "Orders", Sales: analytics.salesCount, Cancelled: analytics.cancelledCount, SalesValue: analytics.salesValue, CancelledValue: analytics.cancelledValue }]}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip formatter={(v)=> (Number.isFinite(v) ? v : v)} />
-                      <Legend />
-                      <Bar dataKey="Sales" fill="#2563EB" />
-                      <Bar dataKey="Cancelled" fill="#EF4444" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+      {/* Sales vs Cancelled */}
+      <div className="bg-white rounded border border-gray-300 p-4">
+        <h3 className="font-semibold mb-2 text-slate-900">Sales vs Cancelled</h3>
+        <div style={{ width: "100%", height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={[
+                {
+                  name: "Orders",
+                  Sales: analytics.salesCount,
+                  Cancelled: analytics.cancelledCount,
+                  SalesValue: analytics.salesValue,
+                  CancelledValue: analytics.cancelledValue,
+                },
+              ]}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip formatter={(v) => (Number.isFinite(v) ? v : v)} />
+              <Legend />
+              <Bar dataKey="Sales" fill="#1f2937" /> {/* dark gray */}
+              <Bar dataKey="Cancelled" fill="#9ca3af" /> {/* light gray */}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
-                <div className="mt-3 text-sm text-slate-600">
-                  <div>Sales value: {formatCurrency(analytics.salesValue)}</div>
-                  <div>Cancelled value: {formatCurrency(analytics.cancelledValue)}</div>
-                </div>
-              </div>
-            </div>
-          ) : <div style={{minHeight:200}}></div>}
-        </section>
+        <div className="mt-3 text-sm text-slate-600">
+          <div>Sales value: {formatCurrency(analytics.salesValue)}</div>
+          <div>Cancelled value: {formatCurrency(analytics.cancelledValue)}</div>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div style={{ minHeight: 200 }}></div>
+  )}
+</section>
+
 
         {/* Products Tab */}
         <section ref={prodRef} style={{ display: activeTab==="products" ? "block" : "none" }}>
@@ -522,7 +569,7 @@ const Analytics = () => {
                           <div className="font-medium text-slate-900">{p.name}</div>
                           <div className="text-xs text-slate-500">Stock: {p.stock}</div>
                         </div>
-                        <button className="px-2 py-1 bg-[#F97316] text-white rounded" onClick={()=>goToProduct(p.productId)}>View</button>
+                        <button className="px-2 py-1 bg-[#393838] text-white rounded" onClick={()=>goToProduct(p.productId)}>View</button>
                       </li>
                     ))}
                   </ul>
@@ -546,7 +593,7 @@ const Analytics = () => {
                       <div className="font-medium text-slate-900">{c.display}</div>
                       <div className="text-xs text-slate-500">{c.orders} orders</div>
                       <div className="mt-2">
-                        <button onClick={()=>{ setCustomerFilter(c.key); window.scrollTo({top:0, behavior:"smooth"}); }} className="text-sm px-2 py-1 bg-[#2563EB] text-white rounded">Filter</button>
+                        <button onClick={()=>{ setCustomerFilter(c.key); window.scrollTo({top:0, behavior:"smooth"}); }} className="text-sm px-2 py-1 bg-[#1a1a1a] text-white rounded">Filter</button>
                       </div>
                     </div>
                   ))}
@@ -574,7 +621,7 @@ const Analytics = () => {
                       <div className="font-medium text-slate-900">{c.display}</div>
                       <div className="text-xs text-slate-500">{formatCurrency(c.revenue)}</div>
                       <div className="mt-2">
-                        <button onClick={()=>{ setCustomerFilter(c.key); window.scrollTo({top:0, behavior:"smooth"}); }} className="text-sm px-2 py-1 bg-[#10B981] text-white rounded">Filter</button>
+                        <button onClick={()=>{ setCustomerFilter(c.key); window.scrollTo({top:0, behavior:"smooth"}); }} className="text-sm px-2 py-1 bg-[#1a1a1a] text-white rounded">Filter</button>
                       </div>
                     </div>
                   ))}
@@ -623,7 +670,7 @@ const Analytics = () => {
                       <XAxis dataKey="name"/>
                       <YAxis/>
                       <Tooltip/>
-                      <Bar dataKey="value" fill="#2563EB"/>
+                      <Bar dataKey="value" fill="#1a1a1a"/>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -639,7 +686,7 @@ const Analytics = () => {
                   {analytics.weekdayData.map(d => (
                     <div key={d.idx} className="flex flex-col items-center">
                       <div title={`${d.day}: ${formatCurrency(d.revenue)}`} style={{ width:48, height:48, borderRadius:8, background: getHeatColor(d.revenue, maxWeek), display:"flex", alignItems:"center", justifyContent:"center"}}>
-                        <div className="text-xs font-medium text-slate-900">{d.day}</div>
+                        <div className="text-xs font-medium text-slate-400">{d.day}</div>
                       </div>
                       <div className="text-xs text-slate-500 mt-1">{Math.round(d.revenue)}</div>
                     </div>
@@ -656,7 +703,7 @@ const Analytics = () => {
                             <div className="font-medium text-slate-900">{p.name}</div>
                             <div className="text-xs text-slate-500">Stock: {p.stock}</div>
                           </div>
-                          <button onClick={()=>goToProduct(p.productId)} className="px-2 py-1 bg-[#F97316] text-white rounded">View</button>
+                          <button onClick={()=>goToProduct(p.productId)} className="px-2 py-1 bg-[#1a1a1a] text-white rounded">View</button>
                         </li>
                       ))}
                     </ul>
@@ -755,13 +802,16 @@ const KPI = ({ title, value, icon, color }) => (
 
 /* heatmap color util */
 const getHeatColor = (val, max) => {
-  if (max === 0) return "#F8FAFC";
+  if (max === 0) return "#F8FAFC"; // very light gray fallback
   const t = Math.min(1, val / max);
-  // interpolate between light and primary
-  const start = [241,245,249]; // #F1F5F9
-  const end = [37,99,235]; // #2563EB
-  const rgb = start.map((s,i)=> Math.round(s + (end[i]-s)*t));
+  
+  // interpolate between light gray (#F1F5F9) and black (#000000)
+  const start = [241, 245, 249]; // #F1F5F9
+  const end = [0, 0, 0];         // #000000
+  
+  const rgb = start.map((s, i) => Math.round(s + (end[i] - s) * t));
   return `rgb(${rgb.join(",")})`;
 };
+
 
 export default Analytics;
