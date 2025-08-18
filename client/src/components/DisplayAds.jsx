@@ -11,7 +11,12 @@ const DisplayAds = () => {
   const fetchAds = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("/api/ads?admin=true");
+      // ✅ Use full backend URL to avoid "Network Error"
+      const res = await axios.get(
+        "https://quickcommerce-backend-five.vercel.app/api/ads?admin=true",
+        { withCredentials: false }
+      );
+
       if (res.data.success) {
         setAds(res.data.ads);
       } else if (Array.isArray(res.data)) {
@@ -62,8 +67,10 @@ const DisplayAds = () => {
       <div className="relative w-full h-80 overflow-hidden rounded-2xl shadow-xl">
         {ads.map((ad, index) => {
           const isActive = index === currentIndex;
-          const isVideo =
-            ad.mediaType === "video" || ad.mediaUrl?.endsWith(".mp4");
+
+          // ✅ Use new schema fields
+          const isVideo = ad.media?.type === "video";
+          const mediaUrl = ad.media?.url;
 
           return (
             <div
@@ -80,11 +87,11 @@ const DisplayAds = () => {
                   muted
                   loop
                   className="w-full h-80 object-cover rounded-2xl"
-                  src={ad.mediaUrl}
+                  src={mediaUrl}
                 />
               ) : (
                 <img
-                  src={ad.mediaUrl}
+                  src={mediaUrl}
                   alt={ad.title}
                   className="w-full h-80 object-cover rounded-2xl"
                 />
@@ -97,6 +104,7 @@ const DisplayAds = () => {
                 {ad.targetUrl && (
                   <a
                     href={ad.targetUrl}
+                    target="_self" // ✅ opens in same page
                     className="inline-block mt-2 text-sm font-medium text-blue-300 hover:text-blue-400 transition"
                   >
                     Visit Link →
@@ -119,12 +127,7 @@ const DisplayAds = () => {
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <button
@@ -138,12 +141,7 @@ const DisplayAds = () => {
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
 
