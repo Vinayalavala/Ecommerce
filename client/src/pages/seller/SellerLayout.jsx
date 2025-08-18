@@ -4,6 +4,7 @@ import { useAppContext } from '../../context/appContext';
 import assets from '../../assets/assets';
 import { toast } from 'react-hot-toast';
 import { FiBarChart2 } from "react-icons/fi";
+import { FaArrowLeft, FaArrowRight, FaMale, FaPersonBooth } from 'react-icons/fa';
 
 const SellerLayout = () => {
   const { axios } = useAppContext();
@@ -45,17 +46,12 @@ const SellerLayout = () => {
         </Link>
         <div className="flex items-center gap-5 text-gray-500">
           <p>Hi! Admin</p>
-          <button
-            onClick={() => navigate('/seller/analytics')}
-            className='border rounded-full text-sm px-4 py-1 hover:bg-gray-100'
-          >
-            Analytics
-          </button>
+          
           <button
             onClick={logout}
-            className='border rounded-full text-sm px-4 py-1'
+            className='border flex flex-row items-center rounded-full text-sm px-4 py-1'
           >
-            Logout
+            <FaArrowRight/>Logout
           </button>
         </div>
       </div>
