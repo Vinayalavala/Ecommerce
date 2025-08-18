@@ -30,6 +30,7 @@ import Analytics from './pages/seller/Analytics.jsx';
 import { useAppContext } from './context/appContext.jsx';
 import { Toaster } from 'react-hot-toast';
 import Loading from './components/Loading.jsx';
+import AddAd from './pages/seller/AddAd.jsx';
 
 const App = () => {
   const location = useLocation();
@@ -94,6 +95,7 @@ const App = () => {
             <Route path="orders" element={<Orders />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="add-ad" element={<AddProduct />} />
+            <Route path="addad" element={<AddAd />} />
           </Route>
 
           <Route path="*" element={<ErrorPage />} />
