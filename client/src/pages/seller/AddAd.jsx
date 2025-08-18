@@ -155,23 +155,40 @@ const AddAd = () => {
           </div>
 
           {/* Media Upload */}
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6">
+          <div
+            className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 cursor-pointer relative w-full h-60"
+            onClick={() => document.getElementById("mediaUpload").click()}
+          >
             {preview ? (
               preview.includes(".mp4") || preview.includes("video") ? (
-                <video src={preview} controls className="w-full h-48 object-cover rounded-lg" />
+                <video
+                  src={preview}
+                  controls
+                  className="w-full h-full object-cover rounded-lg"
+                />
               ) : (
-                <img src={preview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="w-full h-full object-cover rounded-lg"
+                />
               )
             ) : (
-              <p className="text-gray-500 text-sm">Upload Image or Video</p>
+              <p className="text-gray-500 text-sm text-center">
+                Click here to upload Image or Video
+              </p>
             )}
+          
+            {/* Hidden File Input */}
             <input
+              id="mediaUpload"
               type="file"
               accept="image/*,video/*"
               onChange={handleMediaChange}
-              className="mt-4"
+              className="hidden"
             />
           </div>
+
         </form>
 
         <button
