@@ -13,22 +13,26 @@ const formatAd = (adDoc) => {
     mediaType: ad.media?.type || "image",
   };
 };
+
 // -----------------------------
 // POST /api/ads
 // -----------------------------
 export const addAd = async (req, res) => {
   try {
-    const { title, description, targetUrl, placement, startDate, endDate } = req.body;
+    const { title, description, targetUrl, placement, startDate, endDate, media } = req.body;
 
     if (!title) {
       return res.status(400).json({ success: false, message: "Title is required" });
     }
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "Ad media file is required" });
+    if (!media) {
+      return res.status(400).json({ success: false, message: "Ad media is required" });
     }
 
-    const isVideo = req.file.mimetype?.startsWith("video");
-    const upload = await cloudinary.uploader.upload(req.file.path, {
+    // Detect type
+    const isVideo = media.startsWith("data:video");
+
+    // Upload base64 string to Cloudinary
+    const upload = await cloudinary.uploader.upload(media, {
       resource_type: isVideo ? "video" : "image",
       folder: "ads",
     });
@@ -98,8 +102,6 @@ export const getAds = async (req, res) => {
 
 // -----------------------------
 // GET /api/ads/active
-//   - mirrors default getAds (non-admin)
-//   - ?placement=homepage
 // -----------------------------
 export const getActiveAds = async (req, res) => {
   try {
@@ -128,7 +130,6 @@ export const getActiveAds = async (req, res) => {
 
 // -----------------------------
 // PUT /api/ads/:id
-//   - optional file replace
 // -----------------------------
 export const updateAd = async (req, res) => {
   try {
@@ -153,9 +154,9 @@ export const updateAd = async (req, res) => {
       }
     });
 
-    // media replacement
-    if (req.file) {
-      const isVideo = req.file.mimetype?.startsWith("video");
+    // media replacement (base64 again)
+    if (req.body.media) {
+      const isVideo = req.body.media.startsWith("data:video");
 
       // remove old asset
       if (ad.media?.public_id) {
@@ -164,7 +165,7 @@ export const updateAd = async (req, res) => {
         });
       }
 
-      const upload = await cloudinary.uploader.upload(req.file.path, {
+      const upload = await cloudinary.uploader.upload(req.body.media, {
         resource_type: isVideo ? "video" : "image",
         folder: "ads",
       });
