@@ -35,12 +35,15 @@ const AddProduct = () => {
   const editId = searchParams.get("edit");
   const productFromState = location.state?.product || null;
 
+  // ⏳ Cooldown state
+  const [cooldown, setCooldown] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(59);
+
   // ✅ Fill data instantly from navigation state if available
   useEffect(() => {
     if (productFromState) {
       fillFormData(productFromState);
     } else if (editId) {
-      // Fallback: Fetch product from API if direct link opened
       axios.get(`/api/product/${editId}`).then(({ data }) => {
         if (data.success) {
           fillFormData(data.product);
@@ -62,9 +65,27 @@ const AddProduct = () => {
     setExistingImages(product.image || []);
   };
 
+  // ⏳ Cooldown effect
+  useEffect(() => {
+    let timer;
+    if (cooldown && timeLeft > 0) {
+      timer = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
+    } else if (timeLeft === 0) {
+      setCooldown(false);
+      setTimeLeft(59);
+    }
+    return () => clearTimeout(timer);
+  }, [cooldown, timeLeft]);
+
   // ✅ Submit Handler
   const onSubmitHandler = async (event) => {
     event.preventDefault();
+
+    if (cooldown) return; // prevent double submit
+
+    // ⏳ Start cooldown immediately when button is tapped
+    setCooldown(true);
+    setTimeLeft(59);
 
     try {
       const productData = {
@@ -93,22 +114,14 @@ const AddProduct = () => {
         ? `/api/product/update/${editId}`
         : "/api/product/add";
 
-      // ✅ Use proper HTTP method
       const method = editId ? "put" : "post";
-
-      console.log("🔹 Submitting to:", url, "with method:", method);
-      console.log("🔹 Payload:", productData);
 
       const { data } = await axios[method](url, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      console.log("✅ Response:", data);
-
       if (data.success) {
         toast.success(data.message);
-
-        // ✅ Clear the form and redirect to seller page
         resetForm();
         navigate("/seller");
       } else {
@@ -150,7 +163,10 @@ const AddProduct = () => {
 
   return (
     <div className="no-scrollbar flex-1 h-[95vh] overflow-x-scroll flex flex-col justify-between mb-15">
-      <form onSubmit={onSubmitHandler} className="md:p-10 p-4 space-y-5 max-w-lg">
+      <form
+        onSubmit={onSubmitHandler}
+        className="md:p-10 p-4 space-y-5 max-w-lg"
+      >
         <h2 className="text-xl font-semibold">
           {editId ? "Edit Product" : "Add Product"}
         </h2>
@@ -227,7 +243,10 @@ const AddProduct = () => {
 
         {/* Description */}
         <div className="flex flex-col gap-1 max-w-md">
-          <label className="text-base font-medium" htmlFor="product-description">
+          <label
+            className="text-base font-medium"
+            htmlFor="product-description"
+          >
             Product Description
           </label>
           <textarea
@@ -365,8 +384,21 @@ const AddProduct = () => {
           </div>
         </div>
 
-        <button className="px-8 py-2.5 bg-primary text-white font-medium rounded cursor-pointer">
-          {editId ? "UPDATE" : "ADD"}
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={cooldown}
+          className={`px-8 py-2.5 font-medium rounded cursor-pointer ${
+            cooldown
+              ? "bg-gray-400 text-white cursor-not-allowed"
+              : "bg-primary text-white"
+          }`}
+        >
+          {cooldown
+            ? `Wait ${timeLeft}s`
+            : editId
+            ? "UPDATE"
+            : "ADD"}
         </button>
       </form>
     </div>
