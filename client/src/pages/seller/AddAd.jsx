@@ -120,9 +120,9 @@ const AddAd = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll">
       {/* Form Section */}
-      <div className="bg-white shadow rounded-xl p-6 mb-10">
+      <div className="md:p-10 p-4 space-y-8">
         <h2 className="text-2xl font-semibold mb-6">
           {editingAd ? "Edit Ad" : "Add New Ad"}
         </h2>
@@ -185,7 +185,7 @@ const AddAd = () => {
 
       {/* Ads Grid */}
       {ads.length > 0 && (
-        <div>
+        <div className="md:p-10 p-4 space-y-8">
           <h2 className="text-xl font-semibold mb-4">Active Ads</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {ads.map((ad) => (
