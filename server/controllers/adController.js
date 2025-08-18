@@ -13,7 +13,6 @@ const formatAd = (adDoc) => {
     mediaType: ad.media?.type || "image",
   };
 };
-
 // -----------------------------
 // POST /api/ads
 // -----------------------------
