@@ -125,39 +125,37 @@ export const stripeWebhook = async (req, res) => {
 
 export const getUserOrders = async (req, res) => {
   try {
-    const { userId } = req.query;
+    // If using authMiddleware:
+    const userId = req.user?._id || req.query.userId;
+
     if (!userId) {
       return res.json({ success: false, message: "User ID is required" });
     }
 
-    const orders = await Order.find()
-  .populate("items.product")
-  .populate("address")
-  .lean();
+    const orders = await Order.find({ user: userId }) // ✅ filter by user
+      .populate("items.product")
+      .populate("address")
+      .lean();
 
-for (const order of orders) {
-  for (const item of order.items) {
-    item.reviews = await Review.find({
-      productId: item.product._id,
-      orderId: order._id
-    }).lean();
-  }
-}
-    if (!orders) {
-      return res.json({ success: false, message: "No orders found" });
+    for (const order of orders) {
+      for (const item of order.items) {
+        item.reviews = await Review.find({
+          productId: item.product._id,
+          orderId: order._id
+        }).lean();
+      }
     }
 
-    if (orders.length === 0) {
+    if (!orders || orders.length === 0) {
       return res.json({ success: false, message: "No orders found" });
     }
 
     res.json({ success: true, orders });
   } catch (error) {
-    console.log("Error fetching user orders:", error.message);
+    console.error("Error fetching user orders:", error.message);
     res.json({ success: false, message: "An error occurred while fetching orders" });
   }
 };
-
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
