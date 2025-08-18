@@ -30,7 +30,7 @@ const Orders = () => {
     } catch (error) {
       if (error.response?.status === 401) {
         toast.error("Unauthorized. Please log in.");
-        navigate("/seller-login");
+        navigate("/seller");
       } else {
         toast.error(error?.message || "Something went wrong.");
       }
