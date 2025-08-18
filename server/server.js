@@ -12,7 +12,8 @@ import cartRouter from './routes/cartRoute.js';
 import addressRouter from './routes/addressRoute.js';
 import orderRouter from './routes/orderRoute.js';
 import { stripeWebhook } from './controllers/orderController.js';
-import reviewRoute from './routes/reviewRoute.js';
+import reviewRoutes from './routes/reviewRoute.js';
+import adRouter from './routes/adRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 4001;
@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 4001;
 const allowedOrigins = [
   'http://localhost:5173',
   'https://padmavatimilkpoint.vercel.app',
-  'https://alavalasrootandcraft.vercel.app',
+  'https://vishwaadhika.vercel.app',
   'https://milkpoint.vercel.app'
 ];
 
@@ -47,8 +48,9 @@ app.use('/api/product', productRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/address', addressRouter);
 app.use('/api/order', orderRouter);
-app.use('/api/review', reviewRoute);
+app.use('/api/review', reviewRoutes);
 app.use("/api", analyticsRoutes);
+app.use("/api/ads", adRouter);
 
 // Test route
 app.get('/', (req, res) => {
