@@ -3,7 +3,7 @@ import { useLocation, Link, NavLink, Outlet, useNavigate } from 'react-router-do
 import { useAppContext } from '../../context/appContext';
 import assets from '../../assets/assets';
 import { toast } from 'react-hot-toast';
-import { FiBarChart2 } from "react-icons/fi";
+import { FiBarChart2, FiUpload } from "react-icons/fi";
 import { FaArrowLeft, FaArrowRight, FaMale, FaPersonBooth } from 'react-icons/fa';
 
 const SellerLayout = () => {
@@ -20,6 +20,7 @@ const SellerLayout = () => {
     { name: "Product List", path: "/seller/product-list", icon: assets.product_list_icon },
     { name: "Orders", path: "/seller/orders", icon: assets.order_icon },
     { name: "Analytics", path: "/seller/analytics", icon: FiBarChart2 },
+    { name: "Ads", path: "/seller/AddAd", icon: FiUpload }
   ];
 
   const logout = async () => {
