@@ -120,7 +120,7 @@ const AddAd = () => {
   };
 
   return (
-    <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll">
+    <div className="no-scrollbar mb-15 flex-1 h-[95vh] overflow-y-scroll">
       {/* Form Section */}
       <div className="md:p-10 p-4 space-y-8">
         <h2 className="text-lg font-medium">
