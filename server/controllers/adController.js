@@ -2,9 +2,11 @@ import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
 import Ad from "../models/Ad.js";
 
+// Make sure Cloudinary is configured somewhere in your app startup:
+// cloudinary.config({ cloud_name, api_key, api_secret });
+
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
-// Format response so your UI can use ad.mediaUrl safely
 const formatAd = (adDoc) => {
   const ad = adDoc.toObject ? adDoc.toObject() : adDoc;
   return {
@@ -14,42 +16,52 @@ const formatAd = (adDoc) => {
   };
 };
 
+// Helpers
+const isVideoDataUri = (str = "") => typeof str === "string" && str.startsWith("data:video");
+const detectResourceType = (media) => (isVideoDataUri(media) ? "video" : "image");
+
 // -----------------------------
 // POST /api/ads
+// Body: { title, description, targetUrl?, placement?, startDate?, endDate?, priority?, isActive?, media (base64) }
 // -----------------------------
 export const addAd = async (req, res) => {
   try {
-    const { title, description, targetUrl, placement, startDate, endDate, media } = req.body;
+    const {
+      title,
+      description,
+      targetUrl,
+      placement = "homepage",
+      startDate,
+      endDate,
+      priority = 0,
+      isActive = true,
+      media,
+    } = req.body || {};
 
-    if (!title) {
-      return res.status(400).json({ success: false, message: "Title is required" });
-    }
-    if (!media) {
-      return res.status(400).json({ success: false, message: "Ad media is required" });
-    }
+    if (!title) return res.status(400).json({ success: false, message: "Title is required" });
+    if (!media) return res.status(400).json({ success: false, message: "Ad media is required" });
 
-    // Detect type
-    const isVideo = media.startsWith("data:video");
+    const resourceType = detectResourceType(media);
 
-    // Upload base64 string to Cloudinary
     const upload = await cloudinary.uploader.upload(media, {
-      resource_type: isVideo ? "video" : "image",
       folder: "ads",
+      resource_type: resourceType, // image | video (explicit for destroy parity)
     });
 
     const ad = await Ad.create({
       title,
       description,
       targetUrl,
-      placement: placement || "homepage",
+      placement,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
+      priority: Number(priority) || 0,
+      isActive: !!isActive,
       media: {
         url: upload.secure_url,
         public_id: upload.public_id,
-        type: isVideo ? "video" : "image",
+        type: resourceType,
       },
-      isActive: true,
     });
 
     return res.status(201).json({
@@ -87,8 +99,7 @@ export const getAds = async (req, res) => {
       baseQuery.placement = placement;
     }
 
-    const ads = await Ad.find(baseQuery)
-      .sort({ priority: -1, createdAt: -1 });
+    const ads = await Ad.find(baseQuery).sort({ priority: -1, createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -118,8 +129,7 @@ export const getActiveAds = async (req, res) => {
 
     if (placement) query.placement = placement;
 
-    const ads = await Ad.find(query)
-      .sort({ priority: -1, createdAt: -1 });
+    const ads = await Ad.find(query).sort({ priority: -1, createdAt: -1 });
 
     return res.status(200).json({ success: true, ads: ads.map(formatAd) });
   } catch (error) {
@@ -144,36 +154,48 @@ export const updateAd = async (req, res) => {
     }
 
     const updates = {};
-    const fields = ["title", "description", "targetUrl", "placement", "isActive", "startDate", "endDate", "priority"];
+    const {
+      title,
+      description,
+      targetUrl,
+      placement,
+      isActive,
+      startDate,
+      endDate,
+      priority,
+      media,
+    } = req.body || {};
 
-    fields.forEach((f) => {
-      if (f in req.body && req.body[f] !== undefined) {
-        updates[f] = ["startDate", "endDate", "priority"].includes(f) && req.body[f] !== ""
-          ? (f === "priority" ? Number(req.body[f]) : new Date(req.body[f]))
-          : req.body[f];
-      }
-    });
+    if (title !== undefined) updates.title = title;
+    if (description !== undefined) updates.description = description;
+    if (targetUrl !== undefined) updates.targetUrl = targetUrl;
+    if (placement !== undefined) updates.placement = placement;
+    if (isActive !== undefined) updates.isActive = !!isActive;
 
-    // media replacement (base64 again)
-    if (req.body.media) {
-      const isVideo = req.body.media.startsWith("data:video");
+    if (startDate !== undefined) updates.startDate = startDate ? new Date(startDate) : undefined;
+    if (endDate !== undefined) updates.endDate = endDate ? new Date(endDate) : undefined;
+    if (priority !== undefined) updates.priority = Number(priority) || 0;
 
-      // remove old asset
+    // media replacement (base64)
+    if (media) {
+      const resourceType = detectResourceType(media);
+
+      // remove old asset first
       if (ad.media?.public_id) {
         await cloudinary.uploader.destroy(ad.media.public_id, {
           resource_type: ad.media.type === "video" ? "video" : "image",
         });
       }
 
-      const upload = await cloudinary.uploader.upload(req.body.media, {
-        resource_type: isVideo ? "video" : "image",
+      const upload = await cloudinary.uploader.upload(media, {
         folder: "ads",
+        resource_type: resourceType,
       });
 
       updates.media = {
         url: upload.secure_url,
         public_id: upload.public_id,
-        type: isVideo ? "video" : "image",
+        type: resourceType,
       };
     }
 
@@ -205,6 +227,7 @@ export const deleteAd = async (req, res) => {
       return res.status(404).json({ success: false, message: "Ad not found" });
     }
 
+    // remove Cloudinary asset
     if (ad.media?.public_id) {
       await cloudinary.uploader.destroy(ad.media.public_id, {
         resource_type: ad.media.type === "video" ? "video" : "image",
