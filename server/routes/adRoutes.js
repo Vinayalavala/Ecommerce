@@ -1,12 +1,11 @@
 import express from "express";
-import multer from "multer";
 import { addAd, getAds, getActiveAds, updateAd, deleteAd } from "../controllers/adController.js";
 
 
 const adRouter = express.Router();
 
 // Simple disk storage for temp; Cloudinary will read the file and we can let the OS clean up temp later
-const upload = multer({ dest: "uploads/" });
+
 
 // Create ad (expects FormData with "media")
 adRouter.post("/", upload.single("media"), addAd);
