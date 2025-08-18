@@ -123,7 +123,7 @@ const AddAd = () => {
     <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll">
       {/* Form Section */}
       <div className="md:p-10 p-4 space-y-8">
-        <h2 className="text-2xl font-semibold mb-6">
+        <h2 className="text-lg font-medium">
           {editingAd ? "Edit Ad" : "Add New Ad"}
         </h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -186,7 +186,7 @@ const AddAd = () => {
       {/* Ads Grid */}
       {ads.length > 0 && (
         <div className="md:p-10 p-4 space-y-8">
-          <h2 className="text-xl font-semibold mb-4">Active Ads</h2>
+          <h2 className="text-lg font-medium">Active Ads</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {ads.map((ad) => (
               <div
