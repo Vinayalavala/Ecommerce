@@ -64,12 +64,6 @@ const Cart = () => {
   setCooldownSeconds(60);
 
   try {
-
-    if (!user) {
-      toast.error("Please Login to place an order.");
-      return;
-    }
-
     if (!selectedAddress) {
       toast.error("Please select a delivery address.");
       return;
@@ -302,7 +296,7 @@ const Cart = () => {
                   </p>
                 ))}
                 <p
-                  onClick={user ? () => navigate("/add-address") : () => toast.error("Please login to add an address")}
+                  onClick={() => navigate("/add-address")}
                   className="text-primary text-center cursor-pointer p-2 hover:bg-indigo-500/10"
                 >
                   Add address
@@ -326,7 +320,7 @@ const Cart = () => {
                 }
                 className="sr-only peer"
               />
-              <div onClick={() => toast.error("Payment method is in development") } className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary 
+              <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary 
                 rounded-full peer dark:bg-gray-300 peer-checked:bg-green-600
                 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] 
                 after:left-[2px] after:bg-white after:border-gray-300 after:border 
