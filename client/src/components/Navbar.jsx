@@ -316,7 +316,8 @@ const Navbar = () => {
         {isMobile && !user ? (
           <div className="flex flex-col items-center gap-2">
             <div className="w-full flex items-center justify-center">
-              <img src={assets.logo} alt="logo" className="h-10" />
+              <img src={assets.logo} alt="logo" className="h-10" /> <div className=" pr-0.5 text-xl">Alavala's Root & Craft</div>
+            </div>
             </div>
             <div className="w-full px-4 flex gap-3">
               <button onClick={() => setShowUserLogin(true)} className="flex-1 py-2 bg-primary text-white rounded-full text-sm font-medium">Login</button>
