@@ -145,10 +145,14 @@ export const getUserOrders = async (req, res) => {
 
     for (const order of orders) {
       for (const item of order.items) {
-        item.reviews = await Review.find({
-          productId: item.product._id,
-          orderId: order._id,
-        }).lean();
+        if (item?.product?._id) {
+          item.reviews = await Review.find({
+            productId: item.product._id,
+            orderId: order._id,
+          }).lean();
+        } else {
+          item.reviews = [];
+        }
       }
     }
 
@@ -229,7 +233,7 @@ export const placeOrderStripe = async (req, res) => {
     const totalAmount = baseAmount + gstAmount;
 
     const order = await Order.create({
-      userId,
+      user: userId,         // ✅ keep consistent
       items,
       address,
       amount: totalAmount,
