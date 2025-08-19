@@ -318,7 +318,6 @@ const Navbar = () => {
             <div className="w-full flex items-center justify-center">
               <img src={assets.logo} alt="logo" className="h-10" /> <div className=" pr-0.5 text-xl">Alavala's Root & Craft</div>
             </div>
-            </div>
             <div className="w-full px-4 flex gap-3">
               <button onClick={() => setShowUserLogin(true)} className="flex-1 py-2 bg-primary text-white rounded-full text-sm font-medium">Login</button>
               <button onClick={() => navigate("/seller")} className="flex-1 py-2 bg-white border border-gray-300 text-sm rounded-full">Seller</button>
