@@ -16,6 +16,7 @@ const Orders = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [ratings, setRatings] = useState({}); // <-- added ratings state
   const navigate = useNavigate();
+  
 
   const fetchOrders = async () => {
     try {
@@ -80,6 +81,7 @@ const Orders = () => {
             map[`${orderId}_${String(productId)}`] = Number(matched.rating || matched.score || 0);
           }
         }
+        
 
         // 3) If product has embedded reviews (product.reviews), use those
         if (item.product && Array.isArray(item.product.reviews) && item.product.reviews.length > 0) {
