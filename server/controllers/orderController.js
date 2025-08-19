@@ -59,6 +59,7 @@ export const placeOrderCOD = async (req, res) => {
     });
 
     await newOrder.populate("items.product");
+    await newOrder.populate("address");
 
     // email: use address email -> fallback to user's email
     const [addressEmail, userDoc] = await Promise.all([
