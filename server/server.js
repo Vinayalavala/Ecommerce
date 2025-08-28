@@ -11,7 +11,6 @@ import productRouter from './routes/productRoute.js';
 import cartRouter from './routes/cartRoute.js';
 import addressRouter from './routes/addressRoute.js';
 import orderRouter from './routes/orderRoute.js';
-import { stripeWebhook } from './controllers/orderController.js';
 import reviewRoutes from './routes/reviewRoute.js';
 import adRouter from './routes/adRoutes.js';
 
@@ -23,9 +22,6 @@ const allowedOrigins = [
   'https://alavalasrootandcraft.vercel.app',
   'https://milkpoint.vercel.app'
 ];
-
-// Stripe Webhook route: must be before express.json()
-app.post('/api/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
 
 // CORS middleware
 app.use(cors({
