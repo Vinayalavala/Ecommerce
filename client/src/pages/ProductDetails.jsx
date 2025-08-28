@@ -1,9 +1,10 @@
-// File: client/src/pages/ProductDetails.jsx
+
 import { useEffect, useState, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAppContext } from '../context/appContext';
 import assets from '../assets/assets';
 import ProductCard from '../components/ProductCard';
+
 import { toast } from 'react-hot-toast';
 import { FaHeart, FaRegHeart, FaShoppingCart, FaBolt, FaShareAlt } from 'react-icons/fa';
 
@@ -17,6 +18,7 @@ const ProductDetails = () => {
   const [thumbnail, setThumbnail] = useState(null);
   const [liked, setLiked] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const product = products.find((item) => item?._id === id);
   const mounted = useRef(true);
@@ -31,6 +33,12 @@ const ProductDetails = () => {
     }
     return s;
   };
+
+  useEffect(() => {
+    if (products.length > 0) {
+      setLoading(false); 
+    }
+  }, [products]);
 
   const sessionId = getSessionId();
 
@@ -175,6 +183,15 @@ const ProductDetails = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // 👉 Show Not Found if product is missing AFTER loading
   if (!product) {
     return (
       <div className="flex items-center justify-center h-screen text-xl font-medium">
