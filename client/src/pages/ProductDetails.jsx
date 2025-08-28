@@ -341,14 +341,6 @@ const ProductDetails = () => {
             <p className="text-gray-600">Net Quantity: {product.quantity.value} {product.quantity.unit}</p>
           )}
 
-          {/* Rating */}
-          <div className="flex items-center gap-1">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <img key={i} src={i < 4 ? assets.star_icon : assets.star_dull_icon} alt="star" className="w-4" />
-            ))}
-            <span className="ml-2 text-gray-400 text-sm">(4)</span>
-          </div>
-
           {/* Pricing */}
           <div>
             {product.price != null && (
