@@ -10,6 +10,7 @@ const ProductList = () => {
   const [loadingProductId, setLoadingProductId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   // ✅ Toggle Stock Status
@@ -30,6 +31,13 @@ const ProductList = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
   // ✅ Delete Product
   const deleteProduct = async (id) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
