@@ -20,12 +20,15 @@ const orderSchema = new mongoose.Schema(
         },
       },
     ],
+    razorpayOrderId: { type: String },
+paymentId: { type: String },
+
     amount: {
       type: Number,
       required: true,
     },
     address: {
-      type: mongoose.Schema.Types.ObjectId, // 👈 link to address model
+      type: mongoose.Schema.Types.ObjectId, 
       ref: "address",
       required: true,
     },
