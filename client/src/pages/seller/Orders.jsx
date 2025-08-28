@@ -222,7 +222,13 @@ const Orders = () => {
     return matchesText && matchesPayment && matchesCategory;
   };
 
-  if (loading) return <div className="p-10 text-center">Loading Orders...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
   if (orders.length === 0) return <div className="p-10 text-center">No orders found.</div>;
 
   return (
