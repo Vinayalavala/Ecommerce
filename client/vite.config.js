@@ -19,12 +19,12 @@ export default defineConfig({
         theme_color: '#000000',
         icons: [
           {
-            src: '/client/src/assets/logo.png',
+            src: '/delivery_truck_icon.svg',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: '/client/src/assets/logo.png',
+            src: '/delivery_truck_icon.svg',
             sizes: '512x512',
             type: 'image/png'
           }
