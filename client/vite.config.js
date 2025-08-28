@@ -11,8 +11,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Ecommerce Store',
-        short_name: 'Ecommerce',
+        name: 'Alavala's Root and Craft',
+        short_name: 'Alavala's',
         start_url: '/',
         display: 'standalone',
         background_color: '#ffffff',
