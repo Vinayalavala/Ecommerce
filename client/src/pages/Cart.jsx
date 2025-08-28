@@ -56,65 +56,93 @@ const Cart = () => {
     }
   };
 
-  const placeOrder = async () => {
-  // ✅ Disable button immediately to prevent double click
-  if (cooldownSeconds > 0) return; // Prevent double call manually (extra safety)
-  setCooldownSeconds(60);
+const placeOrder = async () => {
+  if (!selectedAddress) {
+    toast.error("Please select an address");
+    return;
+  }
 
-  try {
+  if (paymentOption === "COD") {
+    // COD flow (unchanged)
+    const { data } = await axios.post("/api/order/cod", {
+      userId: user._id,
+      items: cartArray.map((item) => ({
+        product: { _id: item._id, price: item.offerPrice },
+        quantity: item.quantity,
+      })),
+      address: selectedAddress._id,
+    });
 
-    if (!user) {
-      toast.error("Please Login to place an order.");
-      return;
+    if (data.success) {
+      toast.success("Order placed successfully");
+      setCartItems({});
+      setShowThankYou(true);
+      setTimeout(() => {
+        setShowThankYou(false);
+        navigate("/my-orders");
+      }, 5000);
+    } else {
+      toast.error(data.message);
     }
+  } else {
+    // 🔥 Razorpay Payment Flow
+    try {
+  const { data } = await axios.post("/api/order/razorpay/create-order", {
+    items: cartArray.map((item) => ({
+      product: item._id,
+      quantity: item.quantity,
+    })),
+    address: selectedAddress._id,
+    userId: user._id,
+  });
 
-    if (!selectedAddress) {
-      toast.error("Please select a delivery address.");
-      return;
-    }
+  if (!data.success) {
+    toast.error("Failed to initiate payment");
+    return;
+  }
 
-    if (paymentOption === "COD") {
-      const { data } = await axios.post("/api/order/cod", {
-        userId: user._id,
-        items: cartArray.map(item => ({
+  const options = {
+    key: data.key,
+    amount: data.amount * 100, // Razorpay expects paise
+    currency: data.currency,
+    name: "My Shop",
+    description: "Order Payment",
+    order_id: data.razorpayOrder.id,
+    handler: async function (response) {
+      const verifyRes = await axios.post("/api/order/razorpay/verify", {
+        ...response,
+        items: cartArray.map((item) => ({
           product: item._id,
-          quantity: item.quantity
+          quantity: item.quantity,
         })),
         address: selectedAddress._id,
-        isPaid: false,
+        userId: user._id,
       });
 
-      if (data.success) {
-        toast.success(data.message);
+      if (verifyRes.data.success) {
+        toast.success("Payment successful! Order placed.");
         setCartItems({});
         setShowThankYou(true);
-
         setTimeout(() => {
           setShowThankYou(false);
           navigate("/my-orders");
         }, 5000);
       } else {
-        toast.error(data.message);
+        toast.error("Payment verification failed");
       }
-    } else {
-      const { data } = await axios.post("/api/order/stripe", {
-        userId: user._id,
-        items: cartArray.map(item => ({
-          product: item._id,
-          quantity: item.quantity
-        })),
-        address: selectedAddress._id,
-      });
+    },
+    prefill: {
+      name: user.name,
+      email: user.email,
+    },
+    theme: { color: "#3399cc" },
+  };
 
-      if (data.success) {
-        window.location.href = data.url;
-      } else {
-        toast.error(data.message);
-      }
-    }
-  } catch (error) {
-    toast.error(error.message);
-    setCooldownSeconds(0);
+  const rzp = new window.Razorpay(options);
+  rzp.open();
+} catch (error) {
+  toast.error(error.message);
+}
   }
 };
 
@@ -314,7 +342,7 @@ const Cart = () => {
             <span className="text-sm text-gray-600">Cash On Delivery</span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
-                type="checkbox disabled disabled={cooldownSeconds > 0}"
+                type="checkbox"
                 checked={paymentOption === "Online"}
                 onChange={() =>
                   setPaymentOption((prev) =>
@@ -323,7 +351,7 @@ const Cart = () => {
                 }
                 className="sr-only peer"
               />
-              <div onClick={() => toast.error("Payment method is in development") } className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary 
+              <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary 
                 rounded-full peer dark:bg-gray-300 peer-checked:bg-green-600
                 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] 
                 after:left-[2px] after:bg-white after:border-gray-300 after:border 
