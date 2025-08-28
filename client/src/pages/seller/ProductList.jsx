@@ -1,7 +1,7 @@
 import { useAppContext } from '../../context/appContext';
 import assets from '../../assets/assets';
 import toast from 'react-hot-toast';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { FaTrash, FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,6 +12,13 @@ const ProductList = () => {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // ✅ Watch products and stop loading once fetched
+  useEffect(() => {
+    if (products && products.length >= 0) {
+      setLoading(false);
+    }
+  }, [products]);
 
   // ✅ Toggle Stock Status
   const toggleStock = async (id, inStock) => {
@@ -31,13 +38,6 @@ const ProductList = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
   // ✅ Delete Product
   const deleteProduct = async (id) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
@@ -76,6 +76,15 @@ const ProductList = () => {
       (categoryFilter === 'All' || product.category === categoryFilter)
     );
   }, [products, searchTerm, categoryFilter]);
+
+  // ✅ Show spinner until products are ready
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll flex flex-col justify-between">
@@ -125,7 +134,7 @@ const ProductList = () => {
                           <img
                             src={product.image?.[0] || assets.placeholder_image}
                             alt={product.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-pointer"
                             onClick={() => {
                               navigate(`/products/${product.category.toLowerCase()}/${product._id}`);
                               scrollTo(0, 0);
@@ -164,7 +173,7 @@ const ProductList = () => {
                       </div>
                     </td>
 
-                    {/* Actions - Centered */}
+                    {/* Actions */}
                     <td className="px-3 py-3">
                       <div className="flex justify-center items-center gap-6">
                         <button
