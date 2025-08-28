@@ -309,7 +309,13 @@ const Analytics = () => {
   const clearFilters = () => { setTrend("all"); setDateRange({ from: "", to: "" }); setCustomerFilter(""); };
 
   /* ------------------ Render ------------------ */
-  if (loading) return <div className="p-8 text-center text-slate-600">Loading analytics...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
   if (!analytics) return <div className="p-8 text-center text-slate-600">No data available.</div>;
 
   /* heatmap color */
