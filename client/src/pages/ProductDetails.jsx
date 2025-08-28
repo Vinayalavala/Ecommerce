@@ -226,7 +226,7 @@ const ProductDetails = () => {
                   <img
                     src={img}
                     alt={`${product.name} thumbnail ${idx + 1}`}
-                    className={`w-20 h-20 object-cover rounded-md border cursor-pointer ${
+                    className={`w-20 h-20 object-cover  rounded-md border cursor-pointer ${
                       thumbnail?.url === img ? 'border-primary' : 'border-gray-300'
                     }`}
                   />
@@ -252,16 +252,24 @@ const ProductDetails = () => {
             </div>
 
             <div className="border border-gray-300 w-[460px] h-[460px] rounded-md overflow-hidden flex items-center justify-center bg-gray-50">
-              {thumbnail?.type === 'image' && (
-                <img src={thumbnail.url} alt={product.name} className="w-full h-full object-contain" />
+              {thumbnail?.type === "image" && (
+                <img
+                  src={thumbnail.url}
+                  alt={product.name}
+                  className="max-h-full max-w-full object-contain"
+                  style={{ width: "auto", height: "auto" }}
+                />
               )}
-              {thumbnail?.type === 'video' && (
-                <video src={thumbnail.url} controls className="w-full h-full object-contain" />
-              )}
-              {!thumbnail && (
-                <div className="text-center text-gray-400">No media available</div>
+              {thumbnail?.type === "video" && (
+                <video
+                  src={thumbnail.url}
+                  controls
+                  className="max-h-full max-w-full object-contain"
+                  style={{ width: "auto", height: "auto" }}
+                />
               )}
             </div>
+
           </div>
 
           {/* Mobile */}
