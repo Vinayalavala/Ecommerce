@@ -205,6 +205,7 @@ export const verifyRazorpayPayment = async (req, res) => {
       paymentType: "Online",
       isPaid: true,
       status: "Paid",
+      paymentId: razorpay_payment_id,
     });
 
     await updateProductStock(items);
@@ -355,40 +356,62 @@ export const updateOrderStatus = async (req, res) => {
 /**
  * Cancel order (within 5 minutes & only if 'Order Placed')
  */
+// cancel order (refund + restock)
 export const cancelOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const { id } = req.params;
+    const order = await Order.findById(id).populate("items.product");
+
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    if (order.status !== "Order Placed") {
-      return res.status(400).json({
-        success: false,
-        message: "Only orders with status 'Order Placed' can be cancelled.",
-      });
+    // If already cancelled
+    if (order.status === "Cancelled") {
+      return res.json({ success: false, message: "Order already cancelled" });
     }
 
-    const orderCreatedTime = new Date(order.createdAt).getTime();
-    const currentTime = Date.now();
-    const timeDiff = currentTime - orderCreatedTime;
-
-    if (timeDiff > 5 * 60 * 1000) {
-      return res.status(400).json({
-        success: false,
-        message: "Cancellation window (5 minutes) has expired.",
+    // Refund for online payments
+    if (order.paymentMethod === "Online" && order.isPaid) {
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
       });
+
+      // Call Razorpay Refund API
+      const refund = await razorpay.payments.refund(order.paymentId, {
+        amount: order.totalAmount * 100, // paise
+        speed: "normal",
+      });
+
+      order.isRefunded = true;
+      order.refundId = refund.id;
+    }
+
+    // 🔥 Restock items
+    for (let item of order.items) {
+      const product = await Product.findById(item.product._id);
+      if (product) {
+        product.stock += item.quantity; // restore stock
+        await product.save();
+      }
     }
 
     order.status = "Cancelled";
     await order.save();
 
-    return res.status(200).json({ success: true, message: "Order cancelled successfully." });
+    return res.json({
+      success: true,
+      message: "Order cancelled, refund (if applicable) processed, and stock updated",
+      order,
+    });
   } catch (error) {
-    console.error("Cancel order error:", error);
-    return res.status(500).json({ success: false, message: "Server error. Please try again later." });
+    console.error("Cancel Order Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
 
 /**
  * Reviews
