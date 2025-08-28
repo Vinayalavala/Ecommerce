@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FaStar } from 'react-icons/fa';
 
+// Helper: format date labels
 const getDateLabel = (dateString) => {
   const orderDate = new Date(dateString);
   const today = new Date();
@@ -33,78 +34,60 @@ const MyOrders = () => {
   const [sortOption, setSortOption] = useState('date_desc');
   const [ratings, setRatings] = useState({});
   const [remainingTimes, setRemainingTimes] = useState({});
-  const [loading, setLoading] = useState(false); // ✅ Added loading state
+  const [loading, setLoading] = useState(false);
 
   const { currency, axios, user } = useAppContext();
   const navigate = useNavigate();
 
+  // ✅ Fetch Orders
   const fetchMyOrders = async () => {
     if (!user || !user._id) {
       toast.error("User ID is not available.");
       return;
     }
-    setLoading(true); // ✅ Start loading
+    setLoading(true);
     try {
       const { data } = await axios.get(`/api/order/user?userId=${user._id}`);
       setMyOrders(data.orders || []);
     } catch (error) {
       toast.error("Failed to fetch orders.");
     } finally {
-      setLoading(false); // ✅ End loading
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    let updated = [...myOrders];
-
-    if (statusFilter !== 'All') {
-      updated = updated.filter((order) => order.status === statusFilter);
+  // ✅ Fetch Reviews
+  const fetchReviews = async () => {
+    if (!user || !user._id) return;
+    try {
+      const res = await axios.get(`/api/review?userId=${user._id}`);
+      const fetchedRatings = {};
+      res.data.forEach((review) => {
+        const key = `${review.orderId}_${review.productId}`;
+        fetchedRatings[key] = review.rating;
+      });
+      setRatings(fetchedRatings);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
     }
+  };
 
-    if (search.trim() !== '') {
-      updated = updated.filter((order) =>
-        order.items.some((item) =>
-          item.product?.name?.toLowerCase().includes(search.toLowerCase())
-        )
-      );
-    }
-
-    setFilteredOrders(updated);
-  }, [search, statusFilter, myOrders, sortOption]);
-
-  // Fetch reviews and set ratings
+  // ✅ Load orders & reviews when user is ready
   useEffect(() => {
-    const fetchReviews = async () => {
-      if (!user || !user._id) return;
-      try {
-        const res = await axios.get(`/api/review?userId=${user._id}`);
-        const fetchedRatings = {};
-        res.data.forEach((review) => {
-          const key = `${review.orderId}_${review.productId}`;
-          fetchedRatings[key] = review.rating;
-        });
-        setRatings(fetchedRatings);
-      } catch (error) {
-        console.error("Error fetching reviews:", error);
-      }
-    };
-    fetchReviews();
-  }, [user, axios]);
-
-  useEffect(() => {
-    if (user) {
+    if (user?._id) {
       fetchMyOrders();
+      fetchReviews();
     }
   }, [user]);
 
+  // ✅ Filter & Sort Orders
   useEffect(() => {
     let updated = [...myOrders];
-    updated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+    // Filter
     if (statusFilter !== 'All') {
       updated = updated.filter((order) => order.status === statusFilter);
     }
-
     if (search.trim() !== '') {
       updated = updated.filter((order) =>
         order.items.some((item) =>
@@ -113,9 +96,30 @@ const MyOrders = () => {
       );
     }
 
+    // Sort
+    updated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
     setFilteredOrders(updated);
   }, [search, statusFilter, myOrders, sortOption]);
 
+  // ✅ Timer for Cancel Order
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const times = {};
+      myOrders.forEach((order) => {
+        const createdTime = new Date(order.createdAt).getTime();
+        const diff = 5 * 60 * 1000 - (now - createdTime);
+        if (diff > 0 && order.status === 'Order Placed') {
+          times[order._id] = Math.floor(diff / 1000);
+        }
+      });
+      setRemainingTimes(times);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [myOrders]);
+
+  // ✅ Handle Rating
   const handleRatingChange = async (productId, orderId, ratingValue) => {
     try {
       const payload = {
@@ -131,11 +135,11 @@ const MyOrders = () => {
         [`${orderId}_${productId}`]: ratingValue,
       }));
     } catch (err) {
-      console.error(err.response?.data || err.message);
       toast.error(err.response?.data?.message || "Failed to submit review");
     }
   };
 
+  // ✅ Handle Cancel
   const handleCancelOrder = async (orderId) => {
     try {
       const { data } = await axios.put(`/api/order/cancel/${orderId}`);
@@ -145,28 +149,12 @@ const MyOrders = () => {
       } else {
         toast.error(data.message || "Failed to cancel.");
       }
-    } catch (err) {
+    } catch {
       toast.error("Error cancelling order.");
     }
   };
 
-  // Timer Effect
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const times = {};
-      myOrders.forEach((order) => {
-        const createdTime = new Date(order.createdAt).getTime();
-        const diff = 5 * 60 * 1000 - (now - createdTime);
-        if (diff > 0 && order.status === 'Order Placed') {
-          times[order._id] = Math.floor(diff / 1000);
-        }
-      });
-      setRemainingTimes(times);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [myOrders]);
-
+  // ✅ Group Orders by Date
   const groupedOrders = filteredOrders.reduce((acc, order) => {
     const label = getDateLabel(order.createdAt);
     if (!acc[label]) acc[label] = [];
@@ -184,15 +172,10 @@ const MyOrders = () => {
       .reduce((sum, o) => sum + o.amount, 0),
   }));
 
-  if (sortOption === 'date_desc') {
-    groupedArray.sort((a, b) => b.latestDate - a.latestDate);
-  } else if (sortOption === 'date_asc') {
-    groupedArray.sort((a, b) => a.latestDate - b.latestDate);
-  } else if (sortOption === 'count_desc') {
-    groupedArray.sort((a, b) => b.count - a.count);
-  } else if (sortOption === 'count_asc') {
-    groupedArray.sort((a, b) => a.count - b.count);
-  }
+  // Sorting options
+  if (sortOption === 'date_asc') groupedArray.sort((a, b) => a.latestDate - b.latestDate);
+  if (sortOption === 'count_desc') groupedArray.sort((a, b) => b.count - a.count);
+  if (sortOption === 'count_asc') groupedArray.sort((a, b) => a.count - b.count);
 
   return (
     <div className='mt-30 pb-16 max-w-6xl mx-auto px-4'>
@@ -203,13 +186,16 @@ const MyOrders = () => {
         <div className='w-16 h-0.5 bg-primary rounded-full'></div>
       </div>
 
-      {/* ✅ Loading indicator */}
+      {/* ✅ Loading Spinner */}
       {loading && (
-        <div className="text-center text-gray-500 py-6">Loading orders...</div>
+        <div className="flex justify-center items-center h-40">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
       )}
 
       {!loading && (
         <>
+          {/* Filters */}
           <div className='flex flex-col md:flex-row justify-between gap-4 mb-8'>
             <input
               type='text'
@@ -257,108 +243,88 @@ const MyOrders = () => {
                 </span>
               </h3>
 
-              {group.orders.map((order, index) => (
-                <div key={index} className='border justify-center border-gray-300 rounded-lg mb-6 p-4 py-5'>
+              {group.orders.map((order) => (
+                <div key={order._id} className='border border-gray-300 rounded-lg mb-6 p-4 py-5'>
+                  {/* Order Meta */}
                   <div className='flex flex-wrap justify-between text-gray-600 text-xs font-medium mb-4 gap-2'>
                     <span><span className='text-gray-500'>Order ID:</span> {order._id}</span>
                     <span><span className='text-gray-500'>Payment:</span> {order.paymentType || 'N/A'}</span>
                     <span><span className='text-gray-500'>Status:</span> {order.status || 'N/A'}</span>
                     <span><span className='text-gray-500'>Total:</span> {currency} {order.amount.toFixed(2)}</span>
-                    {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
+                    {order.status === 'Order Placed' && (
                       <span className='text-red-500'>
-                        Cancel in: {Math.floor(remainingTimes[order._id] / 60)}:
-                        {(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins
+                        {remainingTimes[order._id] > 0
+                          ? `Cancel in: ${Math.floor(remainingTimes[order._id] / 60)}:${(remainingTimes[order._id] % 60).toString().padStart(2, '0')} mins`
+                          : 'Cancellation expired'}
                       </span>
                     )}
                   </div>
 
+                  {/* Order Items */}
                   {(order.items || []).map((item, idx) => {
                     const productId = item.product?._id;
                     const reviewKey = `${order._id}_${productId}`;
-                    const existingRating = (order.reviews || []).find(
-                      (r) => r.productId === productId && r.orderId === order._id
-                    )?.rating;
+                    const rating = ratings[reviewKey];
 
                     return (
-                      <div
-                        key={idx}
-                        className='grid grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 items-center'
-                      >
+                      <div key={idx} className='grid grid-cols-[auto_1fr_auto] gap-4 py-4 border-t border-gray-200 items-center'>
                         {/* Product Image */}
                         <div className='group flex flex-col items-center md:items-start justify-center cursor-pointer'>
                           <img
                             src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
                             alt={item.product?.name || 'Product'}
                             className='w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover transition-transform duration-200 group-hover:scale-105'
-                            onClick={() => {
-                              if (productId) navigate(`/product/${productId}`);
-                              else toast.error("Product not found.");
-                            }}
+                            onClick={() => productId ? navigate(`/product/${productId}`) : toast.error("Product not found.")}
                           />
                           <span className='text-xs text-primary mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
                             View Details
                           </span>
                         </div>
 
-                        {/* Product Info + Rating */}
-                        <div className='flex flex-col justify-center space-y-1 text-left text-sm'>
-                          <h2 className='text-sm font-semibold text-gray-800'>
-                            {item.product?.name || 'Unnamed Product'}
-                          </h2>
-                          <p className='text-gray-500 text-xs'>
-                            Category: {item.product?.category || 'N/A'}
-                          </p>
+                        {/* Product Info */}
+                        <div className='flex flex-col space-y-1 text-sm'>
+                          <h2 className='font-semibold text-gray-800'>{item.product?.name || 'Unnamed Product'}</h2>
+                          <p className='text-gray-500 text-xs'>Category: {item.product?.category || 'N/A'}</p>
                           <p className='text-xs'>Qty: {item.quantity}</p>
-                          <p className='text-xs'>
-                            Ordered On: {new Date(order.createdAt).toLocaleString()}
-                          </p>
+                          <p className='text-xs'>Ordered On: {new Date(order.createdAt).toLocaleString()}</p>
 
-                          {/* Star Rating Display */}
+                          {/* Rating */}
                           <div className='flex items-center mt-2 gap-1'>
                             {[1, 2, 3, 4, 5].map((starIndex) => (
                               <FaStar
                                 key={starIndex}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  if (order.status === 'Delivered' && !existingRating) {
+                                onClick={() => {
+                                  if (order.status === 'Delivered' && !rating) {
                                     handleRatingChange(productId, order._id, starIndex);
                                   } else if (order.status !== 'Delivered') {
                                     toast.error("You can only review after delivery.");
                                   }
                                 }}
-                                color={
-                                  starIndex <=
-                                  (existingRating || ratings[reviewKey] || 0)
-                                    ? 'gold'
-                                    : 'gray'
-                                }
-                                className={`cursor-pointer ${
-                                  existingRating ? 'pointer-events-none' : ''
-                                }`}
+                                color={starIndex <= (rating || 0) ? 'gold' : 'gray'}
+                                className={`cursor-pointer ${rating ? 'pointer-events-none' : ''}`}
                               />
                             ))}
-                            {existingRating && (
+                            {rating && (
                               <span className="text-xs text-gray-500 ml-2">
-                                You rated: {existingRating} ★
+                                You rated: {rating} ★
                               </span>
                             )}
                           </div>
                         </div>
 
                         {/* Price */}
-                        <div className='flex justify-center items-center'>
-                          <p className='text-primary font-semibold text-sm sm:text-base'>
-                            ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
-                          </p>
-                        </div>
+                        <p className='text-primary font-semibold text-sm sm:text-base'>
+                          ₹ {(item.product?.offerPrice * item.quantity).toFixed(2)}
+                        </p>
                       </div>
                     );
                   })}
 
+                  {/* Cancel Button */}
                   {order.status === 'Order Placed' && remainingTimes[order._id] > 0 && (
                     <button
                       className='mt-4 px-4 py-2 bg-red-500 text-white text-xs rounded hover:bg-red-600'
-                      onClick={(e) => { e.preventDefault(); handleCancelOrder(order._id); }}
+                      onClick={() => handleCancelOrder(order._id)}
                     >
                       Cancel Order
                     </button>
