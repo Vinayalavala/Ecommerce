@@ -12,7 +12,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: {
         name: 'Alavala's Root and Craft',
-        short_name: 'Alavala's',
+        short_name: 'Root & Craft',
         start_url: '/',
         display: 'standalone',
         background_color: '#ffffff',
