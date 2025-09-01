@@ -11,7 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Alavala's Root and Craft',
+        name: 'Alavalas Root and Craft',
         short_name: 'Root & Craft',
         start_url: '/',
         display: 'standalone',
