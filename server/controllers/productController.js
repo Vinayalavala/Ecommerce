@@ -1,4 +1,4 @@
-Improve the performance without dsiturbing the logic import { v2 as cloudinary } from "cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 import Product from '../models/Product.js';
 
 // ---------------------------------------------
