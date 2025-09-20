@@ -2,6 +2,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import mongoose from "mongoose";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
@@ -20,140 +21,122 @@ const razorpayInstance = new Razorpay({
 });
 
 /**
- * Helper: Update product stock
+ * Helper: Calculate total amount with GST (2%)
  */
-const updateProductStock = async (items) => {
-  for (const item of items) {
-    const product = await Product.findById(item.product);
-    if (product) {
-      product.stock -= item.quantity;
-      if (product.stock <= 0) {
-        product.stock = 0;
-        product.inStock = false;
-      }
-      await product.save();
-    }
+const calculateAmount = async (items) => {
+  let total = 0;
+  for (const it of items) {
+    const product = await Product.findById(it.product);
+    if (!product) throw new Error(`Product not found: ${it.product}`);
+    if (product.stock < it.quantity) throw new Error(`${product.name} is out of stock`);
+    total += product.offerPrice * it.quantity;
   }
+  const gst = Math.floor(total * 0.02);
+  return total + gst;
 };
 
 /**
- * Place Order - Cash on Delivery
+ * Helper: Update product stock within a session
+ */
+const updateProductStock = async (items, session = null) => {
+  await Promise.all(
+    items.map(async (item) => {
+      const product = await Product.findById(item.product).session(session);
+      if (product) {
+        product.stock -= item.quantity;
+        if (product.stock <= 0) {
+          product.stock = 0;
+          product.inStock = false;
+        }
+        await product.save({ session });
+      }
+    })
+  );
+};
+
+/**
+ * Place Order - Cash on Delivery (with transaction)
+ * Requires authentication middleware to set req.user._id
  */
 export const placeOrderCOD = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
-    const { userId, items, address, isPaid } = req.body;
+    session.startTransaction();
+
+    const userId = req.user?._id;
+    const { items, address, isPaid } = req.body;
+
+    if (!userId) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
     if (!address || !items || items.length === 0) {
-      return res.json({ success: false, message: "Invalid data" });
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, message: "Invalid data" });
     }
 
-    // compute amount
-    let baseAmount = 0;
-    for (const it of items) {
-      const product = await Product.findById(it.product);
-      if (!product) return res.json({ success: false, message: `Product not found: ${it.product}` });
-      if (product.stock < it.quantity) return res.json({ success: false, message: `${product.name} is out of stock` });
-      baseAmount += product.offerPrice * it.quantity;
-    }
-    const gstAmount = Math.floor(baseAmount * 0.02);
-    const amount = baseAmount + gstAmount;
+    // calculate amount (validates product existence & stock)
+    const amount = await calculateAmount(items);
 
-    // use `user` field to satisfy schema
-    const newOrder = await Order.create({
+    // create order within transaction
+    const orderDoc = new Order({
       user: userId,
       items,
       address,
       amount,
       paymentType: "COD",
       isPaid: isPaid ?? false,
+      status: "Order Placed",
     });
 
-    await newOrder.populate("items.product");
-    await newOrder.populate("address");
+    await orderDoc.save({ session });
 
-    // email: use address email -> fallback to user's email
+    // update stock (within same transaction)
+    await updateProductStock(items, session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // populate after commit
+    await orderDoc.populate("items.product");
+    await orderDoc.populate("address");
+
+    // send emails (async; don't affect transaction)
     const [addressEmail, userDoc] = await Promise.all([
       getRecipientEmail(address, userId),
       User.findById(userId).lean(),
     ]);
+    sendOrderEmails({ order: orderDoc, addressEmail, userDoc }).catch((e) =>
+      console.error("Email send error (COD):", e.message)
+    );
 
-    sendOrderEmails({ order: newOrder, addressEmail, userDoc })
-      .catch((e) => console.error("Email send error (COD):", e.message));
-
-    await updateProductStock(items);
-
-    return res.json({ success: true, message: "Order placed successfully", order: newOrder });
+    return res.json({ success: true, message: "Order placed successfully", order: orderDoc });
   } catch (error) {
-    console.error("placeOrderCOD error:", error.message);
-    return res.json({ success: false, message: error.message });
-  }
-};
-
-/**
- * Create Online Order with Razorpay (replaces Stripe session creation)
- * Frontend should call this, then open Razorpay Checkout using the returned order details.
- */
-export const placeOrderRazorpay = async (req, res) => {
-  try {
-    const { items, address, userId } = req.body;
-
-    if (!items || !items.length || !address || !userId) {
-      return res.json({ success: false, message: "Missing required fields" });
+    try {
+      await session.abortTransaction();
+    } catch (e) {
+      console.error("abortTransaction error:", e);
+    } finally {
+      session.endSession();
     }
-
-    let totalAmount = 0;
-    items.forEach((i) => {
-      totalAmount += i.product.price * i.quantity;
-    });
-
-    const orderDoc = await Order.create({
-      user: userId,
-      items,
-      address,
-      amount: totalAmount,
-      paymentType: "Online",
-      isPaid: false,
-    });
-
-    const rpOrder = await razorpayInstance.orders.create({
-      amount: totalAmount * 100, // paise
-      currency: "INR",
-      receipt: orderDoc._id.toString(),
-    });
-
-    return res.json({
-      success: true,
-      razorpayOrder: rpOrder,
-      orderId: orderDoc._id,
-      amount: totalAmount,
-      currency: "INR",
-      key: process.env.RAZORPAY_KEY_ID,
-    });
-  } catch (error) {
-    console.error("Error creating Razorpay order:", error);
-    return res.json({ success: false, message: error.message });
+    console.error("placeOrderCOD error:", error.message || error);
+    return res.status(500).json({ success: false, message: error.message || "Server error" });
   }
 };
 
 /**
- * 🟢 Step 1: Create Razorpay Order (no DB entry yet)
+ * Create Razorpay Order (no DB entry yet)
  */
-
 export const createRazorpayOrder = async (req, res) => {
   try {
     const { items, address, userId } = req.body;
     if (!items?.length || !address || !userId) {
-      return res.json({ success: false, message: "Missing required fields" });
+      return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    let totalAmount = 0;
-    for (const it of items) {
-      const product = await Product.findById(it.product);
-      if (!product) return res.json({ success: false, message: `Product not found: ${it.product}` });
-      if (product.stock < it.quantity) return res.json({ success: false, message: `${product.name} is out of stock` });
-      totalAmount += product.offerPrice * it.quantity;
-    }
-    const gstAmount = Math.floor(totalAmount * 0.02);
-    totalAmount += gstAmount;
+    const totalAmount = await calculateAmount(items);
 
     const rpOrder = await razorpayInstance.orders.create({
       amount: totalAmount * 100,
@@ -170,13 +153,31 @@ export const createRazorpayOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating Razorpay order:", error);
-    return res.json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || "Server error" });
   }
 };
-export const verifyRazorpayPayment = async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, items, address, userId } = req.body;
 
+/**
+ * Verify Razorpay Payment & Create Order (WITH TRANSACTION)
+ *
+ * NOTE: Frontend should provide razorpay_order_id, razorpay_payment_id, razorpay_signature, items, address
+ * This endpoint verifies signature, then creates order and decrements stock atomically.
+ */
+export const verifyRazorpayPayment = async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, items, address } = req.body;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !items || !address) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
+    // verify signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -184,71 +185,90 @@ export const verifyRazorpayPayment = async (req, res) => {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
-      return res.json({ success: false, message: "Invalid signature" });
+      return res.status(400).json({ success: false, message: "Invalid signature" });
     }
 
-    let totalAmount = 0;
-    for (const it of items) {
-      const product = await Product.findById(it.product);
-      if (!product) return res.json({ success: false, message: `Product not found: ${it.product}` });
-      if (product.stock < it.quantity) return res.json({ success: false, message: `${product.name} is out of stock` });
-      totalAmount += product.offerPrice * it.quantity;
-    }
-    const gstAmount = Math.floor(totalAmount * 0.02);
-    totalAmount += gstAmount;
+    session.startTransaction();
 
-    const newOrder = await Order.create({
+    // calculate amount (validates product existence & stock)
+    const amount = await calculateAmount(items);
+
+    // create order in DB within transaction
+    const orderDoc = new Order({
       user: userId,
       items,
       address,
-      amount: totalAmount,
+      amount,
       paymentType: "Online",
       isPaid: true,
       status: "Paid",
       paymentId: razorpay_payment_id,
     });
 
-    await updateProductStock(items);
+    await orderDoc.save({ session });
 
+    // update product stock within transaction
+    await updateProductStock(items, session);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // populate after commit
+    await orderDoc.populate("items.product");
+    await orderDoc.populate("address");
+
+    // send emails (async)
     const [addressEmail, userDoc] = await Promise.all([
       getRecipientEmail(address, userId),
       User.findById(userId).lean(),
     ]);
-    sendOrderEmails({ order: newOrder, addressEmail, userDoc })
-      .catch((e) => console.error("Email send error (Razorpay):", e.message));
+    sendOrderEmails({ order: orderDoc, addressEmail, userDoc }).catch((e) =>
+      console.error("Email send error (Razorpay):", e.message)
+    );
 
-    return res.json({ success: true, message: "Payment verified & order placed", order: newOrder });
+    return res.json({ success: true, message: "Payment verified & order placed", order: orderDoc });
   } catch (error) {
+    try {
+      await session.abortTransaction();
+    } catch (e) {
+      console.error("abortTransaction error:", e);
+    } finally {
+      session.endSession();
+    }
     console.error("Error verifying Razorpay payment:", error);
-    return res.json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || "Server error" });
   }
 };
 
 /**
- * Get orders for a user
+ * Get orders for logged-in user
  */
 export const getUserOrders = async (req, res) => {
   try {
-    const userId = req.user?._id || req.query.userId;
-    if (!userId) return res.json({ success: false, message: "User ID is required" });
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ success: false, message: "Authentication required" });
 
     const orders = await Order.find({ user: userId })
       .populate("items.product")
       .populate("address")
       .lean();
 
-    for (const order of orders) {
-      for (const item of order.items) {
-        if (item?.product?._id) {
-          item.reviews = await Review.find({
-            productId: item.product._id,
-            orderId: order._id,
-          }).lean();
-        } else {
-          item.reviews = [];
-        }
-      }
-    }
+    await Promise.all(
+      orders.map(async (order) => {
+        await Promise.all(
+          order.items.map(async (item) => {
+            if (item?.product?._id) {
+              item.reviews = await Review.find({
+                productId: item.product._id,
+                orderId: order._id,
+              }).lean();
+            } else {
+              item.reviews = [];
+            }
+          })
+        );
+      })
+    );
 
     if (!orders || orders.length === 0) {
       return res.json({ success: false, message: "No orders found" });
@@ -256,8 +276,8 @@ export const getUserOrders = async (req, res) => {
 
     return res.json({ success: true, orders });
   } catch (error) {
-    console.error("Error fetching user orders:", error.message);
-    return res.json({ success: false, message: "An error occurred while fetching orders" });
+    console.error("Error fetching user orders:", error.message || error);
+    return res.status(500).json({ success: false, message: "An error occurred while fetching orders" });
   }
 };
 
@@ -266,6 +286,7 @@ export const getUserOrders = async (req, res) => {
  */
 export const getAllOrders = async (req, res) => {
   try {
+    // TODO: ensure admin authorization in route middleware
     const orders = await Order.find()
       .populate("items.product")
       .populate("address")
@@ -276,23 +297,27 @@ export const getAllOrders = async (req, res) => {
       return res.json({ success: false, message: "No orders found" });
     }
 
-    for (const order of orders) {
-      for (const item of order.items) {
-        if (item.product?._id) {
-          item.reviews = await Review.find({
-            productId: item.product._id,
-            orderId: order._id,
-          }).lean();
-        } else {
-          item.reviews = [];
-        }
-      }
-    }
+    await Promise.all(
+      orders.map(async (order) => {
+        await Promise.all(
+          order.items.map(async (item) => {
+            if (item.product?._id) {
+              item.reviews = await Review.find({
+                productId: item.product._id,
+                orderId: order._id,
+              }).lean();
+            } else {
+              item.reviews = [];
+            }
+          })
+        );
+      })
+    );
 
     return res.json({ success: true, orders });
   } catch (error) {
-    console.log("Error in getAllOrders:", error.message);
-    return res.json({ success: false, message: error.message });
+    console.log("Error in getAllOrders:", error.message || error);
+    return res.status(500).json({ success: false, message: error.message || "Server error" });
   }
 };
 
@@ -310,11 +335,12 @@ export const markOrderAsPaid = async (req, res) => {
       return res.status(400).json({ success: false, message: "Order is already marked as paid" });
     }
     order.isPaid = true;
+    order.status = order.status || "Paid";
     await order.save();
 
     return res.json({ success: true, message: "Order marked as paid successfully", order });
   } catch (error) {
-    console.error("Error marking order as paid:", error.message);
+    console.error("Error marking order as paid:", error.message || error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -345,7 +371,7 @@ export const updateOrderStatus = async (req, res) => {
       order,
     });
   } catch (error) {
-    console.error(error);
+    console.error("updateOrderStatus error:", error);
     return res.status(500).json({
       success: false,
       message: error.message || "Internal Server Error",
@@ -356,46 +382,64 @@ export const updateOrderStatus = async (req, res) => {
 /**
  * Cancel order (within 5 minutes & only if 'Order Placed')
  */
-// cancel order (refund + restock)
 export const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ success: false, message: "Authentication required" });
+
     const order = await Order.findById(id).populate("items.product");
 
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // If already cancelled
+    // Ensure requester owns the order or has admin rights (admin check should be in middleware)
+    if (order.user.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized to cancel this order" });
+    }
+
     if (order.status === "Cancelled") {
       return res.json({ success: false, message: "Order already cancelled" });
     }
 
-    // Refund for online payments
-    if (order.paymentMethod === "Online" && order.isPaid) {
-      const razorpay = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET,
-      });
-
-      // Call Razorpay Refund API
-      const refund = await razorpay.payments.refund(order.paymentId, {
-        amount: order.totalAmount * 100, // paise
-        speed: "normal",
-      });
-
-      order.isRefunded = true;
-      order.refundId = refund.id;
+    // enforce cancel window (5 minutes)
+    const fiveMinutes = 5 * 60 * 1000;
+    if (Date.now() - order.createdAt.getTime() > fiveMinutes) {
+      return res.json({ success: false, message: "Cancellation window expired" });
+    }
+    if (order.status !== "Order Placed") {
+      return res.json({ success: false, message: "Order cannot be cancelled at this stage" });
     }
 
-    // 🔥 Restock items
-    for (let item of order.items) {
-      const product = await Product.findById(item.product._id);
-      if (product) {
-        product.stock += item.quantity; // restore stock
-        await product.save();
+    // Refund for online payments (use razorpayInstance)
+    if (order.paymentType === "Online" && order.isPaid) {
+      try {
+        const refund = await razorpayInstance.payments.refund(order.paymentId, {
+          amount: order.amount * 100, // paise
+          speed: "normal",
+        });
+        order.isRefunded = true;
+        order.refundId = refund.id;
+      } catch (refundError) {
+        // Log refund failure but continue to restock & cancel — or choose to abort based on business rule
+        console.error("Razorpay refund failed:", refundError);
+        // Optionally return error to user:
+        // return res.status(500).json({ success: false, message: "Refund failed" });
       }
     }
+
+    // Restock items
+    await Promise.all(
+      order.items.map(async (item) => {
+        const prod = await Product.findById(item.product._id);
+        if (prod) {
+          prod.stock += item.quantity;
+          prod.inStock = prod.stock > 0;
+          await prod.save();
+        }
+      })
+    );
 
     order.status = "Cancelled";
     await order.save();
@@ -407,23 +451,21 @@ export const cancelOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Cancel Order Error:", error);
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || "Server error" });
   }
 };
-
-
 
 /**
  * Reviews
  */
 export const submitReview = async (req, res) => {
-  const { userId, productId, orderId, rating, comment } = req.body;
-
-  if (!userId || !productId || !orderId) {
-    return res.status(400).json({ success: false, message: "Missing fields" });
-  }
-
   try {
+    const { userId, productId, orderId, rating, comment } = req.body;
+
+    if (!userId || !productId || !orderId) {
+      return res.status(400).json({ success: false, message: "Missing fields" });
+    }
+
     const existing = await Review.findOne({ userId, productId, orderId });
     if (existing) {
       return res.status(400).json({
@@ -437,17 +479,21 @@ export const submitReview = async (req, res) => {
 
     return res.json({ success: true, review });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error("submitReview error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Server error" });
   }
 };
 
 export const getUserReviews = async (req, res) => {
   try {
-    const { userId } = req.query;
+    // Prefer logged-in user; fallback to query param if admin use-case
+    const userId = req.user?._id || req.query.userId;
+    if (!userId) return res.status(401).json({ success: false, message: "Authentication required" });
+
     const reviews = await Review.find({ userId });
-    return res.json(reviews);
+    return res.json({ success: true, reviews });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Failed to fetch reviews" });
+    console.error("getUserReviews error:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch reviews" });
   }
 };
