@@ -16,7 +16,7 @@ const SellerLayout = () => {
   }, [location.pathname]);
 
   const sidebarLinks = [
-    { name: "Add Product", path: "/seller", icon: assets.add_icon },
+    { name: "Add Product", path: "/seller/add-ad", icon: assets.add_icon },
     { name: "Product List", path: "/seller/product-list", icon: assets.product_list_icon },
     { name: "Orders", path: "/seller/orders", icon: assets.order_icon },
     { name: "Analytics", path: "/seller/analytics", icon: FiBarChart2 },
