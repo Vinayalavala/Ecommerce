@@ -49,7 +49,7 @@ app.use("/api/ads", adRouter);
 
 // Test route
 app.get('/', (req, res) => {
-  res.send("API is Working Nice");
+  res.send("API is Running...");
 });
 
 // Async startup
