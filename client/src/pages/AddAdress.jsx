@@ -1,4 +1,4 @@
-add a black loader import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAppContext } from '../context/appContext';
 import { toast } from 'react-hot-toast';
