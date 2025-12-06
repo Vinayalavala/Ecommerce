@@ -44,7 +44,7 @@ const AddProduct = () => {
     if (productFromState) {
       fillFormData(productFromState);
     } else if (editId) {
-      axios.get(`/api/product/${editId}`).then(({ data }) => {
+      axios.get(`/api/product/add-ad/${editId}`).then(({ data }) => {
         if (data.success) {
           fillFormData(data.product);
         }
