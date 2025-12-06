@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react';
 import assets, { categories } from '../../assets/assets';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-
-/* Added import for star icons (kept original imports above intact) */
 import { FaStar } from 'react-icons/fa';
 
 const Orders = () => {
@@ -14,9 +12,8 @@ const Orders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [ratings, setRatings] = useState({}); // <-- added ratings state
+  const [ratings, setRatings] = useState({});
   const navigate = useNavigate();
-  
 
   const fetchOrders = async () => {
     try {
@@ -45,7 +42,7 @@ const Orders = () => {
   }, []);
 
   // Build ratings map whenever orders change.
-  // The map key is `${orderId}_${productId}` -> rating number
+  // map key: `${orderId}_${productId}`
   useEffect(() => {
     const map = {};
     if (!orders || orders.length === 0) {
@@ -55,7 +52,6 @@ const Orders = () => {
 
     for (const order of orders) {
       const orderId = order._id;
-      // 1) If order has top-level reviews array (some implementations)
       if (Array.isArray(order.reviews)) {
         for (const r of order.reviews) {
           if (r && r.productId) {
@@ -64,14 +60,15 @@ const Orders = () => {
         }
       }
 
-      // 2) Iterate items; item.reviews or product.reviews
       for (const item of order.items || []) {
-        const productId = item?.product?._id || item?.product || item?.productId || item?.productId;
-        // If item has its own reviews array (populated by backend)
+        // Prefer product._id, then explicit item.productId, then fallback to item.product (if it's a string)
+        const productId =
+          item?.product?._id ||
+          item?.productId ||
+          (typeof item?.product === "string" ? item.product : undefined);
+
         if (Array.isArray(item.reviews) && item.reviews.length > 0) {
-          // prefer a review that matches this order
           const matched = item.reviews.find((rv) => {
-            // possible field names: orderId, order, order_id
             if (!rv) return false;
             const ored = rv.orderId || rv.order || rv.order_id;
             return ored ? String(ored) === String(orderId) : false;
@@ -81,9 +78,7 @@ const Orders = () => {
             map[`${orderId}_${String(productId)}`] = Number(matched.rating || matched.score || 0);
           }
         }
-        
 
-        // 3) If product has embedded reviews (product.reviews), use those
         if (item.product && Array.isArray(item.product.reviews) && item.product.reviews.length > 0) {
           const matchedProdReview = item.product.reviews.find((rv) => {
             if (!rv) return false;
@@ -92,7 +87,6 @@ const Orders = () => {
           }) || item.product.reviews[0];
 
           if (matchedProdReview && productId) {
-            // only set if not already set by item.reviews above (order-level priority)
             const key = `${orderId}_${String(productId)}`;
             if (!map[key]) {
               map[key] = Number(matchedProdReview.rating || matchedProdReview.score || 0);
@@ -116,7 +110,7 @@ const Orders = () => {
           )
         );
 
-        // Also update status to Delivered
+        // Also update status to Delivered - note: if this fails, UI already changed.
         await axios.put(`/api/order/${orderId}/status`, { status: "Delivered" });
       } else {
         toast.error(data.message || "Failed to mark order as paid.");
@@ -126,46 +120,43 @@ const Orders = () => {
     }
   };
 
-
   const updateOrderStatus = async (orderId, newStatus) => {
-  try {
-    const { data } = await axios.put(
-      `/api/order/${orderId}/status`,
-      { status: newStatus }
-    );
-    if (data.success) {
-      toast.success("Order status updated.");
-      setOrders((prev) =>
-        prev.map((o) =>
-          o._id === orderId
-            ? {
-                ...o,
-                status: newStatus,
-                isPaid:
-                  newStatus === "Delivered"
-                    ? true
-                    : newStatus === "Cancelled"
-                    ? false
-                    : o.isPaid,
-              }
-            : o
-        )
-      );
+    try {
+      const { data } = await axios.put(`/api/order/${orderId}/status`, { status: newStatus });
+      if (data.success) {
+        toast.success("Order status updated.");
+        setOrders((prev) =>
+          prev.map((o) =>
+            o._id === orderId
+              ? {
+                  ...o,
+                  status: newStatus,
+                  isPaid:
+                    newStatus === "Delivered"
+                      ? true
+                      : newStatus === "Cancelled"
+                      ? false
+                      : o.isPaid,
+                }
+              : o
+          )
+        );
 
-      if (newStatus === "Delivered") {
-        await axios.patch(`/api/order/${orderId}/mark-paid`);
+        if (newStatus === "Delivered") {
+          await axios.patch(`/api/order/${orderId}/mark-paid`);
+        }
+      } else {
+        toast.error(data.message || "Failed to update order status.");
       }
-
-    } else {
-      toast.error(data.message || "Failed to update order status.");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message || "Failed to update order status.");
     }
-  } catch (error) {
-    toast.error(error?.response?.data?.message || error.message || "Failed to update order status.");
-  }
-};
+  };
 
+  // Group safely (guard for missing createdAt)
   const groupedOrders = orders.reduce((acc, order) => {
-    const dateStr = new Date(order.createdAt).toDateString();
+    const created = order.createdAt ? new Date(order.createdAt) : new Date();
+    const dateStr = created.toDateString();
     if (!acc[dateStr]) acc[dateStr] = [];
     acc[dateStr].push(order);
     return acc;
@@ -192,7 +183,7 @@ const Orders = () => {
     new Set(
       orders
         .flatMap((order) =>
-          order.items.map((item) => item.product?.category || item.category || "Unknown")
+          (order.items || []).map((item) => item.product?.category || item.category || "Unknown")
         )
         .filter(Boolean)
     )
@@ -200,19 +191,20 @@ const Orders = () => {
 
   const filterOrder = (order) => {
     const search = searchTerm.toLowerCase();
+    const fullName = `${order.address?.firstName || ""} ${order.address?.lastName || ""}`.toLowerCase();
+    const createdIso = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : "";
+
     const matchesText =
-      order._id.toLowerCase().includes(search) ||
-      `${order.address?.firstName || ""} ${order.address?.lastName || ""}`
-        .toLowerCase()
-        .includes(search) ||
-      new Date(order.createdAt).toISOString().split("T")[0].includes(search);
+      String(order._id || "").toLowerCase().includes(search) ||
+      fullName.includes(search) ||
+      createdIso.includes(search);
 
     const matchesPayment =
       paymentFilter === "all" ||
       (paymentFilter === "paid" && order.isPaid) ||
       (paymentFilter === "pending" && !order.isPaid);
 
-    const categoriesInOrder = order.items.map(
+    const categoriesInOrder = (order.items || []).map(
       (item) => item.product?.category || item.category || "Unknown"
     );
     const matchesCategory =
@@ -229,7 +221,7 @@ const Orders = () => {
       </div>
     );
   }
-  if (orders.length === 0) return <div className="p-10 text-center">No orders found.</div>;
+  if (!orders || orders.length === 0) return <div className="p-10 text-center">No orders found.</div>;
 
   return (
     <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll">
@@ -319,44 +311,41 @@ const Orders = () => {
 const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus, ratings }) => {
   const navigate = useNavigate();
   const [isUpdating, setIsUpdating] = useState(false);
-  const [localIsPaid, setLocalIsPaid] = useState(order.isPaid);
+  const [localIsPaid, setLocalIsPaid] = useState(Boolean(order.isPaid));
   const [localStatus, setLocalStatus] = useState(order.status || "Order Placed");
 
   const handleTogglePaid = async () => {
-  if (localIsPaid || isUpdating || localStatus === "Cancelled") return;
-  setIsUpdating(true);
-  await onMarkAsPaid(order._id);
-  setLocalIsPaid(true);
-  if (localStatus !== "Delivered") {
-    setLocalStatus("Delivered");
-  }
-  setIsUpdating(false);
-};
-
-
+    if (localIsPaid || isUpdating || localStatus === "Cancelled") return;
+    setIsUpdating(true);
+    await onMarkAsPaid(order._id);
+    setLocalIsPaid(true);
+    if (localStatus !== "Delivered") {
+      setLocalStatus("Delivered");
+    }
+    setIsUpdating(false);
+  };
 
   const handleStatusChange = async (e) => {
-  const newStatus = e.target.value;
+    const newStatus = e.target.value;
 
-  // Prevent update if status is already Delivered or Cancelled
-  if (localStatus === "Delivered" || localStatus === "Cancelled") {
-    toast.error("Status cannot be changed after it's Delivered or Cancelled.");
-    return;
-  }
+    if (localStatus === "Delivered" || localStatus === "Cancelled") {
+      toast.error("Status cannot be changed after it's Delivered or Cancelled.");
+      return;
+    }
 
-  setLocalStatus(newStatus);
-  setIsUpdating(true);
+    setLocalStatus(newStatus);
+    setIsUpdating(true);
 
-  await onUpdateStatus(order._id, newStatus);
+    await onUpdateStatus(order._id, newStatus);
 
-  if (newStatus === "Delivered") {
-    setLocalIsPaid(true); // Mark paid if delivered
-  } else if (newStatus === "Cancelled") {
-    setLocalIsPaid(false); // Mark unpaid if cancelled
-  }
+    if (newStatus === "Delivered") {
+      setLocalIsPaid(true);
+    } else if (newStatus === "Cancelled") {
+      setLocalIsPaid(false);
+    }
 
-  setIsUpdating(false);
-};
+    setIsUpdating(false);
+  };
 
   const timeStr = new Date(order.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
@@ -365,21 +354,21 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus, ratings }) =
 
   return (
     <div className="flex flex-col mb-9 md:flex-row justify-between md:items-center gap-5 p-5 max-w-5xl rounded-md border border-gray-300 shadow-sm hover:shadow-md transition">
-      
-      {/* Left: Product images and names aligned horizontally */}
       <div className="flex flex-col gap-3 max-w-96">
-        {order.items?.map((item) => {
-          const productId = item.product?._id || item.product || item.productId;
+        {(order.items || []).map((item, idx) => {
+          const productId =
+            item.product?._id ||
+            item.productId ||
+            (typeof item.product === "string" ? item.product : undefined);
           const imageSrc = item.product?.image?.[0] || assets.box_icon;
           const productName = item.product?.name || item.name || 'Unnamed Product';
 
-          // derive key and rating from ratings map (built in parent)
-          const key = `${order._id}_${String(productId)}`;
+          const key = `${order._id}_${String(productId || idx)}`;
           const existingRating = Number(ratings?.[key] || 0);
 
           return (
             <div
-              key={item._id || productId || Math.random()}
+              key={item._id || productId || idx}
               className="flex items-center gap-3"
             >
               <div className="group relative flex-shrink-0">
@@ -390,8 +379,13 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus, ratings }) =
                   className="w-16 h-16 object-cover rounded border border-gray-300 cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition duration-300 ease-in-out"
                   onClick={() => {
                     if (productId) {
-                      // keep your previous path behaviour
-                      navigate(`/products/${categories}/${productId}`);
+                      // Navigate using product category if available, otherwise go product-only path
+                      const category = item.product?.category || item.category;
+                      if (category) {
+                        navigate(`/products/${category}/${productId}`);
+                      } else {
+                        navigate(`/products/${productId}`);
+                      }
                     } else {
                       toast.error("No product ID found.");
                     }
@@ -408,43 +402,35 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus, ratings }) =
                   <span className="text-primary">x {item.quantity}</span>
                 </p>
 
-                {/* ---------- Read-only star rating (sellers view) ---------- */}
                 <div className="flex items-center mt-0.5 gap-0.5">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <FaStar
                       key={star}
                       size={14}
-                      color={star <= existingRating ? '#facc15' : '#d1d5db'} // gold for filled, gray-300 for empty
+                      color={star <= existingRating ? '#facc15' : '#d1d5db'}
                       className="cursor-default"
                     />
                   ))}
-                  
                 </div>
-                {/* --------------------------------------------------------- */}
-
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Address */}
       <OrderAddress address={order.address} />
 
-      {/* Order ID */}
       <div className="text-xs md:text-sm text-gray-500 break-all max-w-[160px]">
         <span className="text-black/70 font-semibold">Order ID:</span>
         <br />
         {order._id}
       </div>
 
-      {/* Amount */}
       <p className="font-medium text-lg my-auto text-black/70">
         {currency}
         {typeof order.amount === "number" ? order.amount.toFixed(2) : "0.00"}
       </p>
 
-      {/* Payment + Status */}
       <div className="flex flex-col text-sm md:text-base text-black/60 space-y-1">
         <p>Method: {order.paymentType || "N/A"}</p>
         <p>Time: {timeStr}</p>
@@ -520,6 +506,5 @@ const OrderAddress = ({ address }) => {
     </div>
   );
 };
-
 
 export default Orders;
