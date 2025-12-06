@@ -384,19 +384,41 @@ export const getAllOrders = async (req, res) => {
 export const markOrderAsPaid = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const order = await Order.findById(orderId);
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "orderId is required in params" });
+    }
+
+    const order = await Order.findById(orderId).populate("items.product").lean();
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
-    if (order.isPaid) {
-      return res.status(400).json({ success: false, message: "Order is already marked as paid" });
-    }
-    order.isPaid = true;
-    await order.save();
 
-    return res.json({ success: true, message: "Order marked as paid successfully", order });
+    if (order.isPaid) {
+      return res.status(400).json({ success: false, message: "Order is already marked as paid", order });
+    }
+
+    // Update using findByIdAndUpdate so we can return the newest document
+    const updated = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: {
+          isPaid: true,
+          status: "Delivered", // update status so front-end that depends on status sees it
+          paymentConfirmedAt: new Date(), // optional helpful timestamp
+        },
+      },
+      { new: true }
+    )
+      .populate("items.product")
+      .populate("address");
+
+    return res.json({
+      success: true,
+      message: "Order marked as paid successfully",
+      order: updated,
+    });
   } catch (error) {
-    console.error("Error marking order as paid:", error.message);
+    console.error("Error marking order as paid:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
