@@ -1,5 +1,5 @@
 // src/components/Navbar.jsx
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import assets from "../assets/assets";
 import { useAppContext } from "../context/appContext.jsx";
@@ -9,8 +9,6 @@ import { MdKeyboardArrowDown } from "react-icons/md";
 
 /* ---------- small md5 function for gravatar (lightweight) ---------- */
 const md5 = (s) => {
-  // simple MD5 implementation — small, works in browser for emails
-  // source: simplified implementation for this use-case
   function cmn(q, a, b, x, s, t) {
     a = (a + q + x + t) | 0;
     return (((a << s) | (a >>> (32 - s))) + b) | 0;
@@ -43,12 +41,10 @@ const md5 = (s) => {
     return s;
   }
 
-  // convert to bytes and pad per RFC
   const msg = toBytes(unescape(encodeURIComponent(s)));
   const origLen = msg.length * 8;
   msg.push(0x80);
   while ((msg.length % 64) !== 56) msg.push(0);
-  // append original length in bits, little endian
   for (let i = 0; i < 8; i++) msg.push((origLen >>> (i * 8)) & 0xff);
 
   const M = [];
@@ -152,41 +148,23 @@ const md5 = (s) => {
 
 /* ------------------- helpers for profile image ------------------- */
 
-/**
- * Attempts to produce a usable image URL from many possible `profilePic` inputs:
- * - absolute URL (http/https) => returned as-is
- * - data URL (data:) => returned as-is
- * - email-like string (contains @) => produce gravatar URL (identicon fallback)
- * - relative path or filename => prefix with REACT_APP_API_URL or window.origin, encoding final segment
- * - otherwise return null so caller can use the default icon
- */
 const buildProfileUrl = (input, user) => {
   if (!input && !user) return null;
 
   const raw = typeof input === "string" ? input.trim() : "";
 
-  // 1) data URL
   if (raw.startsWith("data:")) return raw;
-
-  // 2) absolute url
   if (/^https?:\/\//i.test(raw)) return raw;
-
-  // 3) if string looks like an email (contains @ and a dot), use gravatar first
   if (/@/.test(raw) && /\.[a-z]{2,}$/i.test(raw)) {
     const email = raw.toLowerCase().trim();
     const hash = md5(email);
-    // use gravatar with identicon fallback, size 200
     return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200`;
   }
-
-  // 4) if input is missing but user.email exists, use gravatar for user.email
   if (!raw && user?.email) {
     const email = String(user.email).toLowerCase().trim();
     const hash = md5(email);
     return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200`;
   }
-
-  // 5) relative path or filename: encode only path segments safely
   if (raw) {
     const base = process.env.REACT_APP_API_URL || window.location.origin;
     const cleaned = raw.replace(/^\/+|\/+$/g, "");
@@ -204,7 +182,9 @@ const Navbar = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [hideTopBar, setHideTopBar] = useState(false);
   const [hideBottomBar, setHideBottomBar] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollRef = useRef(0);
+
+  // animated placeholders
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
@@ -226,7 +206,19 @@ const Navbar = () => {
     searchQuery,
   } = useAppContext();
 
+  // local query state for debounce (so we don't navigate/update global on every keystroke)
+  const [localQuery, setLocalQuery] = useState(() => (searchQuery || ""));
+
   const navigate = useNavigate();
+  const rawProfile = user?.profilePic;
+  const primaryUrl = buildProfileUrl(rawProfile, user);
+  const gravatarFromUser = user?.email ? `https://www.gravatar.com/avatar/${md5(String(user.email).toLowerCase().trim())}?d=identicon&s=200` : null;
+  const defaultIcon = assets.profile_icon;
+
+  // keep localQuery in sync if searchQuery is changed externally
+  useEffect(() => {
+    setLocalQuery(searchQuery || "");
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchUserIfMissing = async () => {
@@ -271,11 +263,12 @@ const Navbar = () => {
     return () => window.removeEventListener("resize", updateIsMobile);
   }, [updateIsMobile]);
 
+  // improved scroll handler: register once, use ref to track last scroll
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       if (window.innerWidth < 768) {
-        if (currentScrollY > lastScrollY && currentScrollY > 50) {
+        if (currentScrollY > lastScrollRef.current && currentScrollY > 50) {
           setHideTopBar(true);
           setHideBottomBar(true);
         } else {
@@ -283,32 +276,57 @@ const Navbar = () => {
           setHideBottomBar(false);
         }
       }
-      setLastScrollY(currentScrollY);
+      lastScrollRef.current = currentScrollY;
     };
+
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
+  // placeholder rotator
   useEffect(() => {
     const i = setInterval(() => setPlaceholderIndex((p) => (p + 1) % placeholders.length), 2000);
     return () => clearInterval(i);
   }, []);
 
+  // derive searchActive from either localQuery or shared searchQuery
   useEffect(() => {
-    setSearchActive(Boolean(searchQuery && searchQuery.length > 0));
-  }, [searchQuery]);
+    setSearchActive(Boolean((localQuery && localQuery.length > 0) || (searchQuery && searchQuery.length > 0)));
+  }, [localQuery, searchQuery]);
 
-  // Build a list of fallback URLs / data to try (primary -> secondary -> default)
-  const rawProfile = user?.profilePic;
-  // primary attempt: buildProfileUrl(rawProfile, user)
-  const primaryUrl = buildProfileUrl(rawProfile, user);
-  // secondary attempt: if primary failed or equals an email we also try gravatar via user.email
-  const gravatarFromUser = user?.email ? `https://www.gravatar.com/avatar/${md5(String(user.email).toLowerCase().trim())}?d=identicon&s=200` : null;
+  // debounce updating the shared context searchQuery from localQuery
+  useEffect(() => {
+    const id = setTimeout(() => {
+      // only update global if different
+      const clean = (localQuery || "").trim();
+      if (clean !== (searchQuery || "")) {
+        setSearchQuery(clean);
+      }
+    }, 300); // 300ms debounce
 
-  // final fallback asset
-  const defaultIcon = assets.profile_icon;
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localQuery]);
 
-  // Render
+  // handle Enter key => navigate to products page with query param
+  const handleSearchKeyDown = (e) => {
+    if (e.key === "Enter") {
+      const q = (localQuery || "").trim();
+      if (q.length > 0) {
+        navigate(`/products?search=${encodeURIComponent(q)}`);
+      } else {
+        navigate("/products");
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  // small helper to navigate and scroll
+  const goTo = (path) => {
+    navigate(path);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <>
       <nav className={`z-50 fixed top-0 left-0 w-full transition-transform duration-500 ease-in-out bg-white/90 backdrop-blur-md border-b border-gray-300 py-3 px-3 md:px-8 lg:px-15 ${hideTopBar ? "-translate-y-12" : "translate-y-0"}`}>
@@ -316,11 +334,11 @@ const Navbar = () => {
         {isMobile && !user ? (
           <div className="flex flex-col items-center gap-2">
             <div className="w-full flex items-center justify-center">
-              <div  className="h-10" /> <div className=" pr-0.5 text-xl">Alavala's Root & Craft</div>
+              <div className="h-10" /> <div className=" pr-0.5 text-xl">Alavala's Root & Craft</div>
             </div>
             <div className="w-full px-4 flex gap-3">
               <button onClick={() => setShowUserLogin(true)} className="flex-1 py-2 bg-primary text-white rounded-full text-sm font-medium">Login</button>
-              <button onClick={() => navigate("/seller")} className="flex-1 py-2 bg-white border border-gray-300 text-sm rounded-full">Seller</button>
+              <button onClick={() => goTo("/seller")} className="flex-1 py-2 bg-white border border-gray-300 text-sm rounded-full">Seller</button>
             </div>
           </div>
         ) : (
@@ -332,9 +350,18 @@ const Navbar = () => {
                 </NavLink>
 
                 <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md bg-white relative overflow-hidden">
-                  <input onChange={(e) => setSearchQuery(e.target.value)} value={searchQuery} className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500" type="text"
+                  <input
+                    onChange={(e) => setLocalQuery(e.target.value)}
+                    value={localQuery}
+                    className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500"
+                    type="text"
+                    placeholder="Search products"
                     onFocus={() => setSearchActive(true)}
-                    onBlur={() => { if (!searchQuery || searchQuery.length === 0) setSearchActive(false); }}
+                    onBlur={() => { if (!localQuery || localQuery.length === 0) setSearchActive(false); }}
+                    onKeyDown={handleSearchKeyDown}
+                    aria-label="Search products"
+                    aria-autocomplete="none"
+                    aria-controls="nav-search-suggestions"
                   />
                   <div className={`absolute left-4 flex items-center pointer-events-none select-none transition-opacity duration-200 ${searchActive ? "opacity-0" : "opacity-100"}`}>
                     <span className="text-gray-400">Search for&nbsp;</span>
@@ -355,21 +382,18 @@ const Navbar = () => {
                   {!user ? (
                     <div className="flex flex-col items-end gap-2">
                       <button onClick={() => setShowUserLogin(true)} className="px-4 py-1.5 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Login</button>
-                      <button onClick={() => navigate("/seller")} className="px-4 py-1.5 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
+                      <button onClick={() => goTo("/seller")} className="px-4 py-1.5 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
                     </div>
                   ) : (
                     <div className="relative">
-                      {/* <img> with robust onError chain */}
                       <img
                         src={primaryUrl || gravatarFromUser || defaultIcon}
                         alt={user?.name || "user"}
                         className="w-8 h-8 cursor-pointer rounded-full object-cover"
-                        onClick={() => navigate("/profile")}
+                        onClick={() => goTo("/profile")}
                         onError={(e) => {
-                          // if primary failed, try gravatarFromUser, then default
                           console.warn("[Navbar] profile img load failed for:", rawProfile, "attempting fallback.");
                           const cur = e.currentTarget;
-                          // prevent infinite loop
                           cur.onerror = null;
                           if (primaryUrl && gravatarFromUser && cur.src !== gravatarFromUser) {
                             cur.src = gravatarFromUser;
@@ -386,7 +410,7 @@ const Navbar = () => {
               {/* mobile profile info (< lg) */}
               {user && (
                 <div className="lg:hidden flex items-center gap-3 mt-3 px-1">
-                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/profile")}>
+                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => goTo("/profile")}>
                     <img
                       src={primaryUrl || gravatarFromUser || defaultIcon}
                       alt={user?.name || "user"}
@@ -400,11 +424,10 @@ const Navbar = () => {
                     />
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">{user.name}</span>
-                      {/* email hidden on mobile as requested */}
                     </div>
                   </div>
                   {selectedAddress && (
-                    <span onClick={() => navigate("/add-address")} className="text-gray-500 text-xs truncate max-w-[250px] cursor-pointer">{selectedAddress.street}</span>
+                    <span onClick={() => goTo("/add-address")} className="text-gray-500 text-xs truncate max-w-[250px] cursor-pointer">{selectedAddress.street}</span>
                   )}
                   <button onClick={() => console.log("menu open")} className="ml-auto bg-gray-100 p-1 rounded-full" aria-label="open menu"><MdKeyboardArrowDown/></button>
                 </div>
@@ -413,7 +436,7 @@ const Navbar = () => {
               {!user && (
                 <div className="lg:hidden flex flex-col items-start gap-2 mt-4 px-1 w-full">
                   <button onClick={() => setShowUserLogin(true)} className="w-full py-2 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Login</button>
-                  <button onClick={() => navigate("/seller")} className="w-full py-2 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
+                  <button onClick={() => goTo("/seller")} className="w-full py-2 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
                 </div>
               )}
             </div>
@@ -421,9 +444,16 @@ const Navbar = () => {
             {/* mobile search bar (< lg) */}
             <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-3' : 'mt-0'}`}>
               <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-hidden mx-auto">
-                <input onChange={(e) => setSearchQuery(e.target.value)} value={searchQuery} className="w-full bg-transparent outline-none placeholder-gray-500" type="text"
+                <input
+                  onChange={(e) => setLocalQuery(e.target.value)}
+                  value={localQuery}
+                  className="w-full bg-transparent outline-none placeholder-gray-500"
+                  type="text"
+                  placeholder="Search products..."
                   onFocus={() => setSearchActive(true)}
-                  onBlur={() => { if (!searchQuery || searchQuery.length === 0) setSearchActive(false); }}
+                  onBlur={() => { if (!localQuery || localQuery.length === 0) setSearchActive(false); }}
+                  onKeyDown={handleSearchKeyDown}
+                  aria-label="Search products"
                 />
                 <div className={`absolute left-4 flex items-center pointer-events-none select-none transition-opacity duration-200 ${searchActive ? 'opacity-0' : 'opacity-100'}`}>
                   <span className="text-gray-400">Search for&nbsp;</span>
@@ -442,15 +472,15 @@ const Navbar = () => {
 
       {/* bottom navbar for mobile */}
       <div className={`sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl transition-all duration-[800ms] ease-in-out ${hideBottomBar ? "translate-y-20 opacity-0" : "translate-y-0 opacity-100"}`}>
-        <button onClick={() => navigate("/")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
+        <button onClick={() => goTo("/")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <img src={assets.home_icon || assets.menu_icon} alt="home" className="w-6 h-6 mb-1" />
           <span>Home</span>
         </button>
-        <button onClick={() => navigate("/products")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
+        <button onClick={() => goTo("/products")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" className="w-6 h-6 mb-1 text-gray-600" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73zM12 3.25L18.6 7 12 10.75 5.4 7 12 3.25zM5 8.9l6.5 3.7v7.2L5 16.1V8.9zm8.5 10.9v-7.2L20 8.9v7.2l-6.5 3.7z" /></svg>
           <span>Products</span>
         </button>
-        <button onClick={() => navigate("/cart")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
+        <button onClick={() => goTo("/cart")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <FiShoppingCart className="w-6 h-6 mb-1" />
           <span>Cart</span>
         </button>
