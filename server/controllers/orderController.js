@@ -1,4 +1,3 @@
-// controllers/orderController.js
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -20,19 +19,76 @@ const razorpayInstance = new Razorpay({
 });
 
 /**
- * Helper: Update product stock
+ * Helper: Update product stock atomically.
+ *
+ * - Performs atomic decrement per product (only if stock >= quantity).
+ * - If any decrement fails (insufficient stock), previously-applied decrements are rolled back.
+ * - Ensures `inStock` flag is updated (false when stock === 0, true when > 0).
+ *
+ * Throws an Error with message: "Insufficient stock for product <id> (requested X, available Y)"
  */
 const updateProductStock = async (items) => {
-  for (const item of items) {
-    const product = await Product.findById(item.product);
-    if (product) {
-      product.stock -= item.quantity;
-      if (product.stock <= 0) {
-        product.stock = 0;
-        product.inStock = false;
+  if (!Array.isArray(items) || items.length === 0) return;
+
+  const updated = []; // track { id, qty } to rollback if needed
+
+  try {
+    for (const item of items) {
+      const productId =
+        item.product && typeof item.product === "object"
+          ? item.product._id || item.product.id
+          : item.product || item.productId;
+
+      const qty = Number(item.quantity || 0);
+      if (!productId || qty <= 0) {
+        // skip invalid entries (or optionally throw)
+        throw new Error(`Invalid product or quantity for item: ${JSON.stringify(item)}`);
       }
-      await product.save();
+
+      // Atomically decrement only if enough stock exists
+      const updatedProduct = await Product.findOneAndUpdate(
+        { _id: productId, stock: { $gte: qty } },
+        { $inc: { stock: -qty } },
+        { new: true }
+      ).lean();
+
+      if (!updatedProduct) {
+        // Get current stock for better error message
+        const current = await Product.findById(productId).lean();
+        const available = current ? Number(current.stock || 0) : 0;
+
+        // rollback any previously applied decrements
+        for (const u of updated) {
+          await Product.findByIdAndUpdate(u.id, { $inc: { stock: u.qty } });
+          // ensure inStock is corrected after rollback
+          const after = await Product.findById(u.id).lean();
+          if (after && after.stock > 0 && after.inStock === false) {
+            await Product.findByIdAndUpdate(u.id, { $set: { inStock: true } });
+          }
+        }
+
+        throw new Error(
+          `Insufficient stock for product ${productId} (requested ${qty}, available ${available})`
+        );
+      }
+
+      // If updatedProduct.stock is 0 or less, force to 0 and mark inStock false
+      if (Number(updatedProduct.stock) <= 0) {
+        await Product.findByIdAndUpdate(updatedProduct._id, {
+          $set: { stock: 0, inStock: false },
+        });
+      } else {
+        // ensure inStock true when stock > 0
+        if (!updatedProduct.inStock) {
+          await Product.findByIdAndUpdate(updatedProduct._id, { $set: { inStock: true } });
+        }
+      }
+
+      updated.push({ id: updatedProduct._id, qty });
     }
+  } catch (err) {
+    // rethrow so caller can handle deletion/response
+    throw err;
   }
 };
 
@@ -46,18 +102,20 @@ export const placeOrderCOD = async (req, res) => {
       return res.json({ success: false, message: "Invalid data" });
     }
 
-    // compute amount
+    // compute amount and also validate stock (read-only check)
     let baseAmount = 0;
     for (const it of items) {
-      const product = await Product.findById(it.product);
-      if (!product) return res.json({ success: false, message: `Product not found: ${it.product}` });
-      if (product.stock < it.quantity) return res.json({ success: false, message: `${product.name} is out of stock` });
-      baseAmount += product.offerPrice * it.quantity;
+      const product = await Product.findById(it.product).lean();
+      if (!product)
+        return res.json({ success: false, message: `Product not found: ${String(it.product)}` });
+      if (product.stock < it.quantity)
+        return res.json({ success: false, message: `${product.name || 'Product'} is out of stock` });
+      baseAmount += (product.offerPrice ?? product.price ?? 0) * it.quantity;
     }
     const gstAmount = Math.floor(baseAmount * 0.02);
     const amount = baseAmount + gstAmount;
 
-    // use `user` field to satisfy schema
+    // create order document
     const newOrder = await Order.create({
       user: userId,
       items,
@@ -66,6 +124,19 @@ export const placeOrderCOD = async (req, res) => {
       paymentType: "COD",
       isPaid: isPaid ?? false,
     });
+
+    // Attempt to decrement stock atomically. If it fails, delete the created order and return error.
+    try {
+      await updateProductStock(items);
+    } catch (stockErr) {
+      // rollback: delete order
+      try {
+        await Order.findByIdAndDelete(newOrder._id);
+      } catch (delErr) {
+        console.error("Failed to delete order after stock update failure:", delErr?.message || delErr);
+      }
+      return res.json({ success: false, message: stockErr.message || "Failed to update stock" });
+    }
 
     await newOrder.populate("items.product");
     await newOrder.populate("address");
@@ -76,10 +147,9 @@ export const placeOrderCOD = async (req, res) => {
       User.findById(userId).lean(),
     ]);
 
-    sendOrderEmails({ order: newOrder, addressEmail, userDoc })
-      .catch((e) => console.error("Email send error (COD):", e.message));
-
-    await updateProductStock(items);
+    sendOrderEmails({ order: newOrder, addressEmail, userDoc }).catch((e) =>
+      console.error("Email send error (COD):", e.message)
+    );
 
     return res.json({ success: true, message: "Order placed successfully", order: newOrder });
   } catch (error) {
@@ -102,7 +172,7 @@ export const placeOrderRazorpay = async (req, res) => {
 
     let totalAmount = 0;
     items.forEach((i) => {
-      totalAmount += i.product.price * i.quantity;
+      totalAmount += (i.product.price ?? i.product.offerPrice ?? 0) * i.quantity;
     });
 
     const orderDoc = await Order.create({
@@ -137,7 +207,6 @@ export const placeOrderRazorpay = async (req, res) => {
 /**
  * 🟢 Step 1: Create Razorpay Order (no DB entry yet)
  */
-
 export const createRazorpayOrder = async (req, res) => {
   try {
     const { items, address, userId } = req.body;
@@ -149,8 +218,9 @@ export const createRazorpayOrder = async (req, res) => {
     for (const it of items) {
       const product = await Product.findById(it.product);
       if (!product) return res.json({ success: false, message: `Product not found: ${it.product}` });
-      if (product.stock < it.quantity) return res.json({ success: false, message: `${product.name} is out of stock` });
-      totalAmount += product.offerPrice * it.quantity;
+      if (product.stock < it.quantity)
+        return res.json({ success: false, message: `${product.name || 'Product'} is out of stock` });
+      totalAmount += (product.offerPrice ?? product.price ?? 0) * it.quantity;
     }
     const gstAmount = Math.floor(totalAmount * 0.02);
     totalAmount += gstAmount;
@@ -173,6 +243,7 @@ export const createRazorpayOrder = async (req, res) => {
     return res.json({ success: false, message: error.message });
   }
 };
+
 export const verifyRazorpayPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, items, address, userId } = req.body;
@@ -191,8 +262,8 @@ export const verifyRazorpayPayment = async (req, res) => {
     for (const it of items) {
       const product = await Product.findById(it.product);
       if (!product) return res.json({ success: false, message: `Product not found: ${it.product}` });
-      if (product.stock < it.quantity) return res.json({ success: false, message: `${product.name} is out of stock` });
-      totalAmount += product.offerPrice * it.quantity;
+      if (product.stock < it.quantity) return res.json({ success: false, message: `${product.name || 'Product'} is out of stock` });
+      totalAmount += (product.offerPrice ?? product.price ?? 0) * it.quantity;
     }
     const gstAmount = Math.floor(totalAmount * 0.02);
     totalAmount += gstAmount;
@@ -208,14 +279,25 @@ export const verifyRazorpayPayment = async (req, res) => {
       paymentId: razorpay_payment_id,
     });
 
-    await updateProductStock(items);
+    // Atomically decrement stock; if it fails, delete the created order and return error.
+    try {
+      await updateProductStock(items);
+    } catch (stockErr) {
+      try {
+        await Order.findByIdAndDelete(newOrder._id);
+      } catch (delErr) {
+        console.error("Failed to delete order after stock update failure:", delErr?.message || delErr);
+      }
+      return res.json({ success: false, message: stockErr.message || "Failed to update stock" });
+    }
 
     const [addressEmail, userDoc] = await Promise.all([
       getRecipientEmail(address, userId),
       User.findById(userId).lean(),
     ]);
-    sendOrderEmails({ order: newOrder, addressEmail, userDoc })
-      .catch((e) => console.error("Email send error (Razorpay):", e.message));
+    sendOrderEmails({ order: newOrder, addressEmail, userDoc }).catch((e) =>
+      console.error("Email send error (Razorpay):", e.message)
+    );
 
     return res.json({ success: true, message: "Payment verified & order placed", order: newOrder });
   } catch (error) {
@@ -354,7 +436,7 @@ export const updateOrderStatus = async (req, res) => {
 };
 
 /**
- * Cancel order (within 5 minutes & only if 'Order Placed')
+ * Cancel order (refund + restock)
  */
 // cancel order (refund + restock)
 export const cancelOrder = async (req, res) => {
@@ -388,12 +470,22 @@ export const cancelOrder = async (req, res) => {
       order.refundId = refund.id;
     }
 
-    // 🔥 Restock items
-    for (let item of order.items) {
-      const product = await Product.findById(item.product._id);
-      if (product) {
-        product.stock += item.quantity; // restore stock
-        await product.save();
+    // 🔥 Restock items (and set inStock true if stock > 0)
+    for (let item of order.items || []) {
+      // product may be populated
+      const productId = item?.product?._id || item?.product || item?.productId;
+      if (!productId) continue;
+
+      const updated = await Product.findByIdAndUpdate(
+        productId,
+        { $inc: { stock: Number(item.quantity || 0) } },
+        { new: true }
+      ).lean();
+
+      if (updated) {
+        if (Number(updated.stock) > 0 && updated.inStock === false) {
+          await Product.findByIdAndUpdate(productId, { $set: { inStock: true } });
+        }
       }
     }
 
@@ -410,8 +502,6 @@ export const cancelOrder = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-
-
 
 /**
  * Reviews
