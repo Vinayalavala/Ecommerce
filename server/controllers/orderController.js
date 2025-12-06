@@ -21,74 +21,90 @@ const razorpayInstance = new Razorpay({
 /**
  * Helper: Update product stock atomically.
  *
- * - Performs atomic decrement per product (only if stock >= quantity).
- * - If any decrement fails (insufficient stock), previously-applied decrements are rolled back.
- * - Ensures `inStock` flag is updated (false when stock === 0, true when > 0).
- *
- * Throws an Error with message: "Insufficient stock for product <id> (requested X, available Y)"
+ * - Aggregates quantities per product (handles duplicate product lines).
+ * - Uses a transaction when available so all decrements succeed or none do.
+ * - Throws an Error with message: "Insufficient stock for product <id> (requested X, available Y)"
  */
 const updateProductStock = async (items) => {
   if (!Array.isArray(items) || items.length === 0) return;
 
-  const updated = []; // track { id, qty } to rollback if needed
+  // Build map productId -> totalQty (handles duplicate product lines)
+  const qtyMap = items.reduce((m, it) => {
+    const productId =
+      it.product && typeof it.product === "object"
+        ? it.product._id || it.product.id
+        : it.product || it.productId;
+    const q = Number(it.quantity || 0);
+    if (!productId || q <= 0) return m;
+    m[String(productId)] = (m[String(productId)] || 0) + q;
+    return m;
+  }, {});
 
+  const productIds = Object.keys(qtyMap);
+  if (productIds.length === 0) return;
+
+  // Start a session for transaction (requires replica set / Atlas)
+  const session = await Product.startSession();
   try {
-    for (const item of items) {
-      const productId =
-        item.product && typeof item.product === "object"
-          ? item.product._id || item.product.id
-          : item.product || item.productId;
+    session.startTransaction();
 
-      const qty = Number(item.quantity || 0);
-      if (!productId || qty <= 0) {
-        // skip invalid entries (or optionally throw)
-        throw new Error(`Invalid product or quantity for item: ${JSON.stringify(item)}`);
+    // Fetch all involved products in one query (inside session)
+    const products = await Product.find({ _id: { $in: productIds } }).session(session).lean();
+
+    const currentById = products.reduce((m, p) => {
+      m[String(p._id)] = p;
+      return m;
+    }, {});
+
+    // Check availability
+    for (const pid of productIds) {
+      const needed = qtyMap[pid];
+      const current = currentById[pid];
+      const available = current ? Number(current.stock || 0) : 0;
+      if (!current) {
+        await session.abortTransaction();
+        throw new Error(`Insufficient stock for product ${pid} (requested ${needed}, available ${available})`);
       }
+      if (available < needed) {
+        await session.abortTransaction();
+        throw new Error(`Insufficient stock for product ${pid} (requested ${needed}, available ${available})`);
+      }
+    }
 
-      // Atomically decrement only if enough stock exists
-      const updatedProduct = await Product.findOneAndUpdate(
-        { _id: productId, stock: { $gte: qty } },
-        { $inc: { stock: -qty } },
-        { new: true }
+    // All good: decrement each product and set inStock appropriately
+    for (const pid of productIds) {
+      const needed = qtyMap[pid];
+
+      // decrement
+      const updated = await Product.findByIdAndUpdate(
+        pid,
+        { $inc: { stock: -needed } },
+        { new: true, session }
       ).lean();
 
-      if (!updatedProduct) {
-        // Get current stock for better error message
-        const current = await Product.findById(productId).lean();
-        const available = current ? Number(current.stock || 0) : 0;
-
-        // rollback any previously applied decrements
-        for (const u of updated) {
-          await Product.findByIdAndUpdate(u.id, { $inc: { stock: u.qty } });
-          // ensure inStock is corrected after rollback
-          const after = await Product.findById(u.id).lean();
-          if (after && after.stock > 0 && after.inStock === false) {
-            await Product.findByIdAndUpdate(u.id, { $set: { inStock: true } });
-          }
-        }
-
-        throw new Error(
-          `Insufficient stock for product ${productId} (requested ${qty}, available ${available})`
-        );
-      }
-
-      // If updatedProduct.stock is 0 or less, force to 0 and mark inStock false
-      if (Number(updatedProduct.stock) <= 0) {
-        await Product.findByIdAndUpdate(updatedProduct._id, {
-          $set: { stock: 0, inStock: false },
-        });
+      // If stock dropped to 0 or below, force 0 and inStock false
+      if (Number(updated.stock) <= 0) {
+        await Product.findByIdAndUpdate(pid, { $set: { stock: 0, inStock: false } }, { session });
       } else {
         // ensure inStock true when stock > 0
-        if (!updatedProduct.inStock) {
-          await Product.findByIdAndUpdate(updatedProduct._id, { $set: { inStock: true } });
+        if (updated.inStock === false) {
+          await Product.findByIdAndUpdate(pid, { $set: { inStock: true } }, { session });
         }
       }
-
-      updated.push({ id: updatedProduct._id, qty });
     }
+
+    // Commit the transaction
+    await session.commitTransaction();
   } catch (err) {
-    // rethrow so caller can handle deletion/response
+    // Abort transaction if something went wrong
+    try {
+      await session.abortTransaction();
+    } catch (e) {
+      // ignore
+    }
     throw err;
+  } finally {
+    session.endSession();
   }
 };
 
@@ -185,7 +201,7 @@ export const placeOrderRazorpay = async (req, res) => {
     });
 
     const rpOrder = await razorpayInstance.orders.create({
-      amount: totalAmount * 100, // paise
+      amount: Math.round(totalAmount * 100), // paise
       currency: "INR",
       receipt: orderDoc._id.toString(),
     });
@@ -226,7 +242,7 @@ export const createRazorpayOrder = async (req, res) => {
     totalAmount += gstAmount;
 
     const rpOrder = await razorpayInstance.orders.create({
-      amount: totalAmount * 100,
+      amount: Math.round(totalAmount * 100),
       currency: "INR",
       receipt: `rcpt_${Date.now()}`,
     });
@@ -460,7 +476,6 @@ export const updateOrderStatus = async (req, res) => {
 /**
  * Cancel order (refund + restock)
  */
-// cancel order (refund + restock)
 export const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -475,40 +490,57 @@ export const cancelOrder = async (req, res) => {
       return res.json({ success: false, message: "Order already cancelled" });
     }
 
-    // Refund for online payments
-    if (order.paymentMethod === "Online" && order.isPaid) {
-      const razorpay = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET,
-      });
+    // Refund for online payments (use paymentType for consistency)
+    if ((order.paymentType === "Online" || order.paymentMethod === "Online") && order.isPaid) {
+      try {
+        const razorpay = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID,
+          key_secret: process.env.RAZORPAY_KEY_SECRET,
+        });
 
-      // Call Razorpay Refund API
-      const refund = await razorpay.payments.refund(order.paymentId, {
-        amount: order.totalAmount * 100, // paise
-        speed: "normal",
-      });
+        // Call Razorpay Refund API
+        // Use order.amount (paise conversion)
+        const refundAmountPaise = Math.round((order.amount || 0) * 100);
+        const refund = await razorpay.payments.refund(order.paymentId, {
+          amount: refundAmountPaise,
+          speed: "normal",
+        });
 
-      order.isRefunded = true;
-      order.refundId = refund.id;
+        order.isRefunded = true;
+        order.refundId = refund.id;
+      } catch (refundErr) {
+        console.error("Razorpay refund failed:", refundErr?.message || refundErr);
+        // Continue with restock & cancellation, but mark refund failure
+        order.refundError = refundErr?.message || String(refundErr);
+      }
     }
 
-    // 🔥 Restock items (and set inStock true if stock > 0)
-    for (let item of order.items || []) {
-      // product may be populated
-      const productId = item?.product?._id || item?.product || item?.productId;
-      if (!productId) continue;
+    // 🔥 Restock items (aggregate quantities to avoid duplicate lines)
+    try {
+      const restockMap = {};
+      for (let item of order.items || []) {
+        const productId = item?.product?._id || item?.product || item?.productId;
+        if (!productId) continue;
+        restockMap[String(productId)] = (restockMap[String(productId)] || 0) + Number(item.quantity || 0);
+      }
 
-      const updated = await Product.findByIdAndUpdate(
-        productId,
-        { $inc: { stock: Number(item.quantity || 0) } },
-        { new: true }
-      ).lean();
+      for (const pid of Object.keys(restockMap)) {
+        const incQty = restockMap[pid];
+        const updated = await Product.findByIdAndUpdate(
+          pid,
+          { $inc: { stock: incQty } },
+          { new: true }
+        ).lean();
 
-      if (updated) {
-        if (Number(updated.stock) > 0 && updated.inStock === false) {
-          await Product.findByIdAndUpdate(productId, { $set: { inStock: true } });
+        if (updated) {
+          if (Number(updated.stock) > 0 && updated.inStock === false) {
+            await Product.findByIdAndUpdate(pid, { $set: { inStock: true } });
+          }
         }
       }
+    } catch (restockErr) {
+      console.error("Error restocking products during cancellation:", restockErr?.message || restockErr);
+      // don't abort cancellation for restock failures; return info to caller
     }
 
     order.status = "Cancelled";
