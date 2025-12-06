@@ -147,12 +147,9 @@ const md5 = (s) => {
 };
 
 /* ------------------- helpers for profile image ------------------- */
-
 const buildProfileUrl = (input, user) => {
   if (!input && !user) return null;
-
   const raw = typeof input === "string" ? input.trim() : "";
-
   if (raw.startsWith("data:")) return raw;
   if (/^https?:\/\//i.test(raw)) return raw;
   if (/@/.test(raw) && /\.[a-z]{2,}$/i.test(raw)) {
@@ -171,7 +168,6 @@ const buildProfileUrl = (input, user) => {
     const parts = cleaned.split("/").map((p) => encodeURIComponent(p));
     return `${base.replace(/\/$/, "")}/${parts.join("/")}`;
   }
-
   return null;
 };
 
@@ -182,12 +178,19 @@ const Navbar = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [hideTopBar, setHideTopBar] = useState(false);
   const [hideBottomBar, setHideBottomBar] = useState(false);
-  const lastScrollRef = useRef(0);
-
-  // animated placeholders
+  const [lastScrollY, setLastScrollY] = useState(0);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
+
+  // search-specific state
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1); // -1 = none
+  const debounceRef = useRef(null);
+  const blurTimeoutRef = useRef(null);
+  const lastFetchRef = useRef(0);
 
   const placeholders = [
     "Milk / Fruits",
@@ -206,19 +209,11 @@ const Navbar = () => {
     searchQuery,
   } = useAppContext();
 
-  // local query state for debounce (so we don't navigate/update global on every keystroke)
-  const [localQuery, setLocalQuery] = useState(() => (searchQuery || ""));
-
   const navigate = useNavigate();
   const rawProfile = user?.profilePic;
   const primaryUrl = buildProfileUrl(rawProfile, user);
   const gravatarFromUser = user?.email ? `https://www.gravatar.com/avatar/${md5(String(user.email).toLowerCase().trim())}?d=identicon&s=200` : null;
   const defaultIcon = assets.profile_icon;
-
-  // keep localQuery in sync if searchQuery is changed externally
-  useEffect(() => {
-    setLocalQuery(searchQuery || "");
-  }, [searchQuery]);
 
   useEffect(() => {
     const fetchUserIfMissing = async () => {
@@ -263,12 +258,11 @@ const Navbar = () => {
     return () => window.removeEventListener("resize", updateIsMobile);
   }, [updateIsMobile]);
 
-  // improved scroll handler: register once, use ref to track last scroll
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       if (window.innerWidth < 768) {
-        if (currentScrollY > lastScrollRef.current && currentScrollY > 50) {
+        if (currentScrollY > lastScrollY && currentScrollY > 50) {
           setHideTopBar(true);
           setHideBottomBar(true);
         } else {
@@ -276,57 +270,189 @@ const Navbar = () => {
           setHideBottomBar(false);
         }
       }
-      lastScrollRef.current = currentScrollY;
+      setLastScrollY(currentScrollY);
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [lastScrollY]);
 
-  // placeholder rotator
   useEffect(() => {
     const i = setInterval(() => setPlaceholderIndex((p) => (p + 1) % placeholders.length), 2000);
     return () => clearInterval(i);
   }, []);
 
-  // derive searchActive from either localQuery or shared searchQuery
   useEffect(() => {
-    setSearchActive(Boolean((localQuery && localQuery.length > 0) || (searchQuery && searchQuery.length > 0)));
-  }, [localQuery, searchQuery]);
+    setSearchActive(Boolean(searchQuery && searchQuery.length > 0));
+  }, [searchQuery]);
 
-  // debounce updating the shared context searchQuery from localQuery
+  // Debounced suggestions fetch
   useEffect(() => {
-    const id = setTimeout(() => {
-      // only update global if different
-      const clean = (localQuery || "").trim();
-      if (clean !== (searchQuery || "")) {
-        setSearchQuery(clean);
+    // clear any previous debounce
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!searchQuery || searchQuery.trim().length === 0) {
+      setSuggestions([]);
+      setSuggestionsOpen(false);
+      setIsLoadingSuggestions(false);
+      setActiveIndex(-1);
+      return;
+    }
+
+    // only perform suggestions for 2+ chars (tweak as required)
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      setSuggestionsOpen(false);
+      setIsLoadingSuggestions(false);
+      setActiveIndex(-1);
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    debounceRef.current = setTimeout(async () => {
+      const start = Date.now();
+      lastFetchRef.current = start;
+      try {
+        // expecting backend endpoint that returns { success: true, products: [...] }
+        const { data } = await axios.get(`/api/product/search?query=${encodeURIComponent(q)}&limit=8`);
+        // guard stale responses (if another fetch started after this one)
+        if (lastFetchRef.current !== start) return;
+        if (data?.success && Array.isArray(data.products)) {
+          setSuggestions(data.products);
+        } else {
+          setSuggestions([]);
+        }
+        setSuggestionsOpen(true);
+      } catch (err) {
+        console.error("Search suggestions error:", err);
+        setSuggestions([]);
+        setSuggestionsOpen(false);
+      } finally {
+        if (lastFetchRef.current === start) setIsLoadingSuggestions(false);
       }
-    }, 300); // 300ms debounce
+    }, 300); // debounce 300ms
 
-    return () => clearTimeout(id);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localQuery]);
+  }, [searchQuery]);
 
-  // handle Enter key => navigate to products page with query param
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      const q = (localQuery || "").trim();
-      if (q.length > 0) {
-        navigate(`/products?search=${encodeURIComponent(q)}`);
-      } else {
-        navigate("/products");
+  // keyboard handlers for input
+  const handleKeyDown = (e) => {
+    if (!suggestionsOpen || suggestions.length === 0) {
+      if (e.key === "Enter") {
+        // go to products listing with query
+        navigate(`/products?search=${encodeURIComponent(searchQuery || "")}`);
+        setSuggestionsOpen(false);
       }
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      // if activeIndex is -1 then goto products search
+      if (activeIndex === -1) {
+        navigate(`/products?search=${encodeURIComponent(searchQuery || "")}`);
+      } else {
+        const item = suggestions[activeIndex];
+        if (item?._id) navigate(`/product/${item._id}`);
+        else navigate(`/products?search=${encodeURIComponent(item?.name || searchQuery || "")}`);
+      }
+      setSuggestionsOpen(false);
+      setActiveIndex(-1);
+    } else if (e.key === "Escape") {
+      setSuggestionsOpen(false);
+      setActiveIndex(-1);
     }
   };
 
-  // small helper to navigate and scroll
-  const goTo = (path) => {
-    navigate(path);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  // when user clicks a suggestion
+  const handleSelectSuggestion = (item) => {
+    setSuggestionsOpen(false);
+    setActiveIndex(-1);
+    if (item?._id) navigate(`/product/${item._id}`);
+    else navigate(`/products?search=${encodeURIComponent(item?.name || searchQuery || "")}`);
   };
 
+  // hide suggestions on blur but small timeout to allow click
+  const handleInputBlur = () => {
+    blurTimeoutRef.current = setTimeout(() => {
+      setSuggestionsOpen(false);
+      setActiveIndex(-1);
+    }, 150);
+  };
+
+  const handleInputFocus = () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+    if (suggestions && suggestions.length > 0) setSuggestionsOpen(true);
+    setSearchActive(true);
+  };
+
+  // helper render for dropdown
+  const renderSuggestionsDropdown = (isMobileDropdown = false) => {
+    if (!suggestionsOpen) return null;
+    return (
+      <div
+        className={`absolute left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden max-h-64 overflow-y-auto ${
+          isMobileDropdown ? "max-w-[92%] mx-auto" : ""
+        }`}
+        role="listbox"
+        aria-label="Search suggestions"
+      >
+        {isLoadingSuggestions && (
+          <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
+        )}
+        {!isLoadingSuggestions && suggestions.length === 0 && (
+          <div className="px-4 py-2 text-sm text-gray-500">No results — press Enter to search.</div>
+        )}
+        {!isLoadingSuggestions && suggestions.map((p, idx) => (
+          <button
+            key={p._id || `${p.name}-${idx}`}
+            className={`w-full text-left px-4 py-2 hover:bg-gray-50 focus:bg-gray-50 flex items-center gap-3 ${activeIndex === idx ? "bg-gray-100" : ""}`}
+            onMouseDown={(e) => { /* prevent blur before click */ e.preventDefault(); }}
+            onClick={() => handleSelectSuggestion(p)}
+            role="option"
+            aria-selected={activeIndex === idx}
+          >
+            {/* optional thumbnail if product has image */}
+            {p.images && p.images[0] ? (
+              <img src={p.images[0]} alt={p.name} className="w-10 h-10 object-cover rounded-sm" />
+            ) : (
+              <div className="w-10 h-10 bg-gray-100 rounded-sm flex items-center justify-center text-xs text-gray-500">img</div>
+            )}
+            <div className="flex-1">
+              <div className="text-sm font-medium truncate">{p.name}</div>
+              {p.price != null && <div className="text-xs text-gray-500">₹{p.price}</div>}
+            </div>
+          </button>
+        ))}
+        <div className="border-t border-gray-100">
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setSuggestionsOpen(false);
+              navigate(`/products?search=${encodeURIComponent(searchQuery || "")}`);
+            }}
+          >
+            Search for “{searchQuery}”
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Render
   return (
     <>
       <nav className={`z-50 fixed top-0 left-0 w-full transition-transform duration-500 ease-in-out bg-white/90 backdrop-blur-md border-b border-gray-300 py-3 px-3 md:px-8 lg:px-15 ${hideTopBar ? "-translate-y-12" : "translate-y-0"}`}>
@@ -334,11 +460,11 @@ const Navbar = () => {
         {isMobile && !user ? (
           <div className="flex flex-col items-center gap-2">
             <div className="w-full flex items-center justify-center">
-              <div className="h-10" /> <div className=" pr-0.5 text-xl">Alavala's Root & Craft</div>
+              <div  className="h-10" /> <div className=" pr-0.5 text-xl">Alavala's Root & Craft</div>
             </div>
             <div className="w-full px-4 flex gap-3">
               <button onClick={() => setShowUserLogin(true)} className="flex-1 py-2 bg-primary text-white rounded-full text-sm font-medium">Login</button>
-              <button onClick={() => goTo("/seller")} className="flex-1 py-2 bg-white border border-gray-300 text-sm rounded-full">Seller</button>
+              <button onClick={() => navigate("/seller")} className="flex-1 py-2 bg-white border border-gray-300 text-sm rounded-full">Seller</button>
             </div>
           </div>
         ) : (
@@ -349,18 +475,17 @@ const Navbar = () => {
                   <img src={assets.logo} alt="logo" className="h-10" />
                 </NavLink>
 
-                <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md bg-white relative overflow-hidden">
+                <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md bg-white relative overflow-visible">
                   <input
-                    onChange={(e) => setLocalQuery(e.target.value)}
-                    value={localQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={searchQuery}
                     className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500"
                     type="text"
-                    placeholder="Search products"
-                    onFocus={() => setSearchActive(true)}
-                    onBlur={() => { if (!localQuery || localQuery.length === 0) setSearchActive(false); }}
-                    onKeyDown={handleSearchKeyDown}
-                    aria-label="Search products"
-                    aria-autocomplete="none"
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleKeyDown}
+                    aria-autocomplete="list"
+                    aria-expanded={suggestionsOpen}
                     aria-controls="nav-search-suggestions"
                   />
                   <div className={`absolute left-4 flex items-center pointer-events-none select-none transition-opacity duration-200 ${searchActive ? "opacity-0" : "opacity-100"}`}>
@@ -372,6 +497,11 @@ const Navbar = () => {
                     </div>
                   </div>
                   <img src={assets.search_icon} alt="search" className="w-4 h-4 ml-auto" />
+
+                  {/* suggestions dropdown for desktop input */}
+                  <div id="nav-search-suggestions" className="w-full" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0 }}>
+                    {renderSuggestionsDropdown(false)}
+                  </div>
                 </div>
 
                 <div className="hidden lg:flex items-center gap-8">
@@ -382,7 +512,7 @@ const Navbar = () => {
                   {!user ? (
                     <div className="flex flex-col items-end gap-2">
                       <button onClick={() => setShowUserLogin(true)} className="px-4 py-1.5 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Login</button>
-                      <button onClick={() => goTo("/seller")} className="px-4 py-1.5 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
+                      <button onClick={() => navigate("/seller")} className="px-4 py-1.5 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
                     </div>
                   ) : (
                     <div className="relative">
@@ -390,7 +520,7 @@ const Navbar = () => {
                         src={primaryUrl || gravatarFromUser || defaultIcon}
                         alt={user?.name || "user"}
                         className="w-8 h-8 cursor-pointer rounded-full object-cover"
-                        onClick={() => goTo("/profile")}
+                        onClick={() => navigate("/profile")}
                         onError={(e) => {
                           console.warn("[Navbar] profile img load failed for:", rawProfile, "attempting fallback.");
                           const cur = e.currentTarget;
@@ -410,7 +540,7 @@ const Navbar = () => {
               {/* mobile profile info (< lg) */}
               {user && (
                 <div className="lg:hidden flex items-center gap-3 mt-3 px-1">
-                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => goTo("/profile")}>
+                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/profile")}>
                     <img
                       src={primaryUrl || gravatarFromUser || defaultIcon}
                       alt={user?.name || "user"}
@@ -427,7 +557,7 @@ const Navbar = () => {
                     </div>
                   </div>
                   {selectedAddress && (
-                    <span onClick={() => goTo("/add-address")} className="text-gray-500 text-xs truncate max-w-[250px] cursor-pointer">{selectedAddress.street}</span>
+                    <span onClick={() => navigate("/add-address")} className="text-gray-500 text-xs truncate max-w-[250px] cursor-pointer">{selectedAddress.street}</span>
                   )}
                   <button onClick={() => console.log("menu open")} className="ml-auto bg-gray-100 p-1 rounded-full" aria-label="open menu"><MdKeyboardArrowDown/></button>
                 </div>
@@ -436,24 +566,25 @@ const Navbar = () => {
               {!user && (
                 <div className="lg:hidden flex flex-col items-start gap-2 mt-4 px-1 w-full">
                   <button onClick={() => setShowUserLogin(true)} className="w-full py-2 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Login</button>
-                  <button onClick={() => goTo("/seller")} className="w-full py-2 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
+                  <button onClick={() => navigate("/seller")} className="w-full py-2 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
                 </div>
               )}
             </div>
 
             {/* mobile search bar (< lg) */}
             <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-3' : 'mt-0'}`}>
-              <div className="flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-hidden mx-auto">
+              <div className="relative flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-visible mx-auto">
                 <input
-                  onChange={(e) => setLocalQuery(e.target.value)}
-                  value={localQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchQuery}
                   className="w-full bg-transparent outline-none placeholder-gray-500"
                   type="text"
-                  placeholder="Search products..."
-                  onFocus={() => setSearchActive(true)}
-                  onBlur={() => { if (!localQuery || localQuery.length === 0) setSearchActive(false); }}
-                  onKeyDown={handleSearchKeyDown}
-                  aria-label="Search products"
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  onKeyDown={handleKeyDown}
+                  aria-autocomplete="list"
+                  aria-expanded={suggestionsOpen}
+                  aria-controls="nav-search-suggestions-mobile"
                 />
                 <div className={`absolute left-4 flex items-center pointer-events-none select-none transition-opacity duration-200 ${searchActive ? 'opacity-0' : 'opacity-100'}`}>
                   <span className="text-gray-400">Search for&nbsp;</span>
@@ -464,6 +595,9 @@ const Navbar = () => {
                   </div>
                 </div>
                 <img src={assets.search_icon} alt="search" className="w-4 h-4 ml-auto"/>
+                <div id="nav-search-suggestions-mobile" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0 }}>
+                  {renderSuggestionsDropdown(true)}
+                </div>
               </div>
             </div>
           </>
@@ -472,15 +606,15 @@ const Navbar = () => {
 
       {/* bottom navbar for mobile */}
       <div className={`sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl transition-all duration-[800ms] ease-in-out ${hideBottomBar ? "translate-y-20 opacity-0" : "translate-y-0 opacity-100"}`}>
-        <button onClick={() => goTo("/")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
+        <button onClick={() => navigate("/")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <img src={assets.home_icon || assets.menu_icon} alt="home" className="w-6 h-6 mb-1" />
           <span>Home</span>
         </button>
-        <button onClick={() => goTo("/products")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
+        <button onClick={() => navigate("/products")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" className="w-6 h-6 mb-1 text-gray-600" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73zM12 3.25L18.6 7 12 10.75 5.4 7 12 3.25zM5 8.9l6.5 3.7v7.2L5 16.1V8.9zm8.5 10.9v-7.2L20 8.9v7.2l-6.5 3.7z" /></svg>
           <span>Products</span>
         </button>
-        <button onClick={() => goTo("/cart")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
+        <button onClick={() => navigate("/cart")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
           <FiShoppingCart className="w-6 h-6 mb-1" />
           <span>Cart</span>
         </button>
