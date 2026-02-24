@@ -20,51 +20,37 @@ export const AppContextProvider = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  /* -------------------------------------------------------
-      AXIOS INTERCEPTOR
-  ------------------------------------------------------- */
+  /**
+   * Set appropriate auth header for current role
+   */
+  const setAuthHeader = () => {
+    const isSellerPath = location.pathname.startsWith('/seller');
+    const token = isSellerPath
+      ? localStorage.getItem('sellerToken')
+      : localStorage.getItem('authToken');
 
-  useEffect(() => {
-    const requestInterceptor = axios.interceptors.request.use(
-      (config) => {
-        const sellerToken = localStorage.getItem('sellerToken');
-        const userToken = localStorage.getItem('authToken');
-
-        const token = location.pathname.startsWith('/seller')
-          ? sellerToken
-          : userToken;
-
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
-
-    return () => {
-      axios.interceptors.request.eject(requestInterceptor);
-    };
-  }, [location.pathname]);
-
-  /* -------------------------------------------------------
-     AUTH CHECKS
-  ------------------------------------------------------- */
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  };
 
   const fetchSeller = async () => {
     try {
+      setAuthHeader(); // ✅ set token
       const { data } = await axios.get('/api/seller/is-auth');
       setIsSeller(data.success);
     } catch (error) {
       setIsSeller(false);
+      console.error("Seller auth error:", error?.message || error);
     }
   };
 
   const fetchUser = async () => {
     try {
+      setAuthHeader(); // ✅ set token
       const { data } = await axios.get('/api/user/is-auth');
-
       if (data.success) {
         setUser(data.user);
         setCartItems(data.user.cartItems || {});
@@ -73,19 +59,17 @@ export const AppContextProvider = ({ children }) => {
       }
     } catch (error) {
       if (error.response?.status === 401) {
+        console.log("User not logged in.");
         setUser(null);
+      } else {
+        console.error(error);
       }
     }
   };
 
-  /* -------------------------------------------------------
-     PRODUCTS
-  ------------------------------------------------------- */
-
   const fetchProducts = async () => {
     try {
       const { data } = await axios.get('/api/product/list');
-
       if (data.success) {
         setProducts(data.products);
       } else {
@@ -95,10 +79,6 @@ export const AppContextProvider = ({ children }) => {
       toast.error(error.message || "Error loading products.");
     }
   };
-
-  /* -------------------------------------------------------
-     CART LOGIC
-  ------------------------------------------------------- */
 
   const addToCart = (itemId) => {
     setCartItems((prev) => {
@@ -137,23 +117,20 @@ export const AppContextProvider = ({ children }) => {
   const getCartAmount = () => {
     return products.reduce((acc, product) => {
       const quantity = cartItems[product._id] || 0;
-      return acc + product.offerPrice * quantity;
+      return acc + (product.offerPrice * quantity);
     }, 0).toFixed(2);
   };
 
-  /* -------------------------------------------------------
-     INITIAL DATA LOAD
-  ------------------------------------------------------- */
-
+  // ✅ Fetch data when route changes
   useEffect(() => {
     const runFetches = async () => {
       try {
+        setAuthHeader();
         if (location.pathname.startsWith("/seller")) {
           await fetchSeller();
         } else {
           await fetchUser();
         }
-
         await fetchProducts();
       } finally {
         setLoading(false);
@@ -163,10 +140,7 @@ export const AppContextProvider = ({ children }) => {
     runFetches();
   }, [location.pathname]);
 
-  /* -------------------------------------------------------
-     SYNC CART TO DB
-  ------------------------------------------------------- */
-
+  // ✅ Update cart in DB
   useEffect(() => {
     const updateCartInDB = async () => {
       if (!user?._id) return;
@@ -176,7 +150,6 @@ export const AppContextProvider = ({ children }) => {
           userId: user._id,
           cartItems,
         });
-
         if (!data.success) {
           toast.error(data.message || "Failed to update cart.");
         }
@@ -189,10 +162,6 @@ export const AppContextProvider = ({ children }) => {
       updateCartInDB();
     }
   }, [cartItems, user]);
-
-  /* -------------------------------------------------------
-     CONTEXT VALUE
-  ------------------------------------------------------- */
 
   const value = {
     navigate,
