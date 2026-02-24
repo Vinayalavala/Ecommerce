@@ -28,7 +28,7 @@ const SellerLogin = () => {
         localStorage.setItem('sellerToken', data.token);
         setIsSeller(true);
         toast.success(data.message);
-        navigate('/seller');
+        navigate('/seller/orders');
       } else {
         toast.error(data.message || "Login failed");
       }
@@ -39,7 +39,7 @@ const SellerLogin = () => {
 
   useEffect(() => {
     if (isSeller) {
-      navigate('/seller');
+      navigate('/seller/orders');
     }
   }, [isSeller, navigate]);
 
