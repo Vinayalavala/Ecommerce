@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      default: null, // ✅ allow null for Google users
+      default: null,
     },
 
     cartItems: {
@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
 
     securityQuestion: {
       type: String,
-      default: "", // ✅ allow blank
+      default: "",
     },
 
     lastLoginClue: {
