@@ -3,16 +3,16 @@ import mongoose from "mongoose";
 const orderSchema = new mongoose.Schema(
   {
     user: {
-      type: mongoose.Schema.Types.ObjectId, // 👈 use ObjectId
+      type: mongoose.Schema.Types.ObjectId, 
       required: true,
-      ref: "user", // 👈 reference User model
+      ref: "user",
     },
     items: [
       {
         product: {
-          type: mongoose.Schema.Types.ObjectId, // 👈 use ObjectId
+          type: mongoose.Schema.Types.ObjectId, 
           required: true,
-          ref: "Product", // 👈 reference Product model
+          ref: "Product",
         },
         quantity: {
           type: Number,
@@ -30,7 +30,7 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
     address: {
-      type: mongoose.Schema.Types.ObjectId, // 👈 link to address model
+      type: mongoose.Schema.Types.ObjectId,
       ref: "address",
       required: true,
     },
