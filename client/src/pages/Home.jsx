@@ -11,10 +11,9 @@ import DisplayAds from '../components/DisplayAds.jsx';
 const Home = () => {
   return (
     <div className='mt-30'>
+      <DisplayAds/>
         <MainBanner /> 
-        <Categories />
         <BestSeller />
-        <DisplayAds/>
         <MainCategories/>
         <CategoryPreview/>
         <BottomBanner /> 
