@@ -220,6 +220,7 @@ const Orders = () => {
 
     const matchesText =
       String(order._id || '').toLowerCase().includes(search) ||
+      String(order.orderId || order.orderNumber || '').toLowerCase().includes(search) ||
       fullName.includes(search) ||
       createdIso.includes(search);
 
@@ -477,7 +478,7 @@ const OrderCard = ({ order, currency, onMarkAsPaid, onUpdateStatus, ratings }) =
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-xs text-gray-500">Order</span>
           <span className="font-mono text-xs text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1 break-all">
-            #{String(order._id).slice(-8).toUpperCase()}
+            {order.orderId || order.orderNumber || order._id}
           </span>
           <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-500">
             <FaRegClock /> {timeStr}
