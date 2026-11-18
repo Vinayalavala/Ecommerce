@@ -1,205 +1,478 @@
 // src/components/Navbar.jsx
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React, { useEffect, useId, useRef, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  FiSearch,
+  FiX,
+  FiClock,
+  FiShoppingCart,
+  FiHome,
+  FiGrid,
+  FiUser,
+  FiHeart,
+  FiPackage,
+  FiMapPin,
+  FiLogOut,
+  FiChevronDown,
+} from "react-icons/fi";
 import assets from "../assets/assets";
 import { useAppContext } from "../context/appContext.jsx";
-import { toast } from "react-hot-toast";
-import { FiShoppingCart } from "react-icons/fi";
-import { MdKeyboardArrowDown } from "react-icons/md";
 
-/* ---------- small md5 function for gravatar (lightweight) ---------- */
-const md5 = (s) => {
-  function cmn(q, a, b, x, s, t) {
-    a = (a + q + x + t) | 0;
-    return (((a << s) | (a >>> (32 - s))) + b) | 0;
+/* -------------------------------------------------------------------------- */
+/*                                  Constants                                 */
+/* -------------------------------------------------------------------------- */
+
+const PLACEHOLDERS = [
+  "milk and fruits",
+  "snacks and chips",
+  "fresh vegetables",
+  "bakery and cakes",
+  "juices and drinks",
+];
+const RECENT_KEY = "nav:recent-searches";
+const MAX_RECENT = 5;
+const SUGGEST_MIN_CHARS = 2;
+const SUGGEST_DEBOUNCE_MS = 300;
+
+const NAV_LINKS = [
+  { to: "/", label: "Home", end: true },
+  { to: "/products", label: "Products" },
+  { to: "/contact", label: "Contact" },
+];
+
+const MENU_ITEMS = [
+  { to: "/profile", label: "My profile", icon: FiUser },
+  { to: "/my-orders", label: "My orders", icon: FiPackage },
+  { to: "/wishlist", label: "Wishlist", icon: FiHeart },
+  { to: "/add-address", label: "Delivery addresses", icon: FiMapPin },
+];
+
+/* -------------------------------------------------------------------------- */
+/*                                   Helpers                                  */
+/* -------------------------------------------------------------------------- */
+
+const readRecent = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    return Array.isArray(v) ? v.slice(0, MAX_RECENT) : [];
+  } catch {
+    return [];
   }
-  function ff(a, b, c, d, x, s, t) { return cmn((b & c) | (~b & d), a, b, x, s, t); }
-  function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & ~d), a, b, x, s, t); }
-  function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
-  function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | ~d), a, b, x, s, t); }
+};
 
-  function toBytes(str) {
-    const out = [];
-    for (let i = 0; i < str.length; i++) {
-      let c = str.charCodeAt(i);
-      if (c < 128) out.push(c);
-      else if (c < 2048) {
-        out.push((c >> 6) | 192, (c & 63) | 128);
-      } else {
-        out.push((c >> 12) | 224, ((c >> 6) & 63) | 128, (c & 63) | 128);
+const writeRecent = (list) => {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+  } catch {
+    /* storage unavailable */
+  }
+};
+
+/** Resolve a stored profile picture into a usable URL (no third-party lookups). */
+const resolveProfileUrl = (raw, baseURL) => {
+  const v = typeof raw === "string" ? raw.trim() : "";
+  if (!v) return null;
+  if (/^(data:|https?:\/\/)/i.test(v)) return v;
+  const base = (baseURL || window.location.origin).replace(/\/$/, "");
+  const path = v
+    .replace(/^\/+/, "")
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
+  return `${base}/${path}`;
+};
+
+const initialsOf = (name = "") =>
+  name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join("") || "?";
+
+const isProductPath = (path) =>
+  /^\/product\/[^/]+\/?$/.test(path) || /^\/products\/[^/]+\/[^/]+\/?$/.test(path);
+
+/** Debounced, abortable product suggestions. */
+const useSuggestions = (axios, query) => {
+  const [state, setState] = useState({ items: [], loading: false });
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < SUGGEST_MIN_CHARS) {
+      setState({ items: [], loading: false });
+      return;
+    }
+
+    setState((s) => ({ ...s, loading: true }));
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await axios.get("/api/product/search", {
+          params: { query: q, limit: 8 },
+          signal: controller.signal,
+        });
+        setState({
+          items: data?.success && Array.isArray(data.products) ? data.products : [],
+          loading: false,
+        });
+      } catch (err) {
+        if (controller.signal.aborted) return; // superseded by a newer query
+        console.error("Search suggestions error:", err);
+        setState({ items: [], loading: false });
       }
-    }
-    return out;
-  }
+    }, SUGGEST_DEBOUNCE_MS);
 
-  function toHex(x) {
-    const hex = "0123456789abcdef";
-    let s = "";
-    for (let i = 0; i < 4; i++) {
-      s += hex.charAt((x >> (i * 8 + 4)) & 0x0f) + hex.charAt((x >> (i * 8)) & 0x0f);
-    }
-    return s;
-  }
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [axios, query]);
 
-  const msg = toBytes(unescape(encodeURIComponent(s)));
-  const origLen = msg.length * 8;
-  msg.push(0x80);
-  while ((msg.length % 64) !== 56) msg.push(0);
-  for (let i = 0; i < 8; i++) msg.push((origLen >>> (i * 8)) & 0xff);
-
-  const M = [];
-  for (let i = 0; i < msg.length; i += 64) {
-    const chunk = [];
-    for (let j = 0; j < 64; j += 4) {
-      chunk.push(msg[i + j] | (msg[i + j + 1] << 8) | (msg[i + j + 2] << 16) | (msg[i + j + 3] << 24));
-    }
-    M.push(chunk);
-  }
-
-  let a0 = 0x67452301;
-  let b0 = 0xefcdab89;
-  let c0 = 0x98badcfe;
-  let d0 = 0x10325476;
-
-  for (let i = 0; i < M.length; i++) {
-    const X = M[i];
-    let A = a0, B = b0, C = c0, D = d0;
-
-    // round 1
-    A = ff(A, B, C, D, X[0], 7, -680876936);
-    D = ff(D, A, B, C, X[1], 12, -389564586);
-    C = ff(C, D, A, B, X[2], 17, 606105819);
-    B = ff(B, C, D, A, X[3], 22, -1044525330);
-    A = ff(A, B, C, D, X[4], 7, -176418897);
-    D = ff(D, A, B, C, X[5], 12, 1200080426);
-    C = ff(C, D, A, B, X[6], 17, -1473231341);
-    B = ff(B, C, D, A, X[7], 22, -45705983);
-    A = ff(A, B, C, D, X[8], 7, 1770035416);
-    D = ff(D, A, B, C, X[9], 12, -1958414417);
-    C = ff(C, D, A, B, X[10], 17, -42063);
-    B = ff(B, C, D, A, X[11], 22, -1990404162);
-    A = ff(A, B, C, D, X[12], 7, 1804603682);
-    D = ff(D, A, B, C, X[13], 12, -40341101);
-    C = ff(C, D, A, B, X[14], 17, -1502002290);
-    B = ff(B, C, D, A, X[15], 22, 1236535329);
-
-    // round 2
-    A = gg(A, B, C, D, X[1], 5, -165796510);
-    D = gg(D, A, B, C, X[6], 9, -1069501632);
-    C = gg(C, D, A, B, X[11], 14, 643717713);
-    B = gg(B, C, D, A, X[0], 20, -373897302);
-    A = gg(A, B, C, D, X[5], 5, -701558691);
-    D = gg(D, A, B, C, X[10], 9, 38016083);
-    C = gg(C, D, A, B, X[15], 14, -660478335);
-    B = gg(B, C, D, A, X[4], 20, -405537848);
-    A = gg(A, B, C, D, X[9], 5, 568446438);
-    D = gg(D, A, B, C, X[14], 9, -1019803690);
-    C = gg(C, D, A, B, X[3], 14, -187363961);
-    B = gg(B, C, D, A, X[8], 20, 1163531501);
-    A = gg(A, B, C, D, X[13], 5, -1444681467);
-    D = gg(D, A, B, C, X[2], 9, -51403784);
-    C = gg(C, D, A, B, X[7], 14, 1735328473);
-    B = gg(B, C, D, A, X[12], 20, -1926607734);
-
-    // round 3
-    A = hh(A, B, C, D, X[5], 4, -378558);
-    D = hh(D, A, B, C, X[8], 11, -2022574463);
-    C = hh(C, D, A, B, X[11], 16, 1839030562);
-    B = hh(B, C, D, A, X[14], 23, -35309556);
-    A = hh(A, B, C, D, X[1], 4, -1530992060);
-    D = hh(D, A, B, C, X[4], 11, 1272893353);
-    C = hh(C, D, A, B, X[7], 16, -155497632);
-    B = hh(B, C, D, A, X[10], 23, -1094730640);
-    A = hh(A, B, C, D, X[13], 4, 681279174);
-    D = hh(D, A, B, C, X[0], 11, -358537222);
-    C = hh(C, D, A, B, X[3], 16, -722521979);
-    B = hh(B, C, D, A, X[6], 23, 76029189);
-    A = hh(A, B, C, D, X[9], 4, -640364487);
-    D = hh(D, A, B, C, X[12], 11, -421815835);
-    C = hh(C, D, A, B, X[15], 16, 530742520);
-    B = hh(B, C, D, A, X[2], 23, -995338651);
-
-    // round 4
-    A = ii(A, B, C, D, X[0], 6, -198630844);
-    D = ii(D, A, B, C, X[7], 10, 1126891415);
-    C = ii(C, D, A, B, X[14], 15, -1416354905);
-    B = ii(B, C, D, A, X[5], 21, -57434055);
-    A = ii(A, B, C, D, X[12], 6, 1700485571);
-    D = ii(D, A, B, C, X[3], 10, -1894986606);
-    C = ii(C, D, A, B, X[10], 15, -1051523);
-    B = ii(B, C, D, A, X[1], 21, -2054922799);
-    A = ii(A, B, C, D, X[8], 6, 1873313359);
-    D = ii(D, A, B, C, X[15], 10, -30611744);
-    C = ii(C, D, A, B, X[6], 15, -1560198380);
-    B = ii(B, C, D, A, X[13], 21, 1309151649);
-    A = ii(A, B, C, D, X[4], 6, -145523070);
-    D = ii(D, A, B, C, X[11], 10, -1120210379);
-    C = ii(C, D, A, B, X[2], 15, 718787259);
-    B = ii(B, C, D, A, X[9], 21, -343485551);
-
-    a0 = (a0 + A) | 0;
-    b0 = (b0 + B) | 0;
-    c0 = (c0 + C) | 0;
-    d0 = (d0 + D) | 0;
-  }
-
-  return [a0, b0, c0, d0].map(toHex).join("");
+  return state;
 };
 
-/* ------------------- helpers for profile image ------------------- */
-const buildProfileUrl = (input, user) => {
-  if (!input && !user) return null;
-  const raw = typeof input === "string" ? input.trim() : "";
-  if (raw.startsWith("data:")) return raw;
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (/@/.test(raw) && /\.[a-z]{2,}$/i.test(raw)) {
-    const email = raw.toLowerCase().trim();
-    const hash = md5(email);
-    return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200`;
-  }
-  if (!raw && user?.email) {
-    const email = String(user.email).toLowerCase().trim();
-    const hash = md5(email);
-    return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200`;
-  }
-  if (raw) {
-    const base = process.env.REACT_APP_API_URL || window.location.origin;
-    const cleaned = raw.replace(/^\/+|\/+$/g, "");
-    const parts = cleaned.split("/").map((p) => encodeURIComponent(p));
-    return `${base.replace(/\/$/, "")}/${parts.join("/")}`;
-  }
-  return null;
+/* -------------------------------------------------------------------------- */
+/*                     Presentational pieces (outside Navbar)                 */
+/* -------------------------------------------------------------------------- */
+
+const Highlight = ({ text = "", query }) => {
+  const i = query ? text.toLowerCase().indexOf(query.toLowerCase()) : -1;
+  if (i < 0) return text;
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark className="bg-transparent font-semibold text-gray-900">
+        {text.slice(i, i + query.length)}
+      </mark>
+      {text.slice(i + query.length)}
+    </>
+  );
 };
 
-/* ------------------- actual component ------------------- */
+const Avatar = ({ name, src, size = 36 }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+
+  const style = { width: size, height: size };
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt=""
+        style={style}
+        className="rounded-full object-cover bg-gray-100"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      style={{ ...style, fontSize: size * 0.38 }}
+      className="grid place-items-center rounded-full bg-primary/10 text-primary font-semibold"
+    >
+      {initialsOf(name)}
+    </span>
+  );
+};
+
+const CartBadge = ({ count }) =>
+  count > 0 ? (
+    <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[11px] font-semibold grid place-items-center">
+      {count > 99 ? "99+" : count}
+    </span>
+  ) : null;
+
+/**
+ * Search box with live suggestions, recent searches and full combobox keyboard support.
+ * Defined outside Navbar so the input never remounts (and loses focus) on re-render.
+ */
+const SearchBox = ({ axios, query, setQuery, navigate, currency, onFocusChange, className = "" }) => {
+  const listId = useId();
+  const inputRef = useRef(null);
+
+  const [focused, setFocused] = useState(false);
+  const [active, setActive] = useState(-1);
+  const [recent, setRecent] = useState(readRecent);
+  const [phIndex, setPhIndex] = useState(0);
+
+  const { items, loading } = useSuggestions(axios, query);
+  const q = query.trim();
+
+  // Rows shown in the dropdown
+  const rows = [];
+  if (!q) {
+    recent.forEach((t) => rows.push({ type: "recent", key: `r-${t}`, text: t }));
+  } else if (q.length >= SUGGEST_MIN_CHARS) {
+    items.forEach((p, i) =>
+      rows.push({ type: "product", key: p._id || `${p.name}-${i}`, product: p })
+    );
+    rows.push({ type: "all", key: "all", text: q });
+  }
+  const open = focused && rows.length > 0;
+  const activeIdx = active < rows.length ? active : -1;
+
+  // Rotating placeholder: only while idle, and not for reduced-motion users
+  useEffect(() => {
+    if (query || focused) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setPhIndex((i) => (i + 1) % PLACEHOLDERS.length), 2500);
+    return () => clearInterval(t);
+  }, [query, focused]);
+
+  // Press "/" anywhere to jump to search
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target;
+      const typing =
+        t instanceof HTMLElement &&
+        (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
+      if (typing) return;
+      e.preventDefault();
+      inputRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const saveRecent = (text) => {
+    const t = text.trim();
+    if (!t) return;
+    const next = [t, ...recent.filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, MAX_RECENT);
+    setRecent(next);
+    writeRecent(next);
+  };
+
+  const clearRecent = () => {
+    setRecent([]);
+    writeRecent([]);
+  };
+
+  const close = () => {
+    setFocused(false);
+    setActive(-1);
+    onFocusChange?.(false);
+    inputRef.current?.blur();
+  };
+
+  const runSearch = (text) => {
+    const t = text.trim();
+    setQuery(t);
+    saveRecent(t);
+    close();
+    navigate(t ? `/products?search=${encodeURIComponent(t)}` : "/products");
+  };
+
+  const activate = (row) => {
+    if (row.type === "product") {
+      saveRecent(q);
+      close();
+      const p = row.product;
+      navigate(p._id ? `/product/${p._id}` : `/products?search=${encodeURIComponent(p.name || q)}`);
+    } else {
+      runSearch(row.text);
+    }
+  };
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (activeIdx >= 0 && rows[activeIdx]) activate(rows[activeIdx]);
+    else runSearch(query);
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "ArrowDown" && rows.length) {
+      e.preventDefault();
+      setFocused(true);
+      setActive((i) => (i + 1) % rows.length);
+    } else if (e.key === "ArrowUp" && rows.length) {
+      e.preventDefault();
+      setActive((i) => (i <= 0 ? rows.length - 1 : i - 1));
+    } else if (e.key === "Escape") {
+      setFocused(false);
+      setActive(-1);
+    }
+  };
+
+  return (
+    <form
+      role="search"
+      onSubmit={onSubmit}
+      onBlur={(e) => {
+        // close only when focus leaves the whole search box
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          setFocused(false);
+          setActive(-1);
+          onFocusChange?.(false);
+        }
+      }}
+      className={`relative ${className}`}
+    >
+      <div className="relative flex items-center gap-2 h-10 px-4 rounded-full bg-gray-100 border border-transparent transition focus-within:bg-white focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20">
+        <FiSearch className="shrink-0 text-gray-500" size={16} aria-hidden="true" />
+
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setActive(-1);
+            setFocused(true);
+          }}
+          onFocus={() => {
+            setFocused(true);
+            onFocusChange?.(true);
+          }}
+          onKeyDown={onKeyDown}
+          type="text"
+          enterKeyHint="search"
+          autoComplete="off"
+          spellCheck={false}
+          role="combobox"
+          aria-label="Search products"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={open && activeIdx >= 0 ? `${listId}-${activeIdx}` : undefined}
+          className="flex-1 min-w-0 bg-transparent outline-none text-sm"
+        />
+
+        {/* Rotating placeholder (decorative) */}
+        {!query && !focused && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none select-none absolute left-10 right-10 flex items-center text-sm text-gray-500"
+          >
+            <span className="shrink-0">Search for&nbsp;</span>
+            <span className="relative h-5 overflow-hidden">
+              <span
+                className="flex flex-col transition-transform duration-500 ease-in-out motion-reduce:transition-none"
+                style={{ transform: `translateY(-${phIndex * 1.25}rem)` }}
+              >
+                {PLACEHOLDERS.map((t) => (
+                  <span key={t} className="h-5 leading-5 whitespace-nowrap">
+                    {t}
+                  </span>
+                ))}
+              </span>
+            </span>
+          </div>
+        )}
+
+        {query ? (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onClick={() => {
+              setQuery("");
+              inputRef.current?.focus();
+            }}
+            className="shrink-0 grid place-items-center w-6 h-6 rounded-full text-gray-500 hover:bg-gray-200"
+          >
+            <FiX size={14} />
+          </button>
+        ) : (
+          !focused && (
+            <kbd className="hidden lg:inline-block shrink-0 text-[11px] text-gray-400 border border-gray-300 rounded px-1.5 py-0.5">
+              /
+            </kbd>
+          )
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
+          {!q && (
+            <div className="flex items-center justify-between px-4 pt-3 pb-1 text-xs text-gray-500">
+              <span>Recent searches</span>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={clearRecent}
+                className="hover:text-primary"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          {q.length >= SUGGEST_MIN_CHARS && loading && items.length === 0 && (
+            <p role="status" className="px-4 pt-3 pb-1 text-sm text-gray-500">
+              Searching…
+            </p>
+          )}
+          {q.length >= SUGGEST_MIN_CHARS && !loading && items.length === 0 && (
+            <p role="status" className="px-4 pt-3 pb-1 text-sm text-gray-500">
+              No quick matches. Search all products instead.
+            </p>
+          )}
+
+          <ul id={listId} role="listbox" aria-label="Search suggestions" className="max-h-72 overflow-y-auto py-1">
+            {rows.map((row, i) => {
+              const isActive = i === activeIdx;
+              const p = row.product;
+              const thumb = p?.image?.[0] ?? p?.images?.[0];
+              const price = p ? p.offerPrice ?? p.price : null;
+              return (
+                <li
+                  key={row.key}
+                  id={`${listId}-${i}`}
+                  role="option"
+                  aria-selected={isActive}
+                  onMouseDown={(e) => e.preventDefault()} // keep focus in the input
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => activate(row)}
+                  className={`flex items-center gap-3 px-4 py-2 cursor-pointer ${isActive ? "bg-gray-100" : ""}`}
+                >
+                  {row.type === "product" ? (
+                    <>
+                      {thumb ? (
+                        <img src={thumb} alt="" className="w-10 h-10 rounded-md object-cover bg-gray-100" />
+                      ) : (
+                        <span className="w-10 h-10 rounded-md bg-gray-100 grid place-items-center text-gray-400">
+                          <FiPackage size={16} />
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm text-gray-700 truncate">
+                          <Highlight text={p.name} query={q} />
+                        </span>
+                        {price != null && (
+                          <span className="block text-xs text-gray-500">
+                            {currency}
+                            {price}
+                          </span>
+                        )}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-10 h-10 grid place-items-center text-gray-400">
+                        {row.type === "recent" ? <FiClock size={16} /> : <FiSearch size={16} />}
+                      </span>
+                      <span className="text-sm text-gray-700 truncate">
+                        {row.type === "recent" ? row.text : <>Search for “{row.text}”</>}
+                      </span>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </form>
+  );
+};
+
+/* -------------------------------------------------------------------------- */
+/*                                   Navbar                                   */
+/* -------------------------------------------------------------------------- */
 
 const Navbar = () => {
-  const [addresses, setAddresses] = useState([]);
-  const [selectedAddress, setSelectedAddress] = useState(null);
-  const [hideTopBar, setHideTopBar] = useState(false);
-  const [hideBottomBar, setHideBottomBar] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
-  const [searchActive, setSearchActive] = useState(false);
-
-  // search-specific state
-  const [suggestions, setSuggestions] = useState([]);
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1); // -1 = none
-  const debounceRef = useRef(null);
-  const blurTimeoutRef = useRef(null);
-  const lastFetchRef = useRef(0);
-
-  const placeholders = [
-    "Milk / Fruits",
-    "Snacks / Chips",
-    "Vegetables / Fresh Items",
-    "Bakery / Cakes",
-    "Beverages / Juices",
-  ];
-
   const {
     axios,
     user,
@@ -207,418 +480,309 @@ const Navbar = () => {
     setShowUserLogin,
     setSearchQuery,
     searchQuery,
+    currency = "₹",
+    getCartCount,
+    logout,
   } = useAppContext();
 
   const navigate = useNavigate();
-  const rawProfile = user?.profilePic;
-  const primaryUrl = buildProfileUrl(rawProfile, user);
-  const gravatarFromUser = user?.email ? `https://www.gravatar.com/avatar/${md5(String(user.email).toLowerCase().trim())}?d=identicon&s=200` : null;
-  const defaultIcon = assets.profile_icon;
+  const { pathname } = useLocation();
 
-  useEffect(() => {
-    const fetchUserIfMissing = async () => {
-      if (!user) return;
-      if (!user.profilePic || !user.email) {
-        try {
-          const { data } = await axios.get("/api/user/me");
-          if (data?.success && data.user) setUser(data.user);
-        } catch (err) {
-          console.error("Failed to fetch /api/user/me:", err);
-        }
-      }
-    };
-    fetchUserIfMissing();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.profilePic, user?.email]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [hidden, setHidden] = useState(false); // slid away on scroll-down (mobile/tablet)
+  const [scrolled, setScrolled] = useState(false);
 
+  const accountRef = useRef(null);
+  const lastY = useRef(0);
+  const triedMeFor = useRef(null);
+
+  const userId = user?._id;
+  const cartCount = typeof getCartCount === "function" ? Number(getCartCount()) || 0 : 0;
+  const profileUrl = resolveProfileUrl(user?.profilePic, axios?.defaults?.baseURL);
+  const hideBottomBar = isProductPath(pathname); // product pages have their own buy bar
+
+  /* ------------------------------- Data effects ------------------------------ */
+
+  // Fill in missing profile details once per user
   useEffect(() => {
-    if (user && user._id) {
-      (async () => {
-        try {
-          const { data } = await axios.get(`/api/address/get?userId=${user._id}`);
-          if (data.success) {
-            setAddresses(data.addresses || []);
-            if (Array.isArray(data.addresses) && data.addresses.length > 0) {
-              setSelectedAddress(data.addresses[0]);
-            }
-          }
-        } catch (err) {
-          // ignore address errors
-        }
-      })();
+    if (!userId || (user.profilePic && user.email)) return;
+    if (triedMeFor.current === userId) return;
+    triedMeFor.current = userId;
+    axios
+      .get("/api/user/me")
+      .then(({ data }) => {
+        if (data?.success && data.user) setUser(data.user);
+      })
+      .catch((err) => console.error("Failed to fetch /api/user/me:", err));
+  }, [userId, user, axios, setUser]);
+
+  // Delivery address (cleared on logout)
+  useEffect(() => {
+    if (!userId) {
+      setSelectedAddress(null);
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  // treat md as desktop: mobile when < 768
-  const updateIsMobile = useCallback(() => setIsMobile(window.innerWidth < 768), []);
-  useEffect(() => {
-    updateIsMobile();
-    window.addEventListener("resize", updateIsMobile);
-    return () => window.removeEventListener("resize", updateIsMobile);
-  }, [updateIsMobile]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (window.innerWidth < 768) {
-        if (currentScrollY > lastScrollY && currentScrollY > 50) {
-          setHideTopBar(true);
-          setHideBottomBar(true);
-        } else {
-          setHideTopBar(false);
-          setHideBottomBar(false);
-        }
-      }
-      setLastScrollY(currentScrollY);
+    let cancelled = false;
+    axios
+      .get("/api/address/get", { params: { userId } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setSelectedAddress(data?.success && data.addresses?.length ? data.addresses[0] : null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+  }, [userId, axios]);
 
+  /* ------------------------------- UI effects -------------------------------- */
+
+  // Hide on scroll-down / show on scroll-up (ref-based: no re-subscribing, passive)
   useEffect(() => {
-    const i = setInterval(() => setPlaceholderIndex((p) => (p + 1) % placeholders.length), 2000);
-    return () => clearInterval(i);
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 8);
+      const delta = y - lastY.current;
+      if (Math.abs(delta) < 8) return;
+      setHidden(delta > 0 && y > 80);
+      lastY.current = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Close account menu on route change
+  useEffect(() => setAccountOpen(false), [pathname]);
+
+  // Close account menu on outside click / Escape
   useEffect(() => {
-    setSearchActive(Boolean(searchQuery && searchQuery.length > 0));
-  }, [searchQuery]);
-
-  // Debounced suggestions fetch
-  useEffect(() => {
-    // clear any previous debounce
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (!searchQuery || searchQuery.trim().length === 0) {
-      setSuggestions([]);
-      setSuggestionsOpen(false);
-      setIsLoadingSuggestions(false);
-      setActiveIndex(-1);
-      return;
-    }
-
-    // only perform suggestions for 2+ chars (tweak as required)
-    const q = searchQuery.trim();
-    if (q.length < 2) {
-      setSuggestions([]);
-      setSuggestionsOpen(false);
-      setIsLoadingSuggestions(false);
-      setActiveIndex(-1);
-      return;
-    }
-
-    setIsLoadingSuggestions(true);
-    debounceRef.current = setTimeout(async () => {
-      const start = Date.now();
-      lastFetchRef.current = start;
-      try {
-        // expecting backend endpoint that returns { success: true, products: [...] }
-        const { data } = await axios.get(`/api/product/search?query=${encodeURIComponent(q)}&limit=8`);
-        // guard stale responses (if another fetch started after this one)
-        if (lastFetchRef.current !== start) return;
-        if (data?.success && Array.isArray(data.products)) {
-          setSuggestions(data.products);
-        } else {
-          setSuggestions([]);
-        }
-        setSuggestionsOpen(true);
-      } catch (err) {
-        console.error("Search suggestions error:", err);
-        setSuggestions([]);
-        setSuggestionsOpen(false);
-      } finally {
-        if (lastFetchRef.current === start) setIsLoadingSuggestions(false);
-      }
-    }, 300); // debounce 300ms
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!accountOpen) return;
+    const onDown = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
+    const onKey = (e) => e.key === "Escape" && setAccountOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountOpen]);
 
-  // keyboard handlers for input
-  const handleKeyDown = (e) => {
-    if (!suggestionsOpen || suggestions.length === 0) {
-      if (e.key === "Enter") {
-        // go to products listing with query
-        navigate(`/products?search=${encodeURIComponent(searchQuery || "")}`);
-        setSuggestionsOpen(false);
-      }
-      return;
-    }
+  const keepVisible = searchFocused || accountOpen;
+  const slideAway = hidden && !keepVisible;
 
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIndex((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      // if activeIndex is -1 then goto products search
-      if (activeIndex === -1) {
-        navigate(`/products?search=${encodeURIComponent(searchQuery || "")}`);
-      } else {
-        const item = suggestions[activeIndex];
-        if (item?._id) navigate(`/product/${item._id}`);
-        else navigate(`/products?search=${encodeURIComponent(item?.name || searchQuery || "")}`);
-      }
-      setSuggestionsOpen(false);
-      setActiveIndex(-1);
-    } else if (e.key === "Escape") {
-      setSuggestionsOpen(false);
-      setActiveIndex(-1);
-    }
-  };
+  const addressLabel = selectedAddress
+    ? [selectedAddress.street, selectedAddress.city].filter(Boolean).join(", ")
+    : "";
 
-  // when user clicks a suggestion
-  const handleSelectSuggestion = (item) => {
-    setSuggestionsOpen(false);
-    setActiveIndex(-1);
-    if (item?._id) navigate(`/product/${item._id}`);
-    else navigate(`/products?search=${encodeURIComponent(item?.name || searchQuery || "")}`);
-  };
+  /* --------------------------------- Render ---------------------------------- */
 
-  // hide suggestions on blur but small timeout to allow click
-  const handleInputBlur = () => {
-    blurTimeoutRef.current = setTimeout(() => {
-      setSuggestionsOpen(false);
-      setActiveIndex(-1);
-    }, 150);
-  };
-
-  const handleInputFocus = () => {
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current);
-      blurTimeoutRef.current = null;
-    }
-    if (suggestions && suggestions.length > 0) setSuggestionsOpen(true);
-    setSearchActive(true);
-  };
-
-  // helper render for dropdown
-  const renderSuggestionsDropdown = (isMobileDropdown = false) => {
-    if (!suggestionsOpen) return null;
-    return (
-      <div
-        className={`absolute left-0 right-0 mt-1 z-50 bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden max-h-64 overflow-y-auto ${
-          isMobileDropdown ? "max-w-[92%] mx-auto" : ""
-        }`}
-        role="listbox"
-        aria-label="Search suggestions"
-      >
-        {isLoadingSuggestions && (
-          <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
-        )}
-        {!isLoadingSuggestions && suggestions.length === 0 && (
-          <div className="px-4 py-2 text-sm text-gray-500">No results — press Enter to search.</div>
-        )}
-        {!isLoadingSuggestions && suggestions.map((p, idx) => (
-          <button
-            key={p._id || `${p.name}-${idx}`}
-            className={`w-full text-left px-4 py-2 hover:bg-gray-50 focus:bg-gray-50 flex items-center gap-3 ${activeIndex === idx ? "bg-gray-100" : ""}`}
-            onMouseDown={(e) => { /* prevent blur before click */ e.preventDefault(); }}
-            onClick={() => handleSelectSuggestion(p)}
-            role="option"
-            aria-selected={activeIndex === idx}
-          >
-            {/* optional thumbnail if product has image */}
-            {p.images && p.images[0] ? (
-              <img src={p.images[0]} alt={p.name} className="w-10 h-10 object-cover rounded-sm" />
-            ) : (
-              <div className="w-10 h-10 bg-gray-100 rounded-sm flex items-center justify-center text-xs text-gray-500">img</div>
-            )}
-            <div className="flex-1">
-              <div className="text-sm font-medium truncate">{p.name}</div>
-              {p.price != null && <div className="text-xs text-gray-500">₹{p.price}</div>}
-            </div>
-          </button>
-        ))}
-        <div className="border-t border-gray-100">
-          <button
-            className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setSuggestionsOpen(false);
-              navigate(`/products?search=${encodeURIComponent(searchQuery || "")}`);
-            }}
-          >
-            Search for “{searchQuery}”
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // Render
   return (
     <>
-      <nav className={`z-50 fixed top-0 left-0 w-full transition-transform duration-500 ease-in-out bg-white/90 backdrop-blur-md border-b border-gray-300 py-3 px-3 md:px-8 lg:px-15 ${hideTopBar ? "-translate-y-12" : "translate-y-0"}`}>
-        {/* mobile logged-out compact */}
-        {isMobile && !user ? (
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-full flex items-center justify-center">
-              <div  className="h-10" /> <div className=" pr-0.5 text-xl">Alavala's Root & Craft</div>
-            </div>
-            <div className="w-full px-4 flex gap-3">
-              <button onClick={() => setShowUserLogin(true)} className="flex-1 py-2 bg-primary text-white rounded-full text-sm font-medium">Login</button>
-              <button onClick={() => navigate("/seller")} className="flex-1 py-2 bg-white border border-gray-300 text-sm rounded-full">Seller</button>
-            </div>
+      <header
+        className={`fixed top-0 left-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 px-3 md:px-8 py-2.5 transition-[transform,box-shadow] duration-300 ${
+          scrolled ? "shadow-sm" : ""
+        } ${slideAway ? "-translate-y-full lg:translate-y-0" : "translate-y-0"}`}
+      >
+        <nav aria-label="Main" className="flex flex-wrap lg:flex-nowrap items-center gap-x-3 gap-y-2">
+          {/* Logo */}
+          <NavLink to="/" aria-label="Home" className="order-1 shrink-0">
+            <img src={assets.logo} alt="Store logo" className="h-8 sm:h-10" />
+          </NavLink>
+
+          {/* Delivery location */}
+          {user && (
+            <button
+              type="button"
+              onClick={() => navigate("/add-address")}
+              className="order-2 flex-1 min-w-0 lg:flex-none lg:max-w-[220px] flex items-center gap-2 text-left rounded-lg px-2 py-1 hover:bg-gray-100"
+            >
+              <FiMapPin className="shrink-0 text-primary" size={16} aria-hidden="true" />
+              <span className="min-w-0 leading-tight">
+                <span className="block text-[11px] text-gray-500">Deliver to</span>
+                <span className="block text-sm font-medium truncate">
+                  {addressLabel || "Add an address"}
+                </span>
+              </span>
+            </button>
+          )}
+
+          {/* Search (wraps to its own row below lg) */}
+          <SearchBox
+            axios={axios}
+            query={searchQuery ?? ""}
+            setQuery={setSearchQuery}
+            navigate={navigate}
+            currency={currency}
+            onFocusChange={setSearchFocused}
+            className="order-5 w-full lg:order-3 lg:flex-1 lg:max-w-xl lg:mx-auto"
+          />
+
+          {/* Desktop links */}
+          <div className="hidden lg:flex order-4 items-center gap-7">
+            {NAV_LINKS.map(({ to, label, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `relative py-1 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "text-primary after:absolute after:left-0 after:right-0 after:-bottom-0.5 after:h-0.5 after:rounded after:bg-primary"
+                      : "text-gray-700 hover:text-primary"
+                  }`
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
           </div>
-        ) : (
-          <>
-            <div className={`transition-opacity duration-300 ease-in-out ${hideTopBar ? "opacity-0 pointer-events-none" : "opacity-100"} py-1`}>
-              <div className="flex items-center justify-between w-full">
-                <NavLink to="/" className="hidden sm:block" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-                  <img src={assets.logo} alt="logo" className="h-10" />
-                </NavLink>
 
-                <div className="hidden lg:flex flex-1 mx-4 items-center text-sm gap-2 border border-gray-300 px-3 rounded-full max-w-md bg-white relative overflow-visible">
-                  <input
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    value={searchQuery}
-                    className="py-1.5 w-full bg-transparent outline-none placeholder-gray-500"
-                    type="text"
-                    onFocus={handleInputFocus}
-                    onBlur={handleInputBlur}
-                    onKeyDown={handleKeyDown}
-                    aria-autocomplete="list"
-                    aria-expanded={suggestionsOpen}
-                    aria-controls="nav-search-suggestions"
+          {/* Cart + account */}
+          <div className="order-3 lg:order-6 ml-auto flex items-center gap-1 sm:gap-3">
+            <NavLink
+              to="/cart"
+              aria-label={`Cart${cartCount ? `, ${cartCount} items` : ""}`}
+              className="hidden sm:grid relative place-items-center w-10 h-10 rounded-full text-gray-700 hover:bg-gray-100"
+            >
+              <FiShoppingCart size={20} />
+              <CartBadge count={cartCount} />
+            </NavLink>
+
+            {!user ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate("/seller")}
+                  className="px-2 py-1.5 text-sm text-gray-600 hover:text-primary"
+                >
+                  Seller
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowUserLogin(true)}
+                  className="px-5 py-2 rounded-full bg-primary hover:bg-primary-dull text-white text-sm font-medium transition-colors"
+                >
+                  Log in
+                </button>
+              </>
+            ) : (
+              <div ref={accountRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAccountOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={accountOpen}
+                  aria-label="Account menu"
+                  className="flex items-center gap-1 rounded-full p-0.5 sm:pr-2 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <Avatar name={user.name} src={profileUrl} size={36} />
+                  <FiChevronDown
+                    aria-hidden="true"
+                    className={`hidden sm:block text-gray-500 transition-transform ${accountOpen ? "rotate-180" : ""}`}
                   />
-                  <div className={`absolute left-4 flex items-center pointer-events-none select-none transition-opacity duration-200 ${searchActive ? "opacity-0" : "opacity-100"}`}>
-                    <span className="text-gray-400">Search for&nbsp;</span>
-                    <div className="h-5 overflow-hidden relative">
-                      <div className="flex flex-col transition-transform duration-500 ease-in-out" style={{ transform: `translateY(-${placeholderIndex * 20}px)` }}>
-                        {placeholders.map((text, i) => <span key={i} className="h-5 text-gray-500">{text}</span>)}
-                      </div>
+                </button>
+
+                {accountOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-60 rounded-xl border border-gray-200 bg-white shadow-xl py-1.5 z-50"
+                  >
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-sm font-medium truncate">{user.name}</p>
+                      {user.email && <p className="text-xs text-gray-500 truncate">{user.email}</p>}
                     </div>
-                  </div>
-                  <img src={assets.search_icon} alt="search" className="w-4 h-4 ml-auto" />
-
-                  {/* suggestions dropdown for desktop input */}
-                  <div id="nav-search-suggestions" className="w-full" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0 }}>
-                    {renderSuggestionsDropdown(false)}
-                  </div>
-                </div>
-
-                <div className="hidden lg:flex items-center gap-8">
-                  <NavLink to="/" className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>Home</NavLink>
-                  <NavLink to="/products" className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>Products</NavLink>
-                  <NavLink to="/contact" className={({ isActive }) => isActive ? 'text-primary font-semibold' : ''}>Contact</NavLink>
-
-                  {!user ? (
-                    <div className="flex flex-col items-end gap-2">
-                      <button onClick={() => setShowUserLogin(true)} className="px-4 py-1.5 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Login</button>
-                      <button onClick={() => navigate("/seller")} className="px-4 py-1.5 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <img
-                        src={primaryUrl || gravatarFromUser || defaultIcon}
-                        alt={user?.name || "user"}
-                        className="w-8 h-8 cursor-pointer rounded-full object-cover"
-                        onClick={() => navigate("/profile")}
-                        onError={(e) => {
-                          console.warn("[Navbar] profile img load failed for:", rawProfile, "attempting fallback.");
-                          const cur = e.currentTarget;
-                          cur.onerror = null;
-                          if (primaryUrl && gravatarFromUser && cur.src !== gravatarFromUser) {
-                            cur.src = gravatarFromUser;
-                          } else {
-                            cur.src = defaultIcon;
-                          }
+                    {MENU_ITEMS.map(({ to, label, icon: Icon }) => (
+                      <Link
+                        key={to}
+                        to={to}
+                        role="menuitem"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <Icon size={16} className="text-gray-500" aria-hidden="true" />
+                        {label}
+                      </Link>
+                    ))}
+                    {typeof logout === "function" && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setAccountOpen(false);
+                          logout();
                         }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* mobile profile info (< lg) */}
-              {user && (
-                <div className="lg:hidden flex items-center gap-3 mt-3 px-1">
-                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/profile")}>
-                    <img
-                      src={primaryUrl || gravatarFromUser || defaultIcon}
-                      alt={user?.name || "user"}
-                      className="w-7 h-7 rounded-full object-cover"
-                      onError={(e) => {
-                        console.warn("[Navbar] mobile profile img load failed for:", rawProfile);
-                        const cur = e.currentTarget; cur.onerror = null;
-                        if (primaryUrl && gravatarFromUser && cur.src !== gravatarFromUser) cur.src = gravatarFromUser;
-                        else cur.src = defaultIcon;
-                      }}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">{user.name}</span>
-                    </div>
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100 mt-1.5"
+                      >
+                        <FiLogOut size={16} aria-hidden="true" />
+                        Log out
+                      </button>
+                    )}
                   </div>
-                  {selectedAddress && (
-                    <span onClick={() => navigate("/add-address")} className="text-gray-500 text-xs truncate max-w-[250px] cursor-pointer">{selectedAddress.street}</span>
-                  )}
-                  <button onClick={() => console.log("menu open")} className="ml-auto bg-gray-100 p-1 rounded-full" aria-label="open menu"><MdKeyboardArrowDown/></button>
-                </div>
-              )}
-
-              {!user && (
-                <div className="lg:hidden flex flex-col items-start gap-2 mt-4 px-1 w-full">
-                  <button onClick={() => setShowUserLogin(true)} className="w-full py-2 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Login</button>
-                  <button onClick={() => navigate("/seller")} className="w-full py-2 bg-primary hover:bg-primary-dull text-white rounded-full text-sm">Seller</button>
-                </div>
-              )}
-            </div>
-
-            {/* mobile search bar (< lg) */}
-            <div className={`lg:hidden mb-3 transition-all duration-300 ${hideTopBar ? 'flex justify-center items-center h-3' : 'mt-0'}`}>
-              <div className="relative flex items-center text-sm gap-2 border border-gray-300 px-3 py-1.5 rounded-full w-full max-w-md bg-white shadow-sm relative overflow-visible mx-auto">
-                <input
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  value={searchQuery}
-                  className="w-full bg-transparent outline-none placeholder-gray-500"
-                  type="text"
-                  onFocus={handleInputFocus}
-                  onBlur={handleInputBlur}
-                  onKeyDown={handleKeyDown}
-                  aria-autocomplete="list"
-                  aria-expanded={suggestionsOpen}
-                  aria-controls="nav-search-suggestions-mobile"
-                />
-                <div className={`absolute left-4 flex items-center pointer-events-none select-none transition-opacity duration-200 ${searchActive ? 'opacity-0' : 'opacity-100'}`}>
-                  <span className="text-gray-400">Search for&nbsp;</span>
-                  <div className="h-5 overflow-hidden relative">
-                    <div className="flex flex-col transition-transform duration-500 ease-in-out" style={{ transform: `translateY(-${placeholderIndex * 20}px)` }}>
-                      {placeholders.map((text, i) => <span key={i} className="h-5 text-gray-500">{text}</span>)}
-                    </div>
-                  </div>
-                </div>
-                <img src={assets.search_icon} alt="search" className="w-4 h-4 ml-auto"/>
-                <div id="nav-search-suggestions-mobile" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0 }}>
-                  {renderSuggestionsDropdown(true)}
-                </div>
+                )}
               </div>
-            </div>
-          </>
-        )}
-      </nav>
+            )}
+          </div>
+        </nav>
+      </header>
 
-      {/* bottom navbar for mobile */}
-      <div className={`sm:hidden fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md rounded-2xl px-3 py-2 flex justify-between items-center bg-white/30 backdrop-blur-md border border-gray-300 z-50 shadow-xl transition-all duration-[800ms] ease-in-out ${hideBottomBar ? "translate-y-20 opacity-0" : "translate-y-0 opacity-100"}`}>
-        <button onClick={() => navigate("/")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
-          <img src={assets.home_icon || assets.menu_icon} alt="home" className="w-6 h-6 mb-1" />
-          <span>Home</span>
-        </button>
-        <button onClick={() => navigate("/products")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" className="w-6 h-6 mb-1 text-gray-600" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73zM12 3.25L18.6 7 12 10.75 5.4 7 12 3.25zM5 8.9l6.5 3.7v7.2L5 16.1V8.9zm8.5 10.9v-7.2L20 8.9v7.2l-6.5 3.7z" /></svg>
-          <span>Products</span>
-        </button>
-        <button onClick={() => navigate("/cart")} className="flex flex-col items-center text-xs text-gray-700 hover:text-primary">
-          <FiShoppingCart className="w-6 h-6 mb-1" />
-          <span>Cart</span>
-        </button>
-      </div>
+      {/* Bottom bar for phones (hidden on product pages, which have their own buy bar) */}
+      {!hideBottomBar && (
+        <nav
+          aria-label="Quick navigation"
+          className={`sm:hidden fixed left-1/2 -translate-x-1/2 w-[94%] max-w-md z-50 flex items-stretch rounded-2xl bg-white/95 backdrop-blur-md border border-gray-200 shadow-xl px-1 py-1.5 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] transition-[transform,opacity] duration-300 ${
+            hidden && !keepVisible ? "translate-y-24 opacity-0 invisible" : "translate-y-0 opacity-100"
+          }`}
+        >
+          {[
+            { to: "/", label: "Home", icon: FiHome, end: true },
+            { to: "/products", label: "Products", icon: FiGrid },
+            { to: "/cart", label: "Cart", icon: FiShoppingCart, badge: cartCount },
+          ].map(({ to, label, icon: Icon, end, badge }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center gap-0.5 py-1 text-xs ${
+                  isActive ? "text-primary font-semibold" : "text-gray-600"
+                }`
+              }
+            >
+              <span className="relative">
+                <Icon size={22} aria-hidden="true" />
+                <CartBadge count={badge || 0} />
+              </span>
+              {label}
+            </NavLink>
+          ))}
+
+          {user ? (
+            <NavLink
+              to="/profile"
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center gap-0.5 py-1 text-xs ${
+                  isActive ? "text-primary font-semibold" : "text-gray-600"
+                }`
+              }
+            >
+              <FiUser size={22} aria-hidden="true" />
+              Account
+            </NavLink>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowUserLogin(true)}
+              className="flex-1 flex flex-col items-center gap-0.5 py-1 text-xs text-gray-600"
+            >
+              <FiUser size={22} aria-hidden="true" />
+              Log in
+            </button>
+          )}
+        </nav>
+      )}
     </>
   );
 };
