@@ -17,13 +17,6 @@ import {
   FiMail,
 } from 'react-icons/fi';
 
-/* -------------------------------------------------------------------------- */
-/*  Free, key-less map stack, all built on OpenStreetMap data                  */
-/*   - Map:            Leaflet (npm package) + OpenStreetMap tiles             */
-/*   - Place search:   Photon (komoot), OSM-based autocomplete                 */
-/*   - Pin -> address: Nominatim reverse geocoding                             */
-/* -------------------------------------------------------------------------- */
-
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
 const PHOTON = 'https://photon.komoot.io';
 const DEFAULT_CENTER = [17.385, 78.4867]; // fallback when location is unavailable
