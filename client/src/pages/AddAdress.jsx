@@ -89,6 +89,10 @@ const parseAddress = (res) => {
   };
 };
 
+/* -------------------------------------------------------------------------- */
+/*  MapPicker: fixed center pin, move the map to choose a spot                 */
+/* -------------------------------------------------------------------------- */
+
 const MapPicker = ({ initialQuery, onLocationChange }) => {
   const mapEl = useRef(null);
   const mapRef = useRef(null);
