@@ -1,12 +1,353 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
 import { useAppContext } from '../context/appContext';
 import { toast } from 'react-hot-toast';
-import { FiEdit, FiTrash2, FiShare2, FiPlus } from 'react-icons/fi';
+import {
+  FiEdit,
+  FiTrash2,
+  FiShare2,
+  FiPlus,
+  FiX,
+  FiSearch,
+  FiNavigation,
+  FiMapPin,
+  FiPhone,
+  FiMail,
+} from 'react-icons/fi';
+
+/* -------------------------------------------------------------------------- */
+/*  Map helpers (Leaflet from CDN + OpenStreetMap / Nominatim, no API key)     */
+/* -------------------------------------------------------------------------- */
+
+const LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+const LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+const NOMINATIM = 'https://nominatim.openstreetmap.org';
+const DEFAULT_CENTER = [17.385, 78.4867]; // fallback when location is unavailable
+
+let leafletPromise;
+const loadLeaflet = () => {
+  if (window.L) return Promise.resolve(window.L);
+  if (leafletPromise) return leafletPromise;
+  leafletPromise = new Promise((resolve, reject) => {
+    if (!document.querySelector(`link[href="${LEAFLET_CSS}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = LEAFLET_CSS;
+      document.head.appendChild(link);
+    }
+    const script = document.createElement('script');
+    script.src = LEAFLET_JS;
+    script.async = true;
+    script.onload = () => resolve(window.L);
+    script.onerror = () => {
+      leafletPromise = undefined;
+      reject(new Error('Could not load the map. Check your connection.'));
+    };
+    document.body.appendChild(script);
+  });
+  return leafletPromise;
+};
+
+const reverseGeocode = async (lat, lng, signal) => {
+  const res = await fetch(
+    `${NOMINATIM}/reverse?format=jsonv2&addressdetails=1&accept-language=en&lat=${lat}&lon=${lng}`,
+    { signal }
+  );
+  if (!res.ok) throw new Error('Reverse geocoding failed');
+  return res.json();
+};
+
+const searchPlaces = async (q, signal) => {
+  const res = await fetch(
+    `${NOMINATIM}/search?format=jsonv2&addressdetails=1&limit=5&accept-language=en&q=${encodeURIComponent(q)}`,
+    { signal }
+  );
+  if (!res.ok) throw new Error('Search failed');
+  return res.json();
+};
+
+const parseAddress = (res) => {
+  const a = res?.address || {};
+  const street = [
+    a.house_number,
+    a.road || a.pedestrian || a.footway,
+    a.neighbourhood || a.suburb || a.residential,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  return {
+    street: street || (res?.display_name || '').split(',').slice(0, 2).join(',').trim(),
+    city: a.city || a.town || a.village || a.city_district || a.county || a.state_district || '',
+    state: a.state || '',
+    zipcode: (a.postcode || '').replace(/\D/g, ''),
+    country: a.country || '',
+  };
+};
+
+/* -------------------------------------------------------------------------- */
+/*  MapPicker: fixed center pin, move the map to choose a spot                 */
+/* -------------------------------------------------------------------------- */
+
+const MapPicker = ({ initialQuery, onLocationChange }) => {
+  const mapEl = useRef(null);
+  const mapRef = useRef(null);
+  const abortRef = useRef(null);
+  const timerRef = useRef(null);
+  const pickedRef = useRef(false);
+  // In edit mode we don't overwrite saved fields until the user actually moves the pin.
+  const interacted = useRef(!initialQuery);
+  const onChangeRef = useRef(onLocationChange);
+  onChangeRef.current = onLocationChange;
+
+  const [moving, setMoving] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [label, setLabel] = useState('');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [mapError, setMapError] = useState('');
+
+  const resolveCenter = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    const { lat, lng } = map.getCenter();
+
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setResolving(true);
+
+    reverseGeocode(lat, lng, ctrl.signal)
+      .then((res) => {
+        if (res.error) {
+          setLabel('');
+          setResolving(false);
+          toast.error('No address found here. Try moving the pin onto land.');
+          return;
+        }
+        setLabel(res.display_name || '');
+        setResolving(false);
+        if (interacted.current) onChangeRef.current(parseAddress(res));
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
+        setResolving(false);
+        toast.error("Couldn't fetch the address for this spot.");
+      });
+  };
+
+  const locate = (silent = false) => {
+    if (!navigator.geolocation) {
+      if (!silent) toast.error('Location is not supported on this device.');
+      return;
+    }
+    if (!silent) interacted.current = true;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => mapRef.current?.setView([pos.coords.latitude, pos.coords.longitude], 17),
+      () => {
+        if (!silent) toast.error('Could not get your location. Allow access or pick on the map.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Initialise map once
+  useEffect(() => {
+    let cancelled = false;
+    let map;
+
+    loadLeaflet()
+      .then(async (L) => {
+        if (cancelled || !mapEl.current) return;
+
+        map = L.map(mapEl.current, { zoomControl: false }).setView(DEFAULT_CENTER, 15);
+        mapRef.current = map;
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+        L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+        map.on('dragstart', () => {
+          interacted.current = true;
+        });
+        map.on('movestart', () => setMoving(true));
+        map.on('moveend', () => {
+          setMoving(false);
+          clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(resolveCenter, 400);
+        });
+
+        setTimeout(() => map && map.invalidateSize(), 100);
+
+        if (initialQuery) {
+          try {
+            const found = await searchPlaces(initialQuery);
+            if (!cancelled && found[0]) {
+              map.setView([Number(found[0].lat), Number(found[0].lon)], 17);
+            } else {
+              resolveCenter();
+            }
+          } catch {
+            resolveCenter();
+          }
+        } else {
+          locate(true);
+          resolveCenter();
+        }
+      })
+      .catch((e) => setMapError(e.message));
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timerRef.current);
+      abortRef.current?.abort();
+      if (map) map.remove();
+      mapRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced place search
+  useEffect(() => {
+    if (pickedRef.current) {
+      pickedRef.current = false;
+      return;
+    }
+    const q = query.trim();
+    if (q.length < 3) {
+      setResults([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      setSearching(true);
+      try {
+        setResults(await searchPlaces(q, ctrl.signal));
+      } catch (e) {
+        if (e.name !== 'AbortError') setResults([]);
+      } finally {
+        if (!ctrl.signal.aborted) setSearching(false);
+      }
+    }, 500);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [query]);
+
+  const pickResult = (r) => {
+    interacted.current = true;
+    pickedRef.current = true;
+    setQuery((r.display_name || '').split(',').slice(0, 2).join(','));
+    setResults([]);
+    mapRef.current?.setView([Number(r.lat), Number(r.lon)], 17);
+  };
+
+  return (
+    <div>
+      <div className='relative isolate h-72 md:h-[26rem] rounded-xl overflow-hidden border border-gray-200 bg-gray-100'>
+        <div ref={mapEl} className='absolute inset-0' />
+
+        {mapError && (
+          <div className='absolute inset-0 z-[600] flex items-center justify-center p-6 text-center text-sm text-gray-600 bg-gray-100'>
+            {mapError} You can still fill the form manually.
+          </div>
+        )}
+
+        {/* Center pin */}
+        <div className='pointer-events-none absolute left-1/2 top-1/2 z-[500] h-0 w-0'>
+          <div className='absolute left-1/2 top-0 h-1.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/30' />
+          <div
+            className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full transition-transform duration-200 ${
+              moving ? '-translate-y-[130%]' : ''
+            }`}
+          >
+            <svg viewBox='0 0 24 24' width='42' height='42' className='text-primary drop-shadow-md' fill='currentColor'>
+              <path d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z' />
+            </svg>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className='absolute left-3 right-3 top-3 z-[1000]'>
+          <div className='relative'>
+            <FiSearch className='absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400' />
+            <input
+              type='text'
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder='Search area, street or landmark'
+              className='w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-700 shadow-md outline-none focus:border-primary'
+            />
+            {searching && (
+              <span className='absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-primary border-t-transparent' />
+            )}
+            {!searching && query && (
+              <button
+                type='button'
+                onClick={() => {
+                  setQuery('');
+                  setResults([]);
+                }}
+                className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600'
+                aria-label='Clear search'
+              >
+                <FiX />
+              </button>
+            )}
+          </div>
+
+          {results.length > 0 && (
+            <ul className='mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white text-sm shadow-lg'>
+              {results.map((r) => (
+                <li key={r.place_id}>
+                  <button
+                    type='button'
+                    onClick={() => pickResult(r)}
+                    className='flex w-full items-start gap-2.5 px-3.5 py-2.5 text-left text-gray-700 hover:bg-gray-50'
+                  >
+                    <FiMapPin className='mt-0.5 shrink-0 text-gray-400' />
+                    <span className='line-clamp-2'>{r.display_name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Locate me */}
+        <button
+          type='button'
+          onClick={() => locate(false)}
+          className='absolute bottom-3 right-3 z-[1000] inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-primary shadow-md transition hover:bg-gray-50'
+        >
+          <FiNavigation /> Use current location
+        </button>
+      </div>
+
+      <div className='mt-3 flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm'>
+        <FiMapPin className='mt-0.5 shrink-0 text-primary' />
+        <div className='min-w-0'>
+          <p className='text-xs text-gray-500'>Selected location</p>
+          <p className='break-words text-gray-800'>
+            {resolving ? 'Finding address…' : label || 'Move the map to place the pin on your doorstep'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* -------------------------------------------------------------------------- */
+/*  Form field                                                                 */
+/* -------------------------------------------------------------------------- */
 
 const InputField = ({ type, placeholder, name, handleChange, address }) => (
   <input
-    className='w-full px-2 py-2.5 border border-gray-500/30 rounded outline-none text-gray-500 focus:border-primary transition'
+    className='w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20'
     type={type}
     placeholder={placeholder}
     name={name}
@@ -16,21 +357,26 @@ const InputField = ({ type, placeholder, name, handleChange, address }) => (
   />
 );
 
+const EMPTY_ADDRESS = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  street: '',
+  city: '',
+  state: '',
+  zipcode: '',
+  country: '',
+  phone: '',
+};
+
+/* -------------------------------------------------------------------------- */
+/*  Page                                                                       */
+/* -------------------------------------------------------------------------- */
+
 const AddAddress = () => {
   const { axios, navigate, user } = useAppContext();
 
-  const [address, setAddress] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    street: '',
-    city: '',
-    state: '',
-    zipcode: '',
-    country: '',
-    phone: ''
-  });
-
+  const [address, setAddress] = useState(EMPTY_ADDRESS);
   const [addresses, setAddresses] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -57,18 +403,13 @@ const AddAddress = () => {
     }));
   };
 
+  // Called by the map whenever the pin settles on a new spot
+  const handleLocationChange = (fields) => {
+    setAddress((prev) => ({ ...prev, ...fields }));
+  };
+
   const resetForm = () => {
-    setAddress({
-      firstName: '',
-      lastName: '',
-      email: '',
-      street: '',
-      city: '',
-      state: '',
-      zipcode: '',
-      country: '',
-      phone: ''
-    });
+    setAddress(EMPTY_ADDRESS);
     setIsEditing(false);
     setEditingId(null);
   };
@@ -88,7 +429,7 @@ const AddAddress = () => {
       } else {
         response = await axios.post('/api/address/add', {
           userId: user._id,
-          address: payload
+          address: payload,
         });
       }
 
@@ -151,7 +492,13 @@ const AddAddress = () => {
     } else {
       fetchAddresses();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Where the map should start when editing a saved address
+  const initialQuery = isEditing
+    ? [address.street, address.city, address.state, address.country].filter(Boolean).join(', ')
+    : '';
 
   return (
     <div className='mt-30 pb-16 px-4'>
@@ -161,70 +508,115 @@ const AddAddress = () => {
         </p>
         <button
           onClick={() => {
-            resetForm();
-            setShowForm(!showForm);
+            if (showForm) {
+              setShowForm(false);
+              resetForm();
+            } else {
+              resetForm();
+              setShowForm(true);
+            }
           }}
-          className='flex items-center gap-2 bg-primary text-white px-4 py-2 rounded hover:bg-primary-dull transition text-sm'
+          className='flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dull transition text-sm'
         >
-          <FiPlus className="text-lg" />
-          <span>{isEditing ? "Cancel Edit" : "Add Address"}</span>
+          {showForm ? <FiX className='text-lg' /> : <FiPlus className='text-lg' />}
+          <span>{showForm ? 'Close' : 'Add Address'}</span>
         </button>
       </div>
 
-      {/* Existing Addresses */}
-      <div className='grid gap-4 md:grid-cols-2'>
-        {addresses.map((addr) => (
-          <div key={addr._id} className='p-4 border border-gray-300 rounded-lg shadow-sm'>
-            <p className='font-semibold text-gray-800'>{addr.firstName} {addr.lastName}</p>
-            <p className='text-sm text-gray-600'>{addr.email}</p>
-            <p className='text-sm mt-1 text-gray-700'>
-              {addr.street}, {addr.city}, {addr.state}, {addr.country} - {addr.zipcode}
-            </p>
-            <p className='text-sm text-gray-700'>Phone: {addr.phone}</p>
-            <div className='flex gap-4 mt-3 text-xl'>
-              <button onClick={() => shareAddress(addr)} title='Share' className='text-gray-600 hover:text-primary'>
-                <FiShare2 />
-              </button>
-              <button onClick={() => handleEdit(addr)} title='Edit' className='text-gray-600 hover:text-primary'>
-                <FiEdit />
-              </button>
-              <button onClick={() => deleteAddress(addr._id)} title='Delete' className='text-red-500 hover:text-red-700'>
-                <FiTrash2 />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Address Form */}
+      {/* Address form with map */}
       {showForm && (
-        <div className='mt-12'>
-          <p className='text-lg font-semibold text-gray-600 mb-4'>{isEditing ? 'Edit Address' : 'Add New Address'}</p>
-          <form onSubmit={onSubmitHandler} className='space-y-3 text-sm max-w-xl'>
-            <div className="grid grid-cols-2 gap-4">
-              <InputField handleChange={handleChange} address={address} name='firstName' type='text' placeholder='First Name' />
-              <InputField handleChange={handleChange} address={address} name='lastName' type='text' placeholder='Last Name' />
+        <div className='mb-10 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-6'>
+          <p className='mb-1 text-lg font-semibold text-gray-700'>
+            {isEditing ? 'Edit Address' : 'Add New Address'}
+          </p>
+          <p className='mb-5 text-sm text-gray-500'>
+            Drag the map to drop the pin on your location, search for a place, or use your current
+            location. The details fill in automatically and you can still edit them.
+          </p>
+
+          <div className='grid gap-6 lg:grid-cols-2'>
+            <MapPicker
+              key={editingId || 'new'}
+              initialQuery={initialQuery}
+              onLocationChange={handleLocationChange}
+            />
+
+            <form onSubmit={onSubmitHandler} className='space-y-3 text-sm'>
+              <div className='grid grid-cols-2 gap-4'>
+                <InputField handleChange={handleChange} address={address} name='firstName' type='text' placeholder='First Name' />
+                <InputField handleChange={handleChange} address={address} name='lastName' type='text' placeholder='Last Name' />
+              </div>
+              <InputField handleChange={handleChange} address={address} name='email' type='email' placeholder='Email Address' />
+              <InputField handleChange={handleChange} address={address} name='street' type='text' placeholder='Street / House no. / Area' />
+
+              <div className='grid grid-cols-2 gap-4'>
+                <InputField handleChange={handleChange} address={address} name='city' type='text' placeholder='City' />
+                <InputField handleChange={handleChange} address={address} name='state' type='text' placeholder='State' />
+              </div>
+
+              <div className='grid grid-cols-2 gap-4'>
+                <InputField handleChange={handleChange} address={address} name='zipcode' type='number' placeholder='Zip Code' />
+                <InputField handleChange={handleChange} address={address} name='country' type='text' placeholder='Country' />
+              </div>
+
+              <InputField handleChange={handleChange} address={address} name='phone' type='number' placeholder='Phone Number' />
+
+              <button
+                type='submit'
+                className='w-full rounded-lg bg-primary py-2.5 font-medium text-white transition hover:bg-primary-dull'
+              >
+                {isEditing ? 'Update Address' : 'Save Address'}
+              </button>
+              <p className='text-xs text-gray-500'>
+                By clicking, you agree to our <span className='cursor-pointer text-primary'>Terms and Conditions</span>
+              </p>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Existing addresses */}
+      {addresses.length === 0 && !showForm ? (
+        <div className='rounded-2xl border border-dashed border-gray-300 py-14 text-center'>
+          <FiMapPin className='mx-auto mb-3 text-3xl text-gray-400' />
+          <p className='font-medium text-gray-700'>No saved addresses yet</p>
+          <p className='mt-1 text-sm text-gray-500'>Add one to speed up checkout.</p>
+        </div>
+      ) : (
+        <div className='grid gap-4 md:grid-cols-2'>
+          {addresses.map((addr) => (
+            <div
+              key={addr._id}
+              className='rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md'
+            >
+              <p className='font-semibold text-gray-800'>
+                {addr.firstName} {addr.lastName}
+              </p>
+              <p className='mt-1 flex items-start gap-2 text-sm text-gray-700'>
+                <FiMapPin className='mt-0.5 shrink-0 text-gray-400' />
+                <span>
+                  {addr.street}, {addr.city}, {addr.state}, {addr.country} - {addr.zipcode}
+                </span>
+              </p>
+              <p className='mt-1 flex items-center gap-2 text-sm text-gray-600'>
+                <FiPhone className='shrink-0 text-gray-400' /> {addr.phone}
+              </p>
+              <p className='mt-1 flex items-center gap-2 text-sm text-gray-600 break-all'>
+                <FiMail className='shrink-0 text-gray-400' /> {addr.email}
+              </p>
+              <div className='mt-3 flex gap-4 border-t border-gray-100 pt-3 text-xl'>
+                <button onClick={() => shareAddress(addr)} title='Share' className='text-gray-600 hover:text-primary'>
+                  <FiShare2 />
+                </button>
+                <button onClick={() => handleEdit(addr)} title='Edit' className='text-gray-600 hover:text-primary'>
+                  <FiEdit />
+                </button>
+                <button onClick={() => deleteAddress(addr._id)} title='Delete' className='text-red-500 hover:text-red-700'>
+                  <FiTrash2 />
+                </button>
+              </div>
             </div>
-            <InputField handleChange={handleChange} address={address} name='email' type='email' placeholder='Email Address' />
-            <InputField handleChange={handleChange} address={address} name='street' type='text' placeholder='Street' />
-
-            <div className="grid grid-cols-2 gap-4">
-              <InputField handleChange={handleChange} address={address} name='city' type='text' placeholder='City' />
-              <InputField handleChange={handleChange} address={address} name='state' type='text' placeholder='State' />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <InputField handleChange={handleChange} address={address} name='zipcode' type='number' placeholder='Zip Code' />
-              <InputField handleChange={handleChange} address={address} name='country' type='text' placeholder='Country' />
-            </div>
-
-            <InputField handleChange={handleChange} address={address} name='phone' type='number' placeholder='Phone Number' />
-
-            <button type='submit' className='w-full bg-primary text-white py-2 rounded-md hover:bg-primary-dull transition'>
-              {isEditing ? 'Update Address' : 'Add Address'}
-            </button>
-            <p className='text-gray-500 text-sm'>By clicking, you agree to our <span className='text-primary cursor-pointer'>Terms and Conditions</span></p>
-          </form>
+          ))}
         </div>
       )}
     </div>
