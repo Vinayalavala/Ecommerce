@@ -186,7 +186,7 @@ const AddProduct = () => {
       if (data.success) {
         toast.success(data.message);
         resetForm();
-        navigate("/seller");
+        navigate("/seller/product-list");
       } else {
         toast.error(data.message || (editId ? "Update failed" : "Add failed"));
         stopCooldown(); // let the user retry right away
