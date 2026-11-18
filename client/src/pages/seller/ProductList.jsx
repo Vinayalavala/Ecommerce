@@ -63,7 +63,7 @@ const ProductList = () => {
 
   // ✅ Navigate to AddProduct page for editing
   const handleEdit = (product) => {
-    navigate(`/seller?edit=${product._id}`, { state: { product } });
+    navigate(`/seller/add-product?edit=${product._id}`, { state: { product } });
   };
 
   // ✅ Category filter options
