@@ -13,9 +13,12 @@ const ProductList = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // ✅ Watch products and stop loading once fetched
+  // Safe list so .map/.filter never crash while products is undefined
+  const productList = Array.isArray(products) ? products : [];
+
+  // ✅ Stop loading once products have been fetched
   useEffect(() => {
-    if (products && products.length >= 0) {
+    if (Array.isArray(products)) {
       setLoading(false);
     }
   }, [products]);
@@ -40,19 +43,19 @@ const ProductList = () => {
 
   // ✅ Delete Product
   const deleteProduct = async (id) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
 
     try {
       setLoadingProductId(id);
       const { data } = await axios.delete(`/api/product/delete/${id}`);
       if (data.success) {
-        toast.success("Product deleted successfully.");
+        toast.success('Product deleted successfully.');
         fetchProducts();
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message || "Something went wrong.");
+      toast.error(error.message || 'Something went wrong.');
     } finally {
       setLoadingProductId(null);
     }
@@ -63,19 +66,21 @@ const ProductList = () => {
     navigate(`/seller?edit=${product._id}`, { state: { product } });
   };
 
-  // ✅ Category filter
+  // ✅ Category filter options
   const categories = useMemo(() => {
-    const set = new Set(products.map(p => p.category));
+    const set = new Set(productList.map((p) => p.category));
     return ['All', ...Array.from(set)];
-  }, [products]);
+  }, [productList]);
 
   // ✅ Filtered Products
   const filteredProducts = useMemo(() => {
-    return products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (categoryFilter === 'All' || product.category === categoryFilter)
+    const term = searchTerm.toLowerCase();
+    return productList.filter(
+      (product) =>
+        (product.name || '').toLowerCase().includes(term) &&
+        (categoryFilter === 'All' || product.category === categoryFilter)
     );
-  }, [products, searchTerm, categoryFilter]);
+  }, [productList, searchTerm, categoryFilter]);
 
   // ✅ Show spinner until products are ready
   if (loading) {
@@ -105,7 +110,7 @@ const ProductList = () => {
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
@@ -136,8 +141,8 @@ const ProductList = () => {
                             alt={product.name}
                             className="w-full h-full object-cover cursor-pointer"
                             onClick={() => {
-                              navigate(`/products/${product.category.toLowerCase()}/${product._id}`);
-                              scrollTo(0, 0);
+                              navigate(`/products/${(product.category || '').toLowerCase()}/${product._id}`);
+                              window.scrollTo(0, 0);
                             }}
                           />
                         </div>
@@ -153,7 +158,9 @@ const ProductList = () => {
 
                     {/* Price */}
                     <td className="px-3 py-3 hidden sm:table-cell truncate">
-                      {currency}{product.offerPrice?.toFixed(2) || 'N/A'}
+                      {Number.isFinite(Number(product.offerPrice))
+                        ? `${currency}${Number(product.offerPrice).toFixed(2)}`
+                        : 'N/A'}
                     </td>
 
                     {/* Stock Toggle */}
@@ -162,7 +169,7 @@ const ProductList = () => {
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={product.inStock}
+                            checked={!!product.inStock}
                             disabled={loadingProductId === product._id}
                             onChange={() => toggleStock(product._id, !product.inStock)}
                             className="sr-only peer"
