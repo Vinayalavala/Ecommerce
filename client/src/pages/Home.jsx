@@ -16,8 +16,7 @@ const Home = () => {
       <DisplayAds/>
         <BestSeller />
         <CategoryPreview/>
-        <BottomBanner /> 
-        <NewsLetter />
+        
     </div>
   );
 }
