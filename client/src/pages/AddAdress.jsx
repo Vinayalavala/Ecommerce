@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 import { useAppContext } from '../context/appContext';
 import { toast } from 'react-hot-toast';
@@ -16,68 +18,81 @@ import {
 } from 'react-icons/fi';
 
 /* -------------------------------------------------------------------------- */
-/*  Google Maps helpers                                                        */
-/*  Needs VITE_GOOGLE_MAPS_API_KEY with these APIs enabled in Google Cloud:    */
-/*  Maps JavaScript API, Geocoding API, Places API (New)                       */
+/*  Free, key-less map stack, all built on OpenStreetMap data                  */
+/*   - Map:            Leaflet (npm package) + OpenStreetMap tiles             */
+/*   - Place search:   Photon (komoot), OSM-based autocomplete                 */
+/*   - Pin -> address: Nominatim reverse geocoding                             */
 /* -------------------------------------------------------------------------- */
 
-const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-const DEFAULT_CENTER = { lat: 17.385, lng: 78.4867 }; // fallback when location is unavailable
+const NOMINATIM = 'https://nominatim.openstreetmap.org';
+const PHOTON = 'https://photon.komoot.io';
+const DEFAULT_CENTER = [17.385, 78.4867]; // fallback when location is unavailable
 
-let mapsPromise;
-const loadGoogleMaps = () => {
-  if (!GOOGLE_MAPS_KEY) {
-    return Promise.reject(new Error('Google Maps API key is missing (set VITE_GOOGLE_MAPS_API_KEY).'));
-  }
-  if (window.google?.maps?.importLibrary) return Promise.resolve(window.google.maps);
-  if (mapsPromise) return mapsPromise;
-
-  // Google calls this global when the key is rejected
-  window.gm_authFailure = () => window.dispatchEvent(new Event('gmaps-auth-failure'));
-
-  mapsPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&v=weekly&loading=async`;
-    script.async = true;
-    script.onload = () => resolve(window.google.maps);
-    script.onerror = () => {
-      mapsPromise = undefined;
-      reject(new Error('Could not load Google Maps. Check your connection.'));
-    };
-    document.head.appendChild(script);
-  });
-  return mapsPromise;
+const reverseGeocode = async (lat, lng, signal) => {
+  const res = await fetch(
+    `${NOMINATIM}/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=en&lat=${lat}&lon=${lng}`,
+    { signal }
+  );
+  if (!res.ok) throw new Error('Reverse geocoding failed');
+  return res.json();
 };
 
-// Prefer a real address over a plus-code result
-const pickBestResult = (results = []) =>
-  results.find((r) => !r.types?.includes('plus_code')) || results[0];
+const geocodeText = async (q, signal) => {
+  const res = await fetch(
+    `${NOMINATIM}/search?format=jsonv2&limit=1&accept-language=en&q=${encodeURIComponent(q)}`,
+    { signal }
+  );
+  if (!res.ok) throw new Error('Search failed');
+  const data = await res.json();
+  return data[0] ? { lat: Number(data[0].lat), lng: Number(data[0].lon) } : null;
+};
 
-const parseGoogleAddress = (result) => {
-  const comps = result?.address_components || [];
-  const get = (...types) => {
-    for (const t of types) {
-      const c = comps.find((x) => x.types.includes(t));
-      if (c) return c.long_name;
-    }
-    return '';
-  };
+// Autocomplete, biased towards wherever the map is currently looking
+const searchPlaces = async (q, center, signal) => {
+  const res = await fetch(
+    `${PHOTON}/api/?q=${encodeURIComponent(q)}&limit=6&lang=en&lat=${center.lat}&lon=${center.lng}`,
+    { signal }
+  );
+  if (!res.ok) throw new Error('Search failed');
+  const data = await res.json();
+  return (data.features || [])
+    .map((f, i) => {
+      const p = f.properties || {};
+      const [lon, lat] = f.geometry.coordinates;
+      const streetLine = [p.housenumber, p.street].filter(Boolean).join(' ');
+      const main = p.name || streetLine;
+      const sub = [p.name ? streetLine : '', p.district || p.locality, p.city || p.county, p.state, p.country]
+        .filter(Boolean)
+        .join(', ');
+      return { id: `${p.osm_type || 'x'}${p.osm_id || i}-${i}`, main, sub, lat, lng: lon };
+    })
+    .filter((r) => r.main);
+};
 
+const parseAddress = (res) => {
+  const a = res?.address || {};
   const street = [
-    get('street_number') || get('premise'),
-    get('route'),
-    get('sublocality_level_2'),
-    get('sublocality_level_1') || get('sublocality') || get('neighborhood'),
+    a.house_number,
+    a.road || a.pedestrian || a.footway || a.path,
+    a.neighbourhood || a.suburb || a.residential || a.quarter,
   ]
     .filter(Boolean)
     .join(', ');
 
   return {
-    street: street || (result?.formatted_address || '').split(',').slice(0, 2).join(',').trim(),
-    city: get('locality', 'administrative_area_level_3', 'administrative_area_level_2'),
-    state: get('administrative_area_level_1'),
-    zipcode: get('postal_code').replace(/\D/g, ''),
-    country: get('country'),
+    street: street || (res?.display_name || '').split(',').slice(0, 2).join(',').trim(),
+    city:
+      a.city ||
+      a.town ||
+      a.village ||
+      a.municipality ||
+      a.city_district ||
+      a.county ||
+      a.state_district ||
+      '',
+    state: a.state || '',
+    zipcode: (a.postcode || '').replace(/\D/g, ''),
+    country: a.country || '',
   };
 };
 
@@ -88,14 +103,12 @@ const parseGoogleAddress = (result) => {
 const MapPicker = ({ initialQuery, onLocationChange }) => {
   const mapEl = useRef(null);
   const mapRef = useRef(null);
-  const geocoderRef = useRef(null);
-  const placesRef = useRef(null);
-  const tokenRef = useRef(null);
+  const circleRef = useRef(null);
+  const abortRef = useRef(null);
   const timerRef = useRef(null);
-  const reqRef = useRef(0);
   const pickedRef = useRef(false);
-  // Form fields are only overwritten after the user (or "current location") moves the pin,
-  // so editing a saved address never gets clobbered on open.
+  // Form fields are only overwritten once the user (or an accurate GPS fix) has placed the pin,
+  // so opening the form or editing a saved address never gets clobbered.
   const interacted = useRef(false);
   const onChangeRef = useRef(onLocationChange);
   onChangeRef.current = onLocationChange;
@@ -106,30 +119,39 @@ const MapPicker = ({ initialQuery, onLocationChange }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [mapError, setMapError] = useState('');
+  const [accuracy, setAccuracy] = useState(0);
 
-  const resolveCenter = async () => {
+  const resolveCenter = () => {
     const map = mapRef.current;
-    const geocoder = geocoderRef.current;
-    if (!map || !geocoder) return;
+    if (!map) return;
+    const { lat, lng } = map.getCenter();
 
-    const c = map.getCenter();
-    const id = ++reqRef.current;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     setResolving(true);
 
-    try {
-      const { results: found } = await geocoder.geocode({ location: { lat: c.lat(), lng: c.lng() } });
-      if (id !== reqRef.current) return;
-      const best = pickBestResult(found);
-      setLabel(best?.formatted_address || '');
-      if (best && interacted.current) onChangeRef.current(parseGoogleAddress(best));
-    } catch (e) {
-      if (id !== reqRef.current) return;
-      setLabel('');
-      if (e?.code !== 'ZERO_RESULTS') toast.error("Couldn't fetch the address for this spot.");
-    } finally {
-      if (id === reqRef.current) setResolving(false);
-    }
+    reverseGeocode(lat, lng, ctrl.signal)
+      .then((res) => {
+        setResolving(false);
+        if (res.error) {
+          setLabel('');
+          return;
+        }
+        setLabel(res.display_name || '');
+        if (interacted.current) onChangeRef.current(parseAddress(res));
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
+        setResolving(false);
+        toast.error("Couldn't fetch the address for this spot. Fill it in manually.");
+      });
+  };
+
+  const clearAccuracy = () => {
+    circleRef.current?.remove();
+    circleRef.current = null;
+    setAccuracy(0);
   };
 
   const locate = (silent = false) => {
@@ -141,152 +163,130 @@ const MapPicker = ({ initialQuery, onLocationChange }) => {
       (pos) => {
         const map = mapRef.current;
         if (!map) return;
-        interacted.current = true;
-        map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        map.setZoom(17);
+        const { latitude, longitude, accuracy: acc } = pos.coords;
+
+        // Laptops without GPS often locate via Wi-Fi/IP and can be hundreds of metres off.
+        // Don't silently auto-fill from a poor fix; let the user fine-tune the pin.
+        interacted.current = !silent || acc <= 300;
+
+        map.setView([latitude, longitude], acc > 1000 ? 15 : 18);
+        circleRef.current?.remove();
+        circleRef.current = L.circle([latitude, longitude], {
+          radius: acc,
+          weight: 1,
+          color: '#2563eb',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.12,
+        }).addTo(map);
+        setAccuracy(acc > 100 ? Math.round(acc) : 0);
       },
       () => {
         if (!silent) toast.error('Could not get your location. Allow access or pick on the map.');
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
-  // Surface API key problems (billing off, wrong key, blocked referrer...)
-  useEffect(() => {
-    const onAuthFail = () =>
-      setMapError('Google Maps rejected the API key. Check the key, billing and allowed domains.');
-    window.addEventListener('gmaps-auth-failure', onAuthFail);
-    return () => window.removeEventListener('gmaps-auth-failure', onAuthFail);
-  }, []);
-
   // Initialise map once
   useEffect(() => {
+    const map = L.map(mapEl.current, { zoomControl: false }).setView(DEFAULT_CENTER, 15);
+    mapRef.current = map;
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // Any real user gesture means the pin position is intentional
+    const markInteracted = () => {
+      interacted.current = true;
+      if (circleRef.current) clearAccuracy();
+    };
+    const container = map.getContainer();
+    container.addEventListener('pointerdown', markInteracted);
+    container.addEventListener('wheel', markInteracted, { passive: true });
+
+    map.on('movestart', () => setMoving(true));
+    map.on('moveend', () => {
+      setMoving(false);
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(resolveCenter, 500);
+    });
+
+    const t = setTimeout(() => map.invalidateSize(), 100);
+
     let cancelled = false;
-
-    loadGoogleMaps()
-      .then(async (gmaps) => {
-        const { Map: GMap } = await gmaps.importLibrary('maps');
-        const { Geocoder } = await gmaps.importLibrary('geocoding');
-        placesRef.current = await gmaps.importLibrary('places');
-        if (cancelled || !mapEl.current) return;
-
-        geocoderRef.current = new Geocoder();
-        const map = new GMap(mapEl.current, {
-          center: DEFAULT_CENTER,
-          zoom: 15,
-          disableDefaultUI: true,
-          zoomControl: true,
-          gestureHandling: 'greedy',
-          clickableIcons: false,
-        });
-        mapRef.current = map;
-
-        map.addListener('dragstart', () => {
-          interacted.current = true;
-          setMoving(true);
-        });
-        map.addListener('idle', () => {
-          setMoving(false);
-          clearTimeout(timerRef.current);
-          timerRef.current = setTimeout(() => {
-            if (interacted.current || initialQuery) resolveCenter();
-          }, 300);
-        });
-
-        if (initialQuery) {
-          try {
-            const { results: found } = await geocoderRef.current.geocode({ address: initialQuery });
-            if (!cancelled && found[0]) {
-              map.setCenter(found[0].geometry.location);
-              map.setZoom(17);
-            }
-          } catch {
-            /* keep default center */
-          }
-        } else {
-          locate(true);
-        }
-      })
-      .catch((e) => setMapError(e.message));
+    const ctrl = new AbortController();
+    if (initialQuery) {
+      geocodeText(initialQuery, ctrl.signal)
+        .then((pt) => {
+          if (cancelled) return;
+          if (pt) map.setView([pt.lat, pt.lng], 17);
+          else resolveCenter();
+        })
+        .catch(() => !cancelled && resolveCenter());
+    } else {
+      locate(true);
+      resolveCenter();
+    }
 
     return () => {
       cancelled = true;
+      ctrl.abort();
+      clearTimeout(t);
       clearTimeout(timerRef.current);
-      if (mapRef.current && window.google?.maps?.event) {
-        window.google.maps.event.clearInstanceListeners(mapRef.current);
-      }
+      abortRef.current?.abort();
+      container.removeEventListener('pointerdown', markInteracted);
+      container.removeEventListener('wheel', markInteracted);
+      map.remove();
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Debounced place autocomplete (Places API New)
+  // Debounced place search
   useEffect(() => {
     if (pickedRef.current) {
       pickedRef.current = false;
       return;
     }
     const q = query.trim();
-    if (q.length < 3 || !placesRef.current) {
+    if (q.length < 3) {
       setResults([]);
       return;
     }
-
-    let stale = false;
+    const ctrl = new AbortController();
     const t = setTimeout(async () => {
       setSearching(true);
       try {
-        const { AutocompleteSuggestion, AutocompleteSessionToken } = placesRef.current;
-        if (!tokenRef.current) tokenRef.current = new AutocompleteSessionToken();
-        const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
-          input: q,
-          sessionToken: tokenRef.current,
-        });
-        if (!stale) setResults(suggestions.filter((s) => s.placePrediction).slice(0, 5));
-      } catch {
-        if (!stale) setResults([]);
+        const center = mapRef.current?.getCenter() || { lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] };
+        setResults(await searchPlaces(q, center, ctrl.signal));
+      } catch (e) {
+        if (e.name !== 'AbortError') setResults([]);
       } finally {
-        if (!stale) setSearching(false);
+        if (!ctrl.signal.aborted) setSearching(false);
       }
-    }, 350);
-
+    }, 400);
     return () => {
-      stale = true;
       clearTimeout(t);
+      ctrl.abort();
     };
   }, [query]);
 
-  const pickResult = async (s) => {
-    const p = s.placePrediction;
-    const name = p.mainText?.text || p.text?.text || '';
+  const pickResult = (r) => {
     interacted.current = true;
-    if (name !== query) pickedRef.current = true;
-    setQuery(name);
+    pickedRef.current = true;
+    clearAccuracy();
+    setQuery(r.main);
     setResults([]);
-    try {
-      const place = p.toPlace();
-      await place.fetchFields({ fields: ['location'] });
-      tokenRef.current = null; // session ends after a selection
-      if (place.location && mapRef.current) {
-        mapRef.current.setCenter(place.location);
-        mapRef.current.setZoom(17);
-      }
-    } catch {
-      toast.error("Couldn't open that place.");
-    }
+    mapRef.current?.setView([r.lat, r.lng], 18);
   };
 
   return (
     <div>
       <div className='relative isolate h-72 md:h-[26rem] rounded-xl overflow-hidden border border-gray-200 bg-gray-100'>
         <div ref={mapEl} className='absolute inset-0' />
-
-        {mapError && (
-          <div className='absolute inset-0 z-[600] flex items-center justify-center bg-gray-100 p-6 text-center text-sm text-gray-600'>
-            {mapError} You can still fill the form manually.
-          </div>
-        )}
 
         {/* Center pin */}
         <div className='pointer-events-none absolute left-1/2 top-1/2 z-[500] h-0 w-0'>
@@ -333,26 +333,21 @@ const MapPicker = ({ initialQuery, onLocationChange }) => {
 
           {results.length > 0 && (
             <ul className='mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white text-sm shadow-lg'>
-              {results.map((s) => {
-                const p = s.placePrediction;
-                return (
-                  <li key={p.placeId}>
-                    <button
-                      type='button'
-                      onClick={() => pickResult(s)}
-                      className='flex w-full items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-gray-50'
-                    >
-                      <FiMapPin className='mt-0.5 shrink-0 text-gray-400' />
-                      <span className='min-w-0'>
-                        <span className='block truncate text-gray-800'>{p.mainText?.text || p.text?.text}</span>
-                        {p.secondaryText?.text && (
-                          <span className='block truncate text-xs text-gray-500'>{p.secondaryText.text}</span>
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
+              {results.map((r) => (
+                <li key={r.id}>
+                  <button
+                    type='button'
+                    onClick={() => pickResult(r)}
+                    className='flex w-full items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-gray-50'
+                  >
+                    <FiMapPin className='mt-0.5 shrink-0 text-gray-400' />
+                    <span className='min-w-0'>
+                      <span className='block truncate text-gray-800'>{r.main}</span>
+                      {r.sub && <span className='block truncate text-xs text-gray-500'>{r.sub}</span>}
+                    </span>
+                  </button>
+                </li>
+              ))}
             </ul>
           )}
         </div>
@@ -361,11 +356,18 @@ const MapPicker = ({ initialQuery, onLocationChange }) => {
         <button
           type='button'
           onClick={() => locate(false)}
-          className='absolute bottom-6 left-3 z-[1000] inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-primary shadow-md transition hover:bg-gray-50'
+          className='absolute bottom-3 left-3 z-[1000] inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-primary shadow-md transition hover:bg-gray-50'
         >
           <FiNavigation /> Use current location
         </button>
       </div>
+
+      {accuracy > 0 && (
+        <p className='mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800'>
+          Your device could only place you within about {accuracy} m. Drag the map to put the pin on your exact
+          spot.
+        </p>
+      )}
 
       <div className='mt-3 flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm'>
         <FiMapPin className='mt-0.5 shrink-0 text-primary' />
@@ -420,6 +422,7 @@ const AddAddress = () => {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [houseFlat, setHouseFlat] = useState('');
 
   const fetchAddresses = async () => {
     try {
@@ -449,6 +452,7 @@ const AddAddress = () => {
 
   const resetForm = () => {
     setAddress(EMPTY_ADDRESS);
+    setHouseFlat('');
     setIsEditing(false);
     setEditingId(null);
   };
@@ -458,6 +462,7 @@ const AddAddress = () => {
     try {
       const payload = {
         ...address,
+        street: [houseFlat.trim(), address.street].filter(Boolean).join(', '),
         zipcode: Number(address.zipcode),
         phone: Number(address.phone),
       };
@@ -586,7 +591,14 @@ const AddAddress = () => {
                 <InputField handleChange={handleChange} address={address} name='lastName' type='text' placeholder='Last Name' />
               </div>
               <InputField handleChange={handleChange} address={address} name='email' type='email' placeholder='Email Address' />
-              <InputField handleChange={handleChange} address={address} name='street' type='text' placeholder='Street / House no. / Area' />
+              <input
+                className='w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20'
+                type='text'
+                placeholder='Flat / House no. / Floor (optional)'
+                value={houseFlat}
+                onChange={(e) => setHouseFlat(e.target.value)}
+              />
+              <InputField handleChange={handleChange} address={address} name='street' type='text' placeholder='Street / Area' />
 
               <div className='grid grid-cols-2 gap-4'>
                 <InputField handleChange={handleChange} address={address} name='city' type='text' placeholder='City' />
