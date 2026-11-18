@@ -9,6 +9,7 @@ import {
   getAllOrders,
   updateOrderStatus,
   cancelOrder,
+  markOrderAsPaid
 } from "../controllers/orderController.js";
 
 const orderRouter = express.Router();
@@ -23,6 +24,7 @@ orderRouter.post("/razorpay/verify", authUser, verifyRazorpayPayment);
 // Orders
 orderRouter.get("/user", authUser, getUserOrders);
 orderRouter.get("/seller", authSeller, getAllOrders);
+orderRouter.put("/seller",authSeller,markOrderAsPaid);
 orderRouter.put("/:orderId/status", authSeller, updateOrderStatus);
 orderRouter.put("/cancel/:id", cancelOrder);
 
