@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import assets, { categories } from "../../assets/assets";
 import { useAppContext } from "../../context/appContext";
 import { toast } from "react-hot-toast";
@@ -12,6 +12,8 @@ const mainCategories = [
 ];
 
 const quantityUnits = ["pc", "pcs", "ML", "L", "g", "Kg"];
+
+const COOLDOWN_SECONDS = 59;
 
 const AddProduct = () => {
   const [files, setFiles] = useState([null]); // New image uploads
@@ -37,45 +39,98 @@ const AddProduct = () => {
 
   // ⏳ Cooldown state
   const [cooldown, setCooldown] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(59);
+  const [timeLeft, setTimeLeft] = useState(COOLDOWN_SECONDS);
 
-  // ✅ Fill data instantly from navigation state if available
-  useEffect(() => {
-    if (productFromState) {
-      fillFormData(productFromState);
-    } else if (editId) {
-      axios.get(`/api/product/add-ad/${editId}`).then(({ data }) => {
-        if (data.success) {
-          fillFormData(data.product);
-        }
-      });
-    }
-  }, [editId, productFromState]);
+  const stopCooldown = () => {
+    setCooldown(false);
+    setTimeLeft(COOLDOWN_SECONDS);
+  };
+
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setCategory("");
+    setMainCategory("");
+    setPrice("");
+    setOfferPrice("");
+    setStock("");
+    setQuantityValue("");
+    setQuantityUnit("");
+    setFiles([null]);
+    setExistingImages([]);
+  };
 
   const fillFormData = (product) => {
-    setName(product.name);
-    setDescription(product.description?.join("\n") || "");
-    setCategory(product.category);
-    setMainCategory(product.mainCategory);
-    setPrice(product.price);
-    setOfferPrice(product.offerPrice);
-    setStock(product.stock);
-    setQuantityValue(product.quantity?.value || "");
+    setName(product.name || "");
+    setDescription(
+      Array.isArray(product.description)
+        ? product.description.join("\n")
+        : product.description || ""
+    );
+    setCategory(product.category || "");
+    setMainCategory(product.mainCategory || "");
+    setPrice(product.price ?? "");
+    setOfferPrice(product.offerPrice ?? "");
+    setStock(product.stock ?? "");
+    setQuantityValue(product.quantity?.value ?? "");
     setQuantityUnit(product.quantity?.unit || "");
     setExistingImages(product.image || []);
+    setFiles([null]);
   };
+
+  // ✅ Edit mode: fill from navigation state, or fetch by id.
+  // ✅ Add mode: clear any leftover data from a previous edit.
+  useEffect(() => {
+    if (!editId) {
+      resetForm();
+      return;
+    }
+
+    if (productFromState && productFromState._id === editId) {
+      fillFormData(productFromState);
+      return;
+    }
+
+    let cancelled = false;
+    axios
+      .get(`/api/product/add-ad/${editId}`)
+      .then(({ data }) => {
+        if (!cancelled && data.success) fillFormData(data.product);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error.response?.data?.message || error.message);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId, productFromState]);
 
   // ⏳ Cooldown effect
   useEffect(() => {
     let timer;
     if (cooldown && timeLeft > 0) {
       timer = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
-    } else if (timeLeft === 0) {
-      setCooldown(false);
-      setTimeLeft(59);
+    } else if (cooldown && timeLeft === 0) {
+      stopCooldown();
     }
     return () => clearTimeout(timer);
   }, [cooldown, timeLeft]);
+
+  // 🖼️ Preview URLs for newly selected files (revoked on change/unmount)
+  const previewUrls = useMemo(
+    () => files.map((file) => (file ? URL.createObjectURL(file) : null)),
+    [files]
+  );
+
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => url && URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
 
   // ✅ Submit Handler
   const onSubmitHandler = async (event) => {
@@ -83,9 +138,18 @@ const AddProduct = () => {
 
     if (cooldown) return; // prevent double submit
 
-    // ⏳ Start cooldown immediately when button is tapped
+    // ✅ Validate BEFORE starting the cooldown
+    const newImageCount = files.filter(Boolean).length;
+    if (existingImages.length + newImageCount === 0) {
+      return toast.error("Add at least one image");
+    }
+    if (Number(offerPrice) > Number(price)) {
+      return toast.error("Offer price can't be higher than the price");
+    }
+
+    // ⏳ Start cooldown only once the form is valid
     setCooldown(true);
-    setTimeLeft(59);
+    setTimeLeft(COOLDOWN_SECONDS);
 
     try {
       const productData = {
@@ -116,49 +180,34 @@ const AddProduct = () => {
 
       const method = editId ? "put" : "post";
 
-      const { data } = await axios[method](url, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      // Axios sets the multipart Content-Type (with boundary) automatically
+      const { data } = await axios[method](url, formData);
 
       if (data.success) {
         toast.success(data.message);
         resetForm();
         navigate("/seller");
       } else {
-        toast.error(data.message || "Update failed");
+        toast.error(data.message || (editId ? "Update failed" : "Add failed"));
+        stopCooldown(); // let the user retry right away
       }
     } catch (error) {
       console.error("❌ Submit error:", error);
       toast.error(error.response?.data?.message || error.message);
+      stopCooldown(); // let the user retry right away
     }
-  };
-
-  const resetForm = () => {
-    setName("");
-    setDescription("");
-    setCategory("");
-    setMainCategory("");
-    setPrice("");
-    setOfferPrice("");
-    setStock("");
-    setQuantityValue("");
-    setQuantityUnit("");
-    setFiles([null]);
-    setExistingImages([]);
   };
 
   const handleFileChange = (index, file) => {
     const updatedFiles = [...files];
-    updatedFiles[index] = file;
+    updatedFiles[index] = file || null;
     setFiles(updatedFiles);
   };
 
   const handleAddMore = () => setFiles((prev) => [...prev, null]);
 
   const handleRemoveExistingImage = (index) => {
-    const updated = [...existingImages];
-    updated.splice(index, 1);
-    setExistingImages(updated);
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -177,7 +226,7 @@ const AddProduct = () => {
             <p className="text-base font-medium mb-2">Existing Images</p>
             <div className="flex flex-wrap gap-3">
               {existingImages.map((img, idx) => (
-                <div key={idx} className="relative">
+                <div key={`${img}-${idx}`} className="relative">
                   <img
                     src={img}
                     alt="product"
@@ -198,7 +247,9 @@ const AddProduct = () => {
 
         {/* Upload New Images */}
         <div>
-          <p className="text-base font-medium">Upload New Images</p>
+          <p className="text-base font-medium">
+            {editId ? "Upload New Images" : "Upload Images"}
+          </p>
           <div className="flex flex-wrap items-center gap-3 mt-2">
             {files.map((file, index) => (
               <label key={index} htmlFor={`image${index}`}>
@@ -206,11 +257,12 @@ const AddProduct = () => {
                   onChange={(e) => handleFileChange(index, e.target.files[0])}
                   type="file"
                   id={`image${index}`}
+                  accept="image/*"
                   hidden
                 />
                 <img
                   className="max-w-24 cursor-pointer border border-gray-300 rounded-md"
-                  src={file ? URL.createObjectURL(file) : assets.upload_area}
+                  src={previewUrls[index] || assets.upload_area}
                   alt="upload"
                 />
               </label>
@@ -255,7 +307,7 @@ const AddProduct = () => {
             id="product-description"
             rows={4}
             className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40 resize-none"
-            placeholder="Type here"
+            placeholder="Type here (one point per line)"
           ></textarea>
         </div>
 
@@ -312,6 +364,7 @@ const AddProduct = () => {
               value={quantityValue}
               id="quantity-value"
               type="number"
+              min="0"
               placeholder="0"
               className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
               required
@@ -349,6 +402,7 @@ const AddProduct = () => {
               value={price}
               id="product-price"
               type="number"
+              min="0"
               placeholder="0"
               className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
               required
@@ -363,6 +417,7 @@ const AddProduct = () => {
               value={offerPrice}
               id="offer-price"
               type="number"
+              min="0"
               placeholder="0"
               className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
               required
@@ -377,6 +432,7 @@ const AddProduct = () => {
               value={stock}
               id="stock"
               type="number"
+              min="0"
               placeholder="0"
               className="outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500/40"
               required
@@ -394,11 +450,7 @@ const AddProduct = () => {
               : "bg-primary text-white"
           }`}
         >
-          {cooldown
-            ? `Wait ${timeLeft}s`
-            : editId
-            ? "UPDATE"
-            : "ADD"}
+          {cooldown ? `Wait ${timeLeft}s` : editId ? "UPDATE" : "ADD"}
         </button>
       </form>
     </div>
