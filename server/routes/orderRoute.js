@@ -24,7 +24,7 @@ orderRouter.post("/razorpay/verify", authUser, verifyRazorpayPayment);
 // Orders
 orderRouter.get("/user", authUser, getUserOrders);
 orderRouter.get("/seller", authSeller, getAllOrders);
-orderRouter.put("/:orderId/mark-paid", authSeller, markOrderAsPaid);
+orderRouter.patch("/:orderId/mark-paid", authSeller, markOrderAsPaid);
 orderRouter.put("/:orderId/status", authSeller, updateOrderStatus);
 orderRouter.put("/cancel/:id", cancelOrder);
 
