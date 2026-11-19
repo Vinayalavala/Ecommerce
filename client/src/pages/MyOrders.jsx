@@ -8,12 +8,11 @@ import {
   FaTimes,
   FaBoxOpen,
   FaClock,
-  FaCog,
   FaTruck,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaChevronDown,
-  FaRegCalendarAlt,
+  FaCheck,
+  FaCopy,
+  FaChevronRight,
+  FaReceipt,
 } from 'react-icons/fa';
 
 /* -------------------------------------------------------------------------- */
@@ -22,100 +21,113 @@ import {
 
 const CANCEL_WINDOW_MS = 5 * 60 * 1000;
 
-const STATUS_STEPS = ['Order Placed', 'Processing', 'Shipped', 'Delivered'];
+const FILTERS = ['All', 'Order Placed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const STEPS = ['Order Placed', 'Processing', 'Shipped', 'Delivered'];
 
-const STATUS_STYLES = {
-  'Order Placed': { icon: FaClock, badge: 'bg-amber-50 text-amber-700 ring-amber-200' },
-  Processing: { icon: FaCog, badge: 'bg-blue-50 text-blue-700 ring-blue-200' },
-  Shipped: { icon: FaTruck, badge: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
-  Delivered: { icon: FaCheckCircle, badge: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  Cancelled: { icon: FaTimesCircle, badge: 'bg-red-50 text-red-700 ring-red-200' },
+// Title / subtitle / tone for every status (Zepto-style plain-language states)
+const STATUS_META = {
+  'Order Placed': {
+    title: 'Order placed',
+    sub: "We've received your order",
+    tone: 'active',
+    icon: FaClock,
+  },
+  Processing: {
+    title: 'Packing your order',
+    sub: 'Your items are being packed',
+    tone: 'active',
+    icon: FaBoxOpen,
+  },
+  Shipped: {
+    title: 'On the way',
+    sub: 'Your order is out for delivery',
+    tone: 'active',
+    icon: FaTruck,
+  },
+  Delivered: {
+    title: 'Order delivered',
+    sub: 'Hope you loved it!',
+    tone: 'success',
+    icon: FaCheck,
+  },
+  Cancelled: {
+    title: 'Order cancelled',
+    sub: 'This order was cancelled',
+    tone: 'danger',
+    icon: FaTimes,
+  },
 };
 
-const isSameDay = (d1, d2) =>
-  d1.getDate() === d2.getDate() &&
-  d1.getMonth() === d2.getMonth() &&
-  d1.getFullYear() === d2.getFullYear();
+const TONES = {
+  active: { dot: 'bg-primary text-white', banner: 'bg-primary/10 text-primary' },
+  success: { dot: 'bg-emerald-500 text-white', banner: 'bg-emerald-50 text-emerald-700' },
+  danger: { dot: 'bg-red-500 text-white', banner: 'bg-red-50 text-red-600' },
+};
 
-const getDateLabel = (dateString) => {
-  const orderDate = new Date(dateString);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
+const getMeta = (status) =>
+  STATUS_META[status] || {
+    title: status || 'Order',
+    sub: '',
+    tone: 'active',
+    icon: FaClock,
+  };
 
-  if (isSameDay(orderDate, today)) return 'Today';
-  if (isSameDay(orderDate, yesterday)) return 'Yesterday';
-
-  return orderDate.toLocaleDateString(undefined, {
+const formatDateTime = (d) =>
+  new Date(d).toLocaleString(undefined, {
     day: 'numeric',
     month: 'short',
-    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
+
+const formatCountdown = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+const itemsSummary = (items = []) => {
+  const names = items.map((i) => i.product?.name || 'Item');
+  if (names.length <= 2) return names.join(', ');
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2} more`;
 };
-
-const formatCountdown = (seconds) =>
-  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-
-const shortId = (id = '') => `#${String(id).slice(-8).toUpperCase()}`;
 
 /* -------------------------------------------------------------------------- */
 /*                              Small components                              */
 /* -------------------------------------------------------------------------- */
 
-const StatusBadge = ({ status }) => {
-  const cfg = STATUS_STYLES[status] || {
-    icon: FaClock,
-    badge: 'bg-gray-50 text-gray-600 ring-gray-200',
-  };
-  const Icon = cfg.icon;
+const StatusDot = ({ status, size = 'h-9 w-9' }) => {
+  const meta = getMeta(status);
+  const Icon = meta.icon;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${cfg.badge}`}
+      className={`flex ${size} shrink-0 items-center justify-center rounded-full text-sm ${
+        TONES[meta.tone].dot
+      }`}
     >
-      <Icon className='text-[11px]' />
-      {status || 'N/A'}
+      <Icon />
     </span>
   );
 };
 
-const ProgressTracker = ({ status }) => {
-  if (status === 'Cancelled') return null;
-  const current = Math.max(STATUS_STEPS.indexOf(status), 0);
-
+const Thumbs = ({ items = [] }) => {
+  const visible = items.slice(0, 4);
+  const extra = items.length - visible.length;
   return (
-    <div className='px-5 pt-4 pb-2'>
-      <div className='flex items-center'>
-        {STATUS_STEPS.map((step, i) => {
-          const done = i <= current;
-          return (
-            <React.Fragment key={step}>
-              <div className='flex flex-col items-center min-w-0'>
-                <div
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-colors ${
-                    done ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'
-                  }`}
-                >
-                  {done ? '✓' : i + 1}
-                </div>
-                <span
-                  className={`mt-1.5 hidden text-[11px] sm:block ${
-                    done ? 'font-medium text-gray-800' : 'text-gray-400'
-                  }`}
-                >
-                  {step}
-                </span>
-              </div>
-              {i < STATUS_STEPS.length - 1 && (
-                <div
-                  className={`mx-2 h-0.5 flex-1 rounded-full transition-colors sm:-mt-5 ${
-                    i < current ? 'bg-primary' : 'bg-gray-200'
-                  }`}
-                />
-              )}
-            </React.Fragment>
-          );
-        })}
-      </div>
+    <div className='flex items-center gap-2'>
+      {visible.map((item, i) => (
+        <div
+          key={i}
+          className='h-12 w-12 overflow-hidden rounded-xl border border-gray-100 bg-gray-50'
+        >
+          <img
+            src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
+            alt={item.product?.name || 'Product'}
+            className='h-full w-full object-cover'
+          />
+        </div>
+      ))}
+      {extra > 0 && (
+        <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-xs font-semibold text-gray-500'>
+          +{extra}
+        </div>
+      )}
     </div>
   );
 };
@@ -126,7 +138,7 @@ const StarRating = ({ value, canRate, onRate, onBlocked }) => {
   const shown = hover || value || 0;
 
   return (
-    <div className='mt-2 flex items-center gap-1'>
+    <div className='mt-1.5 flex items-center gap-0.5'>
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
@@ -141,39 +153,75 @@ const StarRating = ({ value, canRate, onRate, onBlocked }) => {
           }`}
         >
           <FaStar
-            className={`text-base transition-colors ${
+            className={`text-sm transition-colors ${
               n <= shown ? 'text-amber-400' : 'text-gray-300'
             }`}
           />
         </button>
       ))}
-      {locked ? (
-        <span className='ml-2 text-xs text-gray-500'>You rated {value}/5</span>
-      ) : (
-        <span className='ml-2 text-xs text-gray-400'>
-          {canRate ? 'Rate this product' : 'Available after delivery'}
-        </span>
-      )}
+      <span className='ml-1.5 text-[11px] text-gray-400'>
+        {locked ? `You rated ${value}/5` : canRate ? 'Rate item' : 'Rate after delivery'}
+      </span>
     </div>
   );
 };
 
-const OrderSkeleton = () => (
-  <div className='mb-5 animate-pulse rounded-2xl border border-gray-200 bg-white p-5'>
-    <div className='mb-5 flex justify-between'>
-      <div className='h-4 w-32 rounded bg-gray-200' />
-      <div className='h-6 w-24 rounded-full bg-gray-200' />
-    </div>
-    <div className='flex gap-4'>
-      <div className='h-20 w-20 rounded-xl bg-gray-200' />
-      <div className='flex-1 space-y-3'>
-        <div className='h-4 w-1/2 rounded bg-gray-200' />
-        <div className='h-3 w-1/3 rounded bg-gray-200' />
-        <div className='h-3 w-1/4 rounded bg-gray-200' />
+const Skeleton = () => (
+  <div className='mb-3 animate-pulse rounded-2xl bg-white p-4 shadow-sm'>
+    <div className='flex items-center gap-3'>
+      <div className='h-9 w-9 rounded-full bg-gray-200' />
+      <div className='flex-1 space-y-2'>
+        <div className='h-3.5 w-1/3 rounded bg-gray-200' />
+        <div className='h-3 w-1/2 rounded bg-gray-200' />
       </div>
+      <div className='h-4 w-14 rounded bg-gray-200' />
+    </div>
+    <div className='mt-4 flex gap-2'>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className='h-12 w-12 rounded-xl bg-gray-200' />
+      ))}
     </div>
   </div>
 );
+
+const ProgressSteps = ({ status }) => {
+  if (status === 'Cancelled') return null;
+  const current = Math.max(STEPS.indexOf(status), 0);
+  return (
+    <div className='flex items-start px-1 pt-1'>
+      {STEPS.map((step, i) => {
+        const done = i <= current;
+        return (
+          <React.Fragment key={step}>
+            <div className='flex w-14 flex-col items-center text-center'>
+              <span
+                className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
+                  done ? 'bg-primary text-white' : 'bg-gray-200 text-gray-400'
+                }`}
+              >
+                {done ? <FaCheck /> : i + 1}
+              </span>
+              <span
+                className={`mt-1 text-[10px] leading-tight ${
+                  done ? 'font-semibold text-gray-800' : 'text-gray-400'
+                }`}
+              >
+                {step}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <span
+                className={`mt-2.5 h-0.5 flex-1 rounded-full ${
+                  i < current ? 'bg-primary' : 'bg-gray-200'
+                }`}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
 
 /* -------------------------------------------------------------------------- */
 /*                                  Component                                 */
@@ -183,12 +231,11 @@ const MyOrders = () => {
   const [myOrders, setMyOrders] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [sortOption, setSortOption] = useState('date_desc');
   const [ratings, setRatings] = useState({});
   const [remainingTimes, setRemainingTimes] = useState({});
   const [loading, setLoading] = useState(false);
-  const [confirmCancelId, setConfirmCancelId] = useState(null);
-  const [collapsed, setCollapsed] = useState({});
+  const [selectedId, setSelectedId] = useState(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const { currency, axios, user } = useAppContext();
   const navigate = useNavigate();
@@ -215,11 +262,11 @@ const MyOrders = () => {
     if (!user || !user._id) return;
     try {
       const res = await axios.get(`/api/review?userId=${user._id}`);
-      const fetchedRatings = {};
+      const fetched = {};
       res.data.forEach((review) => {
-        fetchedRatings[`${review.orderId}_${review.productId}`] = review.rating;
+        fetched[`${review.orderId}_${review.productId}`] = review.rating;
       });
-      setRatings(fetchedRatings);
+      setRatings(fetched);
     } catch (error) {
       console.error('Error fetching reviews:', error);
     }
@@ -236,12 +283,10 @@ const MyOrders = () => {
   /* ------------------------- Cancel countdown timer ------------------------ */
 
   useEffect(() => {
-    const hasCancellable = myOrders.some((o) => o.status === 'Order Placed');
-    if (!hasCancellable) {
+    if (!myOrders.some((o) => o.status === 'Order Placed')) {
       setRemainingTimes({});
       return;
     }
-
     const tick = () => {
       const now = Date.now();
       const times = {};
@@ -252,11 +297,34 @@ const MyOrders = () => {
       });
       setRemainingTimes(times);
     };
-
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [myOrders]);
+
+  /* --------------------------- Details sheet helpers ----------------------- */
+
+  const selectedOrder = useMemo(
+    () => myOrders.find((o) => o._id === selectedId) || null,
+    [myOrders, selectedId]
+  );
+
+  const closeSheet = () => {
+    setSelectedId(null);
+    setConfirmCancel(false);
+  };
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => e.key === 'Escape' && closeSheet();
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selectedOrder]);
 
   /* -------------------------------- Actions -------------------------------- */
 
@@ -280,7 +348,7 @@ const MyOrders = () => {
       const { data } = await axios.put(`/api/order/cancel/${orderId}`);
       if (data.success) {
         toast.success('Order cancelled.');
-        setConfirmCancelId(null);
+        setConfirmCancel(false);
         fetchMyOrders();
       } else {
         toast.error(data.message || 'Failed to cancel.');
@@ -290,163 +358,138 @@ const MyOrders = () => {
     }
   };
 
-  const clearFilters = () => {
-    setSearch('');
-    setStatusFilter('All');
-    setSortOption('date_desc');
+  const copyOrderId = async (id) => {
+    try {
+      await navigator.clipboard.writeText(String(id));
+      toast.success('Order ID copied');
+    } catch {
+      toast.error('Could not copy');
+    }
   };
 
-  /* --------------------------- Filter, group, sort -------------------------- */
+  /* -------------------------------- Filtering ------------------------------ */
 
   const filteredOrders = useMemo(() => {
     let updated = [...myOrders];
-
     if (statusFilter !== 'All') {
-      updated = updated.filter((order) => order.status === statusFilter);
+      updated = updated.filter((o) => o.status === statusFilter);
     }
     if (search.trim() !== '') {
       const q = search.toLowerCase();
-      updated = updated.filter((order) =>
-        (order.items || []).some((item) => item.product?.name?.toLowerCase().includes(q))
+      updated = updated.filter((o) =>
+        (o.items || []).some((i) => i.product?.name?.toLowerCase().includes(q))
       );
     }
-
     updated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return updated;
   }, [myOrders, search, statusFilter]);
 
-  const groupedArray = useMemo(() => {
-    const grouped = filteredOrders.reduce((acc, order) => {
-      const label = getDateLabel(order.createdAt);
-      if (!acc[label]) acc[label] = [];
-      acc[label].push(order);
-      return acc;
-    }, {});
+  const filtersActive = search.trim() !== '' || statusFilter !== 'All';
 
-    const arr = Object.entries(grouped).map(([label, orders]) => ({
-      label,
-      orders,
-      count: orders.length,
-      latestDate: orders.map((o) => new Date(o.createdAt)).sort((a, b) => b - a)[0],
-      totalAmount: orders
-        .filter((o) => o.status !== 'Cancelled')
-        .reduce((sum, o) => sum + o.amount, 0),
-    }));
+  /* ------------------------------ Bill details ----------------------------- */
 
-    if (sortOption === 'date_desc') arr.sort((a, b) => b.latestDate - a.latestDate);
-    if (sortOption === 'date_asc') arr.sort((a, b) => a.latestDate - b.latestDate);
-    if (sortOption === 'count_desc') arr.sort((a, b) => b.count - a.count);
-    if (sortOption === 'count_asc') arr.sort((a, b) => a.count - b.count);
-    return arr;
-  }, [filteredOrders, sortOption]);
-
-  const filtersActive = search.trim() !== '' || statusFilter !== 'All' || sortOption !== 'date_desc';
+  const bill = useMemo(() => {
+    if (!selectedOrder) return null;
+    const itemsTotal = (selectedOrder.items || []).reduce(
+      (sum, i) => sum + (i.product?.offerPrice || 0) * i.quantity,
+      0
+    );
+    const diff = Number((selectedOrder.amount - itemsTotal).toFixed(2));
+    return { itemsTotal, diff };
+  }, [selectedOrder]);
 
   /* --------------------------------- Render -------------------------------- */
 
   return (
-    <div className='mt-30 mx-auto max-w-5xl px-4 pb-20'>
+    <div className='mt-30 mx-auto min-h-[60vh] max-w-2xl px-4 pb-20'>
       {/* Header */}
-      <div className='mb-8 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between'>
-        <div>
-          <p className='text-2xl font-semibold uppercase tracking-wide'>
-            My <span className='text-primary'>Orders</span>
-          </p>
-          <div className='mt-1 h-0.5 w-16 rounded-full bg-primary' />
-        </div>
-        {!loading && (
-          <p className='text-sm text-gray-500'>
-            {filteredOrders.length} order{filteredOrders.length !== 1 && 's'}
-            {filtersActive && ` of ${myOrders.length}`}
+      <div className='mb-5'>
+        <h1 className='text-xl font-bold text-gray-900'>My Orders</h1>
+        {!loading && myOrders.length > 0 && (
+          <p className='text-xs text-gray-500'>
+            {myOrders.length} order{myOrders.length !== 1 && 's'} in total
           </p>
         )}
       </div>
 
-      {/* Filters */}
-      <div className='sticky top-16 z-10 -mx-4 mb-8 bg-white/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/70'>
-        <div className='flex flex-col gap-3 md:flex-row'>
-          <div className='relative flex-1'>
-            <FaSearch className='pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400' />
-            <input
-              type='text'
-              placeholder='Search by product name...'
-              className='w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20'
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button
-                type='button'
-                aria-label='Clear search'
-                onClick={() => setSearch('')}
-                className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600'
-              >
-                <FaTimes className='text-sm' />
-              </button>
-            )}
-          </div>
-
-          <select
-            className='rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 md:w-48'
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+      {/* Search */}
+      <div className='relative mb-3'>
+        <FaSearch className='pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-400' />
+        <input
+          type='text'
+          placeholder='Search your orders by product'
+          className='w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-10 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20'
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {search && (
+          <button
+            type='button'
+            aria-label='Clear search'
+            onClick={() => setSearch('')}
+            className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600'
           >
-            <option value='All'>All Statuses</option>
-            <option value='Order Placed'>Order Placed</option>
-            <option value='Processing'>Processing</option>
-            <option value='Shipped'>Shipped</option>
-            <option value='Delivered'>Delivered</option>
-            <option value='Cancelled'>Cancelled</option>
-          </select>
-
-          <select
-            className='rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 md:w-52'
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-          >
-            <option value='date_desc'>Newest Date First</option>
-            <option value='date_asc'>Oldest Date First</option>
-            <option value='count_desc'>Most Orders Per Day</option>
-            <option value='count_asc'>Fewest Orders Per Day</option>
-          </select>
-        </div>
+            <FaTimes className='text-sm' />
+          </button>
+        )}
       </div>
 
-      {/* Loading skeleton */}
+      {/* Status chips */}
+      <div className='-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'>
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            type='button'
+            onClick={() => setStatusFilter(f)}
+            className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+              statusFilter === f
+                ? 'border-primary bg-primary text-white'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {/* Loading */}
       {loading && (
-        <div>
-          <OrderSkeleton />
-          <OrderSkeleton />
-          <OrderSkeleton />
-        </div>
+        <>
+          <Skeleton />
+          <Skeleton />
+          <Skeleton />
+        </>
       )}
 
-      {/* Empty state */}
-      {!loading && groupedArray.length === 0 && (
-        <div className='flex flex-col items-center rounded-2xl border border-dashed border-gray-300 py-16 text-center'>
-          <div className='mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-400'>
+      {/* Empty */}
+      {!loading && filteredOrders.length === 0 && (
+        <div className='flex flex-col items-center rounded-3xl bg-white py-16 text-center shadow-sm'>
+          <div className='mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-3xl text-primary'>
             <FaBoxOpen />
           </div>
-          <p className='text-base font-semibold text-gray-800'>
-            {myOrders.length === 0 ? 'No orders yet' : 'No orders match your filters'}
+          <p className='text-base font-bold text-gray-900'>
+            {myOrders.length === 0 ? 'No orders yet' : 'No orders found'}
           </p>
           <p className='mt-1 max-w-xs text-sm text-gray-500'>
             {myOrders.length === 0
-              ? 'When you place an order, it will show up here.'
-              : 'Try a different search term or clear your filters.'}
+              ? 'Your orders will show up here once you place one.'
+              : 'Try a different search or filter.'}
           </p>
           {myOrders.length === 0 ? (
             <button
               onClick={() => navigate('/products')}
-              className='mt-5 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white transition hover:opacity-90'
+              className='mt-5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90'
             >
               Start shopping
             </button>
           ) : (
             filtersActive && (
               <button
-                onClick={clearFilters}
-                className='mt-5 rounded-lg border border-primary px-5 py-2 text-sm font-medium text-primary transition hover:bg-primary/5'
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('All');
+                }}
+                className='mt-5 rounded-xl border border-primary px-6 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/5'
               >
                 Clear filters
               </button>
@@ -455,194 +498,263 @@ const MyOrders = () => {
         </div>
       )}
 
-      {/* Order groups */}
+      {/* Order list */}
       {!loading &&
-        groupedArray.map((group) => (
-          <section key={group.label} className='mb-10'>
-            <div className='mb-4 flex flex-wrap items-center gap-x-3 gap-y-1'>
-              <FaRegCalendarAlt className='text-gray-400' />
-              <h3 className='text-base font-semibold text-gray-800'>{group.label}</h3>
-              <span className='rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600'>
-                {group.count} order{group.count > 1 ? 's' : ''}
-              </span>
-              <span className='ml-auto rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary'>
-                Total: {currency} {group.totalAmount.toFixed(2)}
-              </span>
+        filteredOrders.map((order) => {
+          const meta = getMeta(order.status);
+          const secondsLeft = remainingTimes[order._id];
+          const canCancel = order.status === 'Order Placed' && secondsLeft > 0;
+
+          return (
+            <button
+              key={order._id}
+              type='button'
+              onClick={() => setSelectedId(order._id)}
+              className='mb-3 block w-full rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition hover:shadow-md active:scale-[0.99]'
+            >
+              <div className='flex items-start gap-3'>
+                <StatusDot status={order.status} />
+                <div className='min-w-0 flex-1'>
+                  <p className='text-sm font-bold text-gray-900'>{meta.title}</p>
+                  <p className='text-xs text-gray-500'>
+                    Placed at {formatDateTime(order.createdAt)}
+                  </p>
+                </div>
+                <div className='text-right'>
+                  <p className='text-sm font-bold text-gray-900'>
+                    {currency} {order.amount.toFixed(2)}
+                  </p>
+                  <p className='text-[11px] text-gray-400'>{order.paymentType || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className='mt-4 flex items-center justify-between gap-3'>
+                <Thumbs items={order.items} />
+                <FaChevronRight className='shrink-0 text-xs text-gray-300' />
+              </div>
+
+              <div className='mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-gray-200 pt-3'>
+                <p className='min-w-0 truncate text-xs text-gray-500'>
+                  {itemsSummary(order.items)}
+                </p>
+                {canCancel ? (
+                  <span className='flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600'>
+                    <FaClock className='text-[10px]' />
+                    Cancel in <span className='tabular-nums'>{formatCountdown(secondsLeft)}</span>
+                  </span>
+                ) : (
+                  <span className='text-xs font-semibold text-primary'>View details</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+
+      {/* ------------------------- Order details sheet ------------------------ */}
+      {selectedOrder && bill && (
+        <div className='fixed inset-0 z-50 flex items-end justify-center sm:items-center'>
+          <div className='absolute inset-0 bg-black/50' onClick={closeSheet} />
+
+          <div className='relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-gray-50 shadow-2xl sm:max-w-lg sm:rounded-3xl'>
+            {/* Sheet header */}
+            <div className='flex items-center justify-between bg-white px-5 py-4 shadow-sm'>
+              <div>
+                <p className='text-base font-bold text-gray-900'>Order summary</p>
+                <p className='text-xs text-gray-500'>
+                  {(selectedOrder.items || []).length} item
+                  {(selectedOrder.items || []).length !== 1 && 's'} ·{' '}
+                  {formatDateTime(selectedOrder.createdAt)}
+                </p>
+              </div>
+              <button
+                type='button'
+                aria-label='Close'
+                onClick={closeSheet}
+                className='rounded-full bg-gray-100 p-2.5 text-gray-600 transition hover:bg-gray-200'
+              >
+                <FaTimes className='text-sm' />
+              </button>
             </div>
 
-            {group.orders.map((order) => {
-              const isOpen = !collapsed[order._id];
-              const secondsLeft = remainingTimes[order._id];
-              const canCancel = order.status === 'Order Placed' && secondsLeft > 0;
-              const isDelivered = order.status === 'Delivered';
-
-              return (
-                <article
-                  key={order._id}
-                  className='mb-5 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md'
-                >
-                  {/* Order header */}
-                  <header className='flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-3.5'>
-                    <div className='flex flex-wrap items-center gap-x-6 gap-y-2 text-xs'>
+            <div className='flex-1 space-y-3 overflow-y-auto p-4'>
+              {/* Status banner */}
+              {(() => {
+                const meta = getMeta(selectedOrder.status);
+                return (
+                  <div className={`rounded-2xl p-4 ${TONES[meta.tone].banner}`}>
+                    <div className='flex items-center gap-3'>
+                      <StatusDot status={selectedOrder.status} />
                       <div>
-                        <p className='text-gray-400'>Order ID</p>
-                        <p className='font-semibold text-gray-800' title={order._id}>
-                          {shortId(order._id)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className='text-gray-400'>Placed on</p>
-                        <p className='font-medium text-gray-700'>
-                          {new Date(order.createdAt).toLocaleString(undefined, {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      </div>
-                      <div>
-                        <p className='text-gray-400'>Payment</p>
-                        <p className='font-medium text-gray-700'>{order.paymentType || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className='text-gray-400'>Total</p>
-                        <p className='font-semibold text-gray-900'>
-                          {currency} {order.amount.toFixed(2)}
-                        </p>
+                        <p className='text-sm font-bold'>{meta.title}</p>
+                        <p className='text-xs opacity-80'>{meta.sub}</p>
                       </div>
                     </div>
+                    {selectedOrder.status !== 'Cancelled' && (
+                      <div className='mt-4 rounded-xl bg-white/70 p-3 text-gray-700'>
+                        <ProgressSteps status={selectedOrder.status} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
-                    <div className='flex items-center gap-3'>
-                      <StatusBadge status={order.status} />
+              {/* Items */}
+              <div className='rounded-2xl bg-white p-4 shadow-sm'>
+                <p className='mb-1 text-sm font-bold text-gray-900'>Items in this order</p>
+                <div className='divide-y divide-gray-100'>
+                  {(selectedOrder.items || []).map((item, idx) => {
+                    const productId = item.product?._id;
+                    const rating = ratings[`${selectedOrder._id}_${productId}`];
+                    const unit = item.product?.offerPrice || 0;
+
+                    return (
+                      <div key={idx} className='flex gap-3 py-3'>
+                        <button
+                          type='button'
+                          onClick={() =>
+                            productId
+                              ? navigate(`/product/${productId}`)
+                              : toast.error('Product not found.')
+                          }
+                          className='h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50'
+                        >
+                          <img
+                            src={item.product?.image?.[0] || 'https://via.placeholder.com/64'}
+                            alt={item.product?.name || 'Product'}
+                            className='h-full w-full object-cover'
+                          />
+                        </button>
+
+                        <div className='min-w-0 flex-1'>
+                          <p className='truncate text-sm font-semibold text-gray-900'>
+                            {item.product?.name || 'Unnamed Product'}
+                          </p>
+                          <p className='text-xs text-gray-500'>
+                            {item.product?.category || 'N/A'} · {item.quantity} × {currency}{' '}
+                            {unit.toFixed(2)}
+                          </p>
+                          <StarRating
+                            value={rating}
+                            canRate={selectedOrder.status === 'Delivered'}
+                            onRate={(n) => handleRatingChange(productId, selectedOrder._id, n)}
+                            onBlocked={() => toast.error('You can only review after delivery.')}
+                          />
+                        </div>
+
+                        <p className='text-sm font-bold text-gray-900'>
+                          {currency} {(unit * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bill details */}
+              <div className='rounded-2xl bg-white p-4 shadow-sm'>
+                <p className='mb-3 flex items-center gap-2 text-sm font-bold text-gray-900'>
+                  <FaReceipt className='text-gray-400' /> Bill details
+                </p>
+                <div className='space-y-2 text-sm text-gray-600'>
+                  <div className='flex justify-between'>
+                    <span>Item total</span>
+                    <span>
+                      {currency} {bill.itemsTotal.toFixed(2)}
+                    </span>
+                  </div>
+                  {Math.abs(bill.diff) >= 0.01 && (
+                    <div className='flex justify-between'>
+                      <span>{bill.diff > 0 ? 'Taxes & other charges' : 'Discount'}</span>
+                      <span className={bill.diff < 0 ? 'text-emerald-600' : ''}>
+                        {bill.diff < 0 ? '-' : ''}
+                        {currency} {Math.abs(bill.diff).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  <div className='flex justify-between border-t border-dashed border-gray-200 pt-3 text-base font-bold text-gray-900'>
+                    <span>Bill total</span>
+                    <span>
+                      {currency} {selectedOrder.amount.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order details */}
+              <div className='rounded-2xl bg-white p-4 shadow-sm'>
+                <p className='mb-3 text-sm font-bold text-gray-900'>Order details</p>
+                <div className='space-y-3 text-xs'>
+                  <div>
+                    <p className='text-gray-400'>Order ID</p>
+                    <div className='mt-0.5 flex items-center gap-2'>
+                      <p className='break-all font-medium text-gray-800'>{selectedOrder._id}</p>
                       <button
                         type='button'
-                        aria-label={isOpen ? 'Collapse order' : 'Expand order'}
-                        onClick={() => setCollapsed((p) => ({ ...p, [order._id]: isOpen }))}
-                        className='rounded-full p-1.5 text-gray-500 transition hover:bg-gray-200'
+                        aria-label='Copy order ID'
+                        onClick={() => copyOrderId(selectedOrder._id)}
+                        className='shrink-0 rounded-md p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-primary'
                       >
-                        <FaChevronDown
-                          className={`text-xs transition-transform duration-200 ${
-                            isOpen ? 'rotate-180' : ''
-                          }`}
-                        />
+                        <FaCopy />
                       </button>
                     </div>
-                  </header>
+                  </div>
+                  <div>
+                    <p className='text-gray-400'>Payment</p>
+                    <p className='mt-0.5 font-medium text-gray-800'>
+                      {selectedOrder.paymentType || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className='text-gray-400'>Order placed</p>
+                    <p className='mt-0.5 font-medium text-gray-800'>
+                      {new Date(selectedOrder.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                  {isOpen && (
-                    <>
-                      <ProgressTracker status={order.status} />
-
-                      {/* Items */}
-                      <div className='divide-y divide-gray-100 px-5'>
-                        {(order.items || []).map((item, idx) => {
-                          const productId = item.product?._id;
-                          const reviewKey = `${order._id}_${productId}`;
-                          const rating = ratings[reviewKey];
-                          const lineTotal = (item.product?.offerPrice || 0) * item.quantity;
-
-                          return (
-                            <div
-                              key={idx}
-                              className='grid grid-cols-[auto_1fr_auto] items-start gap-4 py-5'
-                            >
-                              <button
-                                type='button'
-                                className='group relative flex flex-col items-center'
-                                onClick={() =>
-                                  productId
-                                    ? navigate(`/product/${productId}`)
-                                    : toast.error('Product not found.')
-                                }
-                              >
-                                <img
-                                  src={item.product?.image?.[0] || 'https://via.placeholder.com/80'}
-                                  alt={item.product?.name || 'Product'}
-                                  className='h-16 w-16 rounded-xl border border-gray-100 object-cover transition-transform duration-200 group-hover:scale-105 sm:h-20 sm:w-20'
-                                />
-                                <span className='mt-1 text-[11px] font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100'>
-                                  View details
-                                </span>
-                              </button>
-
-                              <div className='min-w-0 space-y-1 text-sm'>
-                                <h2 className='truncate font-semibold text-gray-900'>
-                                  {item.product?.name || 'Unnamed Product'}
-                                </h2>
-                                <div className='flex flex-wrap items-center gap-2 text-xs text-gray-500'>
-                                  <span className='rounded-md bg-gray-100 px-2 py-0.5'>
-                                    {item.product?.category || 'N/A'}
-                                  </span>
-                                  <span>Qty: {item.quantity}</span>
-                                </div>
-
-                                <StarRating
-                                  value={rating}
-                                  canRate={isDelivered}
-                                  onRate={(n) => handleRatingChange(productId, order._id, n)}
-                                  onBlocked={() =>
-                                    toast.error('You can only review after delivery.')
-                                  }
-                                />
-                              </div>
-
-                              <p className='text-sm font-semibold text-primary sm:text-base'>
-                                {currency} {lineTotal.toFixed(2)}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Cancel footer */}
-                      {order.status === 'Order Placed' && (
-                        <footer className='flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-red-50/40 px-5 py-3'>
-                          {canCancel ? (
-                            <>
-                              <p className='flex items-center gap-2 text-xs font-medium text-red-600'>
-                                <FaClock />
-                                You can cancel for another{' '}
-                                <span className='tabular-nums'>{formatCountdown(secondsLeft)}</span>
-                              </p>
-
-                              {confirmCancelId === order._id ? (
-                                <div className='flex items-center gap-2'>
-                                  <span className='text-xs text-gray-600'>Cancel this order?</span>
-                                  <button
-                                    className='rounded-lg bg-red-500 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-red-600'
-                                    onClick={() => handleCancelOrder(order._id)}
-                                  >
-                                    Yes, cancel
-                                  </button>
-                                  <button
-                                    className='rounded-lg border border-gray-300 bg-white px-3.5 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50'
-                                    onClick={() => setConfirmCancelId(null)}
-                                  >
-                                    Keep order
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  className='rounded-lg border border-red-300 bg-white px-4 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-500 hover:text-white'
-                                  onClick={() => setConfirmCancelId(order._id)}
-                                >
-                                  Cancel Order
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            <p className='text-xs text-gray-500'>Cancellation window has expired.</p>
-                          )}
-                        </footer>
-                      )}
-                    </>
-                  )}
-                </article>
-              );
-            })}
-          </section>
-        ))}
+            {/* Cancel footer */}
+            {selectedOrder.status === 'Order Placed' && (
+              <div className='border-t border-gray-200 bg-white px-5 py-4'>
+                {remainingTimes[selectedOrder._id] > 0 ? (
+                  confirmCancel ? (
+                    <div className='flex items-center gap-2'>
+                      <p className='flex-1 text-xs text-gray-600'>Cancel this order?</p>
+                      <button
+                        className='rounded-xl border border-gray-300 px-4 py-2.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50'
+                        onClick={() => setConfirmCancel(false)}
+                      >
+                        Keep order
+                      </button>
+                      <button
+                        className='rounded-xl bg-red-500 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-red-600'
+                        onClick={() => handleCancelOrder(selectedOrder._id)}
+                      >
+                        Yes, cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className='flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50'
+                      onClick={() => setConfirmCancel(true)}
+                    >
+                      Cancel order
+                      <span className='rounded-full bg-red-100 px-2 py-0.5 text-[11px] tabular-nums'>
+                        {formatCountdown(remainingTimes[selectedOrder._id])}
+                      </span>
+                    </button>
+                  )
+                ) : (
+                  <p className='text-center text-xs text-gray-500'>
+                    Cancellation window has expired.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
