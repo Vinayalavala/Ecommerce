@@ -362,18 +362,19 @@ const ProductDetails = () => {
   };
 
   const handleAddToCart = async () => {
-    if (!productId || action) return;
-    setAction('cart');
-    try {
-      await addToCart(productId);
-      toast.success('Added to cart');
-    } catch (err) {
-      console.error('Add to cart error', err);
-      toast.error("Couldn't add to cart");
-    } finally {
-      if (mounted.current) setAction(null);
-    }
-  };
+  if (!productId || action) return;
+
+  setAction('cart');
+
+  try {
+    await addToCart(productId);
+  } catch (err) {
+    console.error('Add to cart error', err);
+    toast.error("Couldn't add to cart");
+  } finally {
+    if (mounted.current) setAction(null);
+  }
+};
 
   const handleBuyNow = async () => {
     if (!productId || action) return;
