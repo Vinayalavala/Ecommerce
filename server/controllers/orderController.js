@@ -479,8 +479,9 @@ export const getAllOrders = async (req, res) => {
   }
 };
 
+
 /**
- * Manual override: mark order as paid
+ * Admin: Mark order as paid and delivered
  */
 export const markOrderAsPaid = async (req, res) => {
   try {
@@ -502,7 +503,6 @@ export const markOrderAsPaid = async (req, res) => {
       });
     }
 
-    // Prevent duplicate payment updates
     if (order.isPaid) {
       return res.status(400).json({
         success: false,
@@ -510,7 +510,6 @@ export const markOrderAsPaid = async (req, res) => {
       });
     }
 
-    // Prevent marking cancelled orders as paid
     if (order.status === "Cancelled") {
       return res.status(400).json({
         success: false,
@@ -519,17 +518,13 @@ export const markOrderAsPaid = async (req, res) => {
     }
 
     order.isPaid = true;
-
-    // Update status only if it is still pending
-    if (order.status === "Pending") {
-      order.status = "Paid";
-    }
+    order.status = "Delivered";
 
     await order.save();
 
     return res.status(200).json({
       success: true,
-      message: "Order marked as paid successfully.",
+      message: "Order marked as paid and delivered.",
       order,
     });
 
@@ -542,6 +537,7 @@ export const markOrderAsPaid = async (req, res) => {
     });
   }
 };
+
 
 /**
  * Update order status
