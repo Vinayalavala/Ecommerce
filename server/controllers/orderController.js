@@ -485,46 +485,61 @@ export const getAllOrders = async (req, res) => {
 export const markOrderAsPaid = async (req, res) => {
   try {
     const { orderId } = req.params;
+
     if (!orderId) {
-      return res.status(400).json({ success: false, message: "orderId is required in params" });
+      return res.status(400).json({
+        success: false,
+        message: "Order ID is required.",
+      });
     }
 
-    const order = await Order.findById(orderId).populate("items.product").lean();
+    const order = await Order.findById(orderId);
+
     if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      });
     }
 
+    // Prevent duplicate payment updates
     if (order.isPaid) {
-      return res.status(400).json({ success: false, message: "Order is already marked as paid", order });
+      return res.status(400).json({
+        success: false,
+        message: "Order is already marked as paid.",
+      });
     }
 
-    // Conditional update so two concurrent requests can't both succeed
-    const updated = await Order.findOneAndUpdate(
-      { _id: orderId, isPaid: { $ne: true } },
-      {
-        $set: {
-          isPaid: true,
-          status: "Delivered", // update status so front-end that depends on status sees it
-          paymentConfirmedAt: new Date(),
-        },
-      },
-      { new: true }
-    )
-      .populate("items.product")
-      .populate("address");
-
-    if (!updated) {
-      return res.status(400).json({ success: false, message: "Order is already marked as paid" });
+    // Prevent marking cancelled orders as paid
+    if (order.status === "Cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot mark a cancelled order as paid.",
+      });
     }
 
-    return res.json({
+    order.isPaid = true;
+
+    // Update status only if it is still pending
+    if (order.status === "Pending") {
+      order.status = "Paid";
+    }
+
+    await order.save();
+
+    return res.status(200).json({
       success: true,
-      message: "Order marked as paid successfully",
-      order: updated,
+      message: "Order marked as paid successfully.",
+      order,
     });
+
   } catch (error) {
-    console.error("Error marking order as paid:", error);
-    return res.status(500).json({ success: false, message: "Server error" });
+    console.error("markOrderAsPaid error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
   }
 };
 
