@@ -68,7 +68,7 @@ const Cart = () => {
     [cartArray]
   );
 
-  const tax = cartTotal * 0.02;
+  const tax = cartTotal * 0;
   const grandTotal = cartTotal * 1.02;
 
   const getUserAddress = async () => {
