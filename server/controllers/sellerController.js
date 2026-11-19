@@ -38,7 +38,6 @@ export const sellerLogin = async (req, res) => {
         success: true,
         message: "Seller logged in successfully",
         token, // for localStorage
-        seller: { email },
       });
     } else {
       return res.status(401).json({
