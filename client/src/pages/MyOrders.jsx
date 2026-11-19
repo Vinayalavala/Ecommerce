@@ -13,6 +13,9 @@ import {
   FaCopy,
   FaChevronRight,
   FaReceipt,
+  FaMapMarkerAlt,
+  FaUser,
+  FaPhoneAlt,
 } from 'react-icons/fa';
 
 /* -------------------------------------------------------------------------- */
@@ -398,6 +401,25 @@ const MyOrders = () => {
     return { itemsTotal, diff };
   }, [selectedOrder]);
 
+  /* --------------------------- Delivery details ---------------------------- */
+
+  // order.address is expected to be populated (firstName, lastName, street, city,
+  // state, zipcode, country, phone). Everything falls back gracefully if missing.
+  const delivery = useMemo(() => {
+    if (!selectedOrder) return null;
+    const a =
+      selectedOrder.address && typeof selectedOrder.address === 'object'
+        ? selectedOrder.address
+        : {};
+    const name =
+      [a.firstName, a.lastName].filter(Boolean).join(' ') || a.name || user?.name || '';
+    const addressLine = [a.street, a.city, a.state, a.zipcode, a.country]
+      .filter(Boolean)
+      .join(', ');
+    const phone = a.phone || a.phoneNumber || user?.phone || '';
+    return { name, addressLine, phone };
+  }, [selectedOrder, user]);
+
   /* --------------------------------- Render -------------------------------- */
 
   return (
@@ -649,6 +671,57 @@ const MyOrders = () => {
                   })}
                 </div>
               </div>
+
+              {/* Delivery details */}
+              {delivery && (
+                <div className='rounded-2xl bg-white p-4 shadow-sm'>
+                  <p className='mb-3 flex items-center gap-2 text-sm font-bold text-gray-900'>
+                    <FaMapMarkerAlt className='text-gray-400' /> Delivery details
+                  </p>
+                  <div className='space-y-3 text-sm'>
+                    <div className='flex items-start gap-3'>
+                      <span className='mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs text-primary'>
+                        <FaUser />
+                      </span>
+                      <div className='min-w-0'>
+                        <p className='text-xs text-gray-400'>Ordered by</p>
+                        <p className='font-semibold text-gray-900'>{delivery.name || 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    <div className='flex items-start gap-3'>
+                      <span className='mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs text-primary'>
+                        <FaMapMarkerAlt />
+                      </span>
+                      <div className='min-w-0'>
+                        <p className='text-xs text-gray-400'>Delivery address</p>
+                        <p className='font-medium text-gray-800'>
+                          {delivery.addressLine || 'Address not available'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className='flex items-start gap-3'>
+                      <span className='mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs text-primary'>
+                        <FaPhoneAlt />
+                      </span>
+                      <div className='min-w-0'>
+                        <p className='text-xs text-gray-400'>Phone number</p>
+                        {delivery.phone ? (
+                          <a
+                            href={`tel:${delivery.phone}`}
+                            className='font-medium text-gray-800 hover:text-primary'
+                          >
+                            {delivery.phone}
+                          </a>
+                        ) : (
+                          <p className='font-medium text-gray-800'>N/A</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Bill details */}
               <div className='rounded-2xl bg-white p-4 shadow-sm'>
