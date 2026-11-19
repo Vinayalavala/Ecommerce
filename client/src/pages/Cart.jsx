@@ -69,7 +69,7 @@ const Cart = () => {
   );
 
   const tax = cartTotal * 0;
-  const grandTotal = cartTotal * 1.02;
+  const grandTotal = cartTotal ;
 
   const getUserAddress = async () => {
     try {
@@ -538,13 +538,6 @@ const Cart = () => {
               <p className="flex justify-between">
                 <span>Shipping fee</span>
                 <span className="font-medium text-emerald-600">Free</span>
-              </p>
-              <p className="flex justify-between">
-                <span>Tax (2%)</span>
-                <span>
-                  {currency}
-                  {tax.toFixed(2)}
-                </span>
               </p>
             </div>
             <div className="my-3 border-t border-dashed border-gray-300" />
