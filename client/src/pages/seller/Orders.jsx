@@ -125,24 +125,39 @@ const Orders = () => {
     setRatings(map);
   }, [orders]);
 
-  const markOrderAsPaid = async (orderId) => {
-    try {
-      const { data } = await axios.patch(`/api/order/${orderId}/mark-paid`);
-      if (data.success) {
-        toast.success('Order marked as paid.');
-        setOrders((prev) =>
-          prev.map((o) => (o._id === orderId ? { ...o, isPaid: true, status: 'Delivered' } : o))
-        );
+  
+const markOrderAsPaid = async (orderId) => {
+  try {
+    const { data } = await axios.patch(
+      `/api/order/${orderId}/mark-paid`
+    );
 
-        // Also update status to Delivered - note: if this fails, UI already changed.
-        await axios.put(`/api/order/${orderId}/status`, { status: 'Delivered' });
-      } else {
-        toast.error(data.message || 'Failed to mark order as paid.');
-      }
-    } catch (error) {
-      toast.error(error?.response?.data?.message || error.message || 'Failed to update order.');
+    if (data.success) {
+      toast.success("Order marked as paid and delivered.");
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === orderId
+            ? {
+                ...o,
+                isPaid: true,
+                status: "Delivered",
+              }
+            : o
+        )
+      );
+    } else {
+      toast.error(data.message || "Failed to update order.");
     }
-  };
+  } catch (error) {
+    toast.error(
+      error?.response?.data?.message ||
+      error.message ||
+      "Failed to update order."
+    );
+  }
+};
+
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
