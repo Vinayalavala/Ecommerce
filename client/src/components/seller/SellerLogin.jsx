@@ -78,7 +78,7 @@ const SellerLogin = () => {
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 backdrop-blur">
             <FiShoppingBag />
           </span>
-          Seller Hub
+          Alavala's Root and Craft
         </div>
 
         <div className="relative max-w-md">
@@ -214,7 +214,7 @@ const SellerLogin = () => {
           </form>
 
           <p className="mt-6 text-center text-xs text-gray-400 lg:hidden">
-            © {new Date().getFullYear()} Seller Hub
+            © {new Date().getFullYear()} Alavala's Root and Craft
           </p>
         </div>
       </main>
