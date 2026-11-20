@@ -209,6 +209,7 @@ const SellerLogin = () => {
                   <MdLogin size={20} />
                   Login as Seller
                 </>
+              
               )}
             </button>
           </form>
