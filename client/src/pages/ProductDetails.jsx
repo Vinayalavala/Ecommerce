@@ -71,7 +71,7 @@ const PageSkeleton = () => (
   <div className="min-h-screen w-full bg-white pt-28 px-4 sm:px-6 lg:px-16" aria-busy="true">
     <div className="h-4 w-64 bg-gray-100 rounded animate-pulse mb-6" />
     <div className="grid gap-10 lg:grid-cols-2">
-      <div className="aspect-square rounded-2xl bg-gray-100 animate-pulse" />
+      <div className="h-[320px] sm:h-[420px] lg:h-[520px] rounded-2xl bg-gray-100 animate-pulse" />
       <div className="space-y-4">
         <div className="h-8 w-3/4 bg-gray-100 rounded animate-pulse" />
         <div className="h-5 w-32 bg-gray-100 rounded animate-pulse" />
@@ -83,8 +83,10 @@ const PageSkeleton = () => (
 );
 
 /**
- * Gallery: thumbnails + stage with arrows, swipe, keyboard and hover zoom.
+ * Gallery: thumbnails + fixed-size stage with arrows, swipe, keyboard and hover zoom.
  * Thumbnails sit left on desktop and below the stage on mobile.
+ * The stage has a fixed height per breakpoint, so every photo/video fits
+ * inside the same window (object-contain, never stretching the layout).
  */
 const Gallery = ({ media, name, index, onChange, badge }) => {
   const [zoom, setZoom] = useState(null); // { x, y } in percent
@@ -108,9 +110,9 @@ const Gallery = ({ media, name, index, onChange, badge }) => {
   };
 
   return (
-    <div className="flex flex-col-reverse lg:flex-row gap-3">
+    <div className="flex flex-col-reverse lg:flex-row gap-3 w-full min-w-0">
       {count > 1 && (
-        <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:max-h-[520px] no-scrollbar py-1 lg:py-0 lg:pr-1">
+        <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:h-[520px] no-scrollbar py-1 lg:py-0 lg:pr-1">
           {media.map((m, i) => (
             <button
               key={`${m.type}-${m.url}-${i}`}
@@ -157,7 +159,7 @@ const Gallery = ({ media, name, index, onChange, badge }) => {
         }}
         onPointerMove={onPointerMove}
         onPointerLeave={() => setZoom(null)}
-        className={`relative flex-1 aspect-square rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden select-none outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+        className={`relative flex-1 min-w-0 h-[320px] sm:h-[420px] lg:h-[520px] rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden select-none outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
           current?.type === 'image' ? 'cursor-zoom-in' : ''
         }`}
       >
@@ -362,19 +364,19 @@ const ProductDetails = () => {
   };
 
   const handleAddToCart = async () => {
-  if (!productId || action) return;
+    if (!productId || action) return;
 
-  setAction('cart');
+    setAction('cart');
 
-  try {
-    await addToCart(productId);
-  } catch (err) {
-    console.error('Add to cart error', err);
-    toast.error("Couldn't add to cart");
-  } finally {
-    if (mounted.current) setAction(null);
-  }
-};
+    try {
+      await addToCart(productId);
+    } catch (err) {
+      console.error('Add to cart error', err);
+      toast.error("Couldn't add to cart");
+    } finally {
+      if (mounted.current) setAction(null);
+    }
+  };
 
   const handleBuyNow = async () => {
     if (!productId || action) return;
