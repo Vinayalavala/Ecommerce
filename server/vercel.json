@@ -1,5 +1,8 @@
 {
     "version": 2,
+    "headers": [
+    { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+  ],
     "builds": [
         {
             "src": "server.js",
